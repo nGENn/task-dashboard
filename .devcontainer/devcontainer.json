@@ -7,6 +7,24 @@
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
 	"features": {
 		"ghcr.io/jsburckhardt/devcontainer-features/uv:1": {}
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"formulahendry.code-runner",
+				"ms-python.flake8",
+				"lacroixdavid1.vscode-format-context-menu",
+				"codezombiech.gitignore",
+				"oderwat.indent-rainbow",
+				"ms-python.isort",
+				"esbenp.prettier-vscode",
+				"christian-kohler.path-intellisense",
+				"RooVeterinaryInc.roo-cline",
+				"Gruntfuggly.todo-tree",
+				"DavidAnson.vscode-markdownlint",
+				"yzhang.markdown-all-in-one"
+			]
+		}
 	}
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
@@ -17,7 +35,7 @@
 	// "forwardPorts": [5000, 5432],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	// "postCreateCommand": "pip install --user -r requirements.txt",
+	// "postCreateCommand": "",
 
 	// Configure tool-specific properties.
 	// "customizations": {},

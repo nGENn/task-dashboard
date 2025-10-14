@@ -1,5 +1,3 @@
-version: '3.8'
-
 x-openproject-restart-policy: &openproject-restart-policy
   restart: unless-stopped
 x-openproject-image: &openproject-image
@@ -8,7 +6,7 @@ x-openproject-app: &openproject-app
   <<: [*openproject-image, *openproject-restart-policy]
   environment:
     OPENPROJECT_HTTPS: "false"
-    OPENPROJECT_HOST__NAME: "localhost:8083"
+    OPENPROJECT_HOST__NAME: "213.135.195.194:8095"
     OPENPROJECT_HSTS: "true"
     RAILS_CACHE_STORE: "memcache"
     OPENPROJECT_CACHE__MEMCACHE__SERVER: "openproject-cache:11211"
@@ -49,7 +47,7 @@ x-shared:
       ELASTICSEARCH_PASS: ${ELASTICSEARCH_PASS:-zammad}
       ELASTICSEARCH_NAMESPACE:
       ELASTICSEARCH_REINDEX:
-      NGINX_PORT: '8080'
+      NGINX_PORT: '8090'
       NGINX_CLIENT_MAX_BODY_SIZE:
       NGINX_SERVER_NAME: 'localhost'
       NGINX_SERVER_SCHEME:
@@ -143,7 +141,7 @@ services:
       ESPOCRM_DATABASE_PASSWORD: database_password
       ESPOCRM_ADMIN_USERNAME: admin
       ESPOCRM_ADMIN_PASSWORD: password
-      ESPOCRM_SITE_URL: "http://localhost:8080"
+      ESPOCRM_SITE_URL: "http://localhost:8090"
     volumes:
       - espocrm:/var/www/html
     restart: always
@@ -151,7 +149,7 @@ services:
       espocrm-db:
         condition: service_healthy
     ports:
-      - 8080:80
+      - 8090:80
     networks:
       - ticket-dashboard-net
 
@@ -170,7 +168,7 @@ services:
     container_name: espocrm-websocket
     environment:
       ESPOCRM_CONFIG_USE_WEB_SOCKET: "true"
-      ESPOCRM_CONFIG_WEB_SOCKET_URL: "ws://localhost:8081"
+      ESPOCRM_CONFIG_WEB_SOCKET_URL: "ws://localhost:91"
       ESPOCRM_CONFIG_WEB_SOCKET_ZERO_M_Q_SUBSCRIBER_DSN: "tcp://*:7777"
       ESPOCRM_CONFIG_WEB_SOCKET_ZERO_M_Q_SUBMISSION_DSN: "tcp://espocrm-websocket:7777"
     volumes:
@@ -178,7 +176,7 @@ services:
     restart: always
     entrypoint: docker-websocket.sh
     ports:
-      - 8081:8080
+      - 8091:8090
     networks:
       - ticket-dashboard-net
 
@@ -237,7 +235,7 @@ services:
     <<: *zammad-service
     command: ["zammad-nginx"]
     ports:
-      - "8082:8080"
+      - "8092:8090"
     depends_on:
       - zammad-railsserver
     networks:
@@ -310,7 +308,7 @@ services:
     image: ghcr.io/eramba/eramba:latest
     restart: always
     ports:
-      - "8084:80"
+      - "8094:80"
     volumes:
       - eramba-data:/var/www/eramba/app/upgrade/data
       - eramba-app:/var/www/eramba
@@ -331,7 +329,7 @@ services:
       USE_PROXY_AUTH: 0
       PROXY_AUTH_USER:
       PROXY_AUTH_PASS:
-      PUBLIC_ADDRESS: http://localhost:8084
+      PUBLIC_ADDRESS: http://localhost:8094
       DOCKER_DEPLOYMENT: 1
       LDAPTLS_REQCERT: never
     depends_on:
@@ -365,7 +363,7 @@ services:
       USE_PROXY_AUTH: 0
       PROXY_AUTH_USER:
       PROXY_AUTH_PASS:
-      PUBLIC_ADDRESS: https://localhost:8084
+      PUBLIC_ADDRESS: https://localhost:8094
       DOCKER_DEPLOYMENT: 1
       LDAPTLS_REQCERT: never
     depends_on:
@@ -399,7 +397,7 @@ services:
     image: openproject/proxy
     <<: *openproject-restart-policy
     ports:
-      - "8083:80"
+      - "8093:80"
     depends_on:
       - openproject-web
     networks:
@@ -408,6 +406,8 @@ services:
   openproject-web:
     <<: *openproject-app
     command: "./docker/prod/web"
+    ports:
+      - "8095:8080"
     networks:
       - ticket-dashboard-net
     depends_on:
@@ -417,7 +417,7 @@ services:
     labels:
       - autoheal=true
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health_checks/default"]
+      test: ["CMD", "curl", "-f", "http://localhost:8090/health_checks/default"]
       interval: 10s
       timeout: 3s
       retries: 3
