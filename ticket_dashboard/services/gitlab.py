@@ -150,25 +150,43 @@ class GitLabService:
             return date_str
 
     def check_health(self):
-        """
-        Pings GitLab to check connectivity and latency.
-        """
         start = datetime.now()
-        status = "offline"
-        latency = 0
 
         if not self.token:
-            return {"name": "GitLab", "status": "configured_incorrectly", "latency": 0}
+            return {
+                "name": "GitLab",
+                "status": "auth_missing",
+                "latency": 0,
+                "error": "Missing Token in settings",
+            }
 
         try:
-            # Simple lightweight call: Get current user info
-            requests.get(
+            response = requests.get(
                 f"{self.base_url}/api/v4/user", headers=self.headers, timeout=3
             )
-            status = "online"
-            latency = int((datetime.now() - start).total_seconds() * 1000)
-        except Exception as e:
-            logger.error(f"GitLab Health Check Failed: {e}")
-            status = "offline"
+            response.raise_for_status()
 
-        return {"name": "GitLab", "status": status, "latency": latency}
+            latency = int((datetime.now() - start).total_seconds() * 1000)
+            return {
+                "name": "GitLab",
+                "status": "online",
+                "latency": latency,
+                "error": None,
+            }
+
+        except requests.HTTPError as e:
+            logger.warning(f"GitLab Auth Failed: {e}")
+            return {
+                "name": "GitLab",
+                "status": "auth_error",
+                "latency": 0,
+                "error": str(e),
+            }
+        except Exception as e:
+            logger.error(f"GitLab Unreachable: {e}")
+            return {
+                "name": "GitLab",
+                "status": "offline",
+                "latency": 0,
+                "error": str(e),
+            }

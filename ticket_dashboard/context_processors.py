@@ -1,6 +1,9 @@
 from django.core.cache import cache
 
+from ticket_dashboard.services.eramba import ErambaService
+from ticket_dashboard.services.espocrm import EspoService
 from ticket_dashboard.services.gitlab import GitLabService
+from ticket_dashboard.services.openproject import OpenProjectService
 from ticket_dashboard.services.zammad import ZammadService
 from ticket_dashboard.users.models import ServiceConfiguration
 
@@ -19,8 +22,11 @@ def system_status(request):
 
     # 2. Define Available Services Map (Name -> Class)
     service_map = {
-        "Zammad": ZammadService,
+        "Eramba": ErambaService,
+        "EspoCRM": EspoService,
         "GitLab": GitLabService,
+        "OpenProject": OpenProjectService,
+        "Zammad": ZammadService,
     }
 
     # 3. Get ONLY Active Configs from DB
@@ -28,7 +34,7 @@ def system_status(request):
     # It's a tiny table, so the performance cost is negligible.
     active_configs = ServiceConfiguration.objects.filter(
         is_active=True, name__in=service_map.keys()
-    )
+    ).order_by("name")
 
     results = []
     latencies = []
@@ -60,12 +66,21 @@ def system_status(request):
     # 5. Calculate Global State
     max_latency = max(latencies) if latencies else 0
 
+    # Extract list of statuses for easier checking
+    status_list = [r["status"] for r in results]
+
     if not results:
         global_state = "No Services"
         global_color = "neutral"
-    elif any_offline:
+    elif "offline" in status_list:
         global_state = "Offline"
         global_color = "error"
+    elif "auth_error" in status_list:
+        global_state = "Auth Error"
+        global_color = "warning"  # or "error" if you prefer red for auth issues
+    elif "auth_missing" in status_list:
+        global_state = "Setup Needed"
+        global_color = "warning"
     elif max_latency > 1000:
         global_state = "Degraded"
         global_color = "warning"

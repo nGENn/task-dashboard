@@ -54,3 +54,4 @@ class ServiceConfiguration(models.Model):
     class Meta:
         verbose_name = "Service Configuration"
         verbose_name_plural = "Service Configurations"
+        ordering = ["name"]

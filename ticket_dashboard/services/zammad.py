@@ -143,26 +143,43 @@ class ZammadService:
             return date_str
 
     def check_health(self):
-        """
-        Pings Zammad to check connectivity and latency.
-        """
         start = datetime.now()
-        status = "offline"
-        latency = 0
 
         if not self.base_url or not self.token:
-            return {"name": "Zammad", "status": "configured_incorrectly", "latency": 0}
+            return {
+                "name": "Zammad",
+                "status": "auth_missing",
+                "latency": 0,
+                "error": "Missing URL or Token in settings",
+            }
 
         try:
-            # Simple lightweight call: Get current user info
-            requests.get(
+            response = requests.get(
                 f"{self.base_url}/api/v1/users/me", headers=self.headers, timeout=3
             )
-            # If we get here, it worked
-            status = "online"
-            latency = int((datetime.now() - start).total_seconds() * 1000)
-        except Exception as e:
-            logger.error(f"Zammad Health Check Failed: {e}")
-            status = "offline"
+            response.raise_for_status()
 
-        return {"name": "Zammad", "status": status, "latency": latency}
+            latency = int((datetime.now() - start).total_seconds() * 1000)
+            return {
+                "name": "Zammad",
+                "status": "online",
+                "latency": latency,
+                "error": None,
+            }
+
+        except requests.HTTPError as e:
+            logger.warning(f"Zammad Auth Failed: {e}")
+            return {
+                "name": "Zammad",
+                "status": "auth_error",
+                "latency": 0,
+                "error": str(e),
+            }
+        except Exception as e:
+            logger.error(f"Zammad Unreachable: {e}")
+            return {
+                "name": "Zammad",
+                "status": "offline",
+                "latency": 0,
+                "error": str(e),
+            }

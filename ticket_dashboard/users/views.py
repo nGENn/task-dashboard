@@ -69,19 +69,37 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         force_refresh = request.GET.get("refresh") == "1"
 
         # Get or Create configs so they appear in Admin
-        zammad_conf, _ = ServiceConfiguration.objects.get_or_create(name="Zammad")
+        eramba_conf, _ = ServiceConfiguration.objects.get_or_create(name="Eramba")
+        espo_conf, _ = ServiceConfiguration.objects.get_or_create(name="EspoCRM")
+        op_conf, _ = ServiceConfiguration.objects.get_or_create(name="OpenProject")
         gitlab_conf, _ = ServiceConfiguration.objects.get_or_create(name="GitLab")
+        zammad_conf, _ = ServiceConfiguration.objects.get_or_create(name="Zammad")
 
-        # 3. FETCH ZAMMAD (If Active)
-        if zammad_conf.is_active:
+        # 3. Fetch Services
+        if eramba_conf.is_active:
             try:
-                zammad_service = ZammadService()
-                z_tickets = zammad_service.get_tickets(force_refresh=force_refresh)
-                all_tickets.extend(z_tickets)
+                eramba_service = ErambaService()
+                eramba_tickets = eramba_service.get_tickets(force_refresh=force_refresh)
+                all_tickets.extend(eramba_tickets)
             except Exception:
-                pass  # Logged in service, ignore here
+                pass
 
-        # 4. FETCH GITLAB (If Active)
+        if espo_conf.is_active:
+            try:
+                espo_service = EspoService()
+                espo_tickets = espo_service.get_tickets(force_refresh=force_refresh)
+                all_tickets.extend(espo_tickets)
+            except Exception:
+                pass
+
+        if op_conf.is_active:
+            try:
+                op_service = OpenProjectService()
+                op_tickets = op_service.get_tickets(force_refresh=force_refresh)
+                all_tickets.extend(op_tickets)
+            except Exception:
+                pass
+
         if gitlab_conf.is_active:
             try:
                 gitlab_service = GitLabService()
@@ -90,10 +108,18 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             except Exception:
                 pass
 
-        # 5. SORT COMBINED LIST (Newest Updated First)
+        if zammad_conf.is_active:
+            try:
+                zammad_service = ZammadService()
+                z_tickets = zammad_service.get_tickets(force_refresh=force_refresh)
+                all_tickets.extend(z_tickets)
+            except Exception:
+                pass  # Logged in service, ignore here
+
+        # 4. SORT COMBINED LIST (Newest Updated First)
         all_tickets.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
 
-        # 6. LOCAL FILTERING LOGIC
+        # 5. LOCAL FILTERING LOGIC
         filtered_tickets = all_tickets
 
         # A. Text Search (Title, ID, Customer, Owner)
@@ -136,7 +162,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             except ValueError:
                 pass
 
-        # 7. Generate Dynamic Filter Options (From TOTAL dataset)
+        # 6. Generate Dynamic Filter Options (From TOTAL dataset)
         context["filter_options"] = {
             "customers": sorted(
                 list(
@@ -188,7 +214,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             ),
         }
 
-        # 8. Stats (Total Combined)
+        # 7. Stats (Total Combined)
         context["stats"] = {
             "total": len(all_tickets),
             "open": sum(1 for t in all_tickets if t.get("status") == "open"),
@@ -196,8 +222,8 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             "resolved": sum(1 for t in all_tickets if t.get("status") == "resolved"),
         }
 
-        # 9. Pagination
-        paginator = Paginator(filtered_tickets, 50)
+        # 8. Pagination
+        paginator = Paginator(filtered_tickets, 30)
         page_number = request.GET.get("page")
         page_obj = paginator.get_page(page_number)
 

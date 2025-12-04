@@ -313,10 +313,22 @@ SOCIALACCOUNT_PROVIDERS["openid_connect"]["APPS"][0]["settings"]["server_url"]
 
 SOCIALACCOUNT_LOGIN_ON_GET = True
 
-# Zammad Integration
-ZAMMAD_API_URL = env("ZAMMAD_API_URL", default="")
-ZAMMAD_API_TOKEN = env("ZAMMAD_API_TOKEN", default="")
+# Eramba Integration
+ERAMBA_API_URL = env("ERAMBA_API_URL", default="")
+ERAMBA_API_KEY = env("ERAMBA_API_KEY", default="")
+
+# EspoCRM Integration
+ESPO_API_URL = env("ESPO_API_URL", default="")
+ESPO_API_KEY = env("ESPO_API_KEY", default="")
+
+# OpenProject Integration
+OPENPROJECT_API_URL = env("OPENPROJECT_API_URL", default="")
+OPENPROJECT_API_KEY = env("OPENPROJECT_API_KEY", default="")
 
 # GitLab Integration
 GITLAB_API_URL = env("GITLAB_API_URL", default="")
 GITLAB_API_TOKEN = env("GITLAB_API_TOKEN", default="")
+
+# Zammad Integration
+ZAMMAD_API_URL = env("ZAMMAD_API_URL", default="")
+ZAMMAD_API_TOKEN = env("ZAMMAD_API_TOKEN", default="")

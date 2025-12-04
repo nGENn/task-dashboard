@@ -109,16 +109,33 @@
                             <span class="text-sm flex items-center gap-2">
                                 {% if service.status == 'online' %}
                                     <span class="w-2 h-2 rounded-full bg-success"></span>
-                                {% else %}
+                                {% elif service.status == 'offline' %}
                                     <span class="w-2 h-2 rounded-full bg-error"></span>
+                                {% else %}
+                                    <span class="w-2 h-2 rounded-full bg-warning"></span>
                                 {% endif %}
                                 {{ service.name }}
                             </span>
                             
                             {% if service.status == 'online' %}
                                 <span class="badge badge-success badge-sm badge-outline">{{ service.latency }}ms</span>
+                            
                             {% else %}
-                                <span class="badge badge-error badge-sm">Offline</span>
+                                <div class="tooltip tooltip-left cursor-pointer" data-tip="{{ service.error }}">
+                                    <span class="badge 
+                                        {% if service.status == 'offline' %}badge-error{% else %}badge-warning{% endif %} 
+                                        badge-sm hover:scale-105 transition-transform"
+                                        onclick="copyError('{{ service.error|escapejs }}')">
+                                        
+                                        {% if service.status == 'offline' %}
+                                            Offline
+                                        {% elif service.status == 'auth_missing' %}
+                                            Setup
+                                        {% else %}
+                                            Auth Error
+                                        {% endif %}
+                                    </span>
+                                </div>
                             {% endif %}
                         </div>
                         {% empty %}
@@ -334,8 +351,61 @@
                     refreshBtn.setAttribute('title', 'Using Cached Data');
                 }
             }
+
+            function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+
+        // Create the alert element
+        const toast = document.createElement('div');
+        
+        // Define colors based on type
+        const alertClass = type === 'error' ? 'alert-error' : 'alert-success';
+        
+        // DaisyUI Alert Structure
+        toast.className = `alert ${alertClass} shadow-lg min-w-[200px] flex items-center gap-2 transform transition-all duration-300 translate-x-full opacity-0`;
+        
+        toast.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span class="font-medium text-sm">${message}</span>
+        `;
+
+        // Append to container
+        container.appendChild(toast);
+
+        // Trigger "Slide In" animation (small delay to allow DOM render)
+        requestAnimationFrame(() => {
+            toast.classList.remove('translate-x-full', 'opacity-0');
+        });
+
+        // Remove after 3 seconds
+        setTimeout(() => {
+            // Slide out
+            toast.classList.add('translate-x-full', 'opacity-0');
+            // Remove from DOM after animation finishes
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        }, 3000);
+    }
+
+    // Updated Click-to-Copy Function
+    window.copyError = function(text) {
+        if (!text || text === 'None') return;
+        
+        navigator.clipboard.writeText(text).then(() => {
+            showToast("Error copied to clipboard!"); 
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+            showToast("Failed to copy to clipboard", "error");
+        });
+    }
         });
     </script>
   {% endblock inline_javascript %}
+  <div id="toast-container" class="toast toast-top toast-end mt-16 z-[9999]">
+    </div>
 </body>
 </html>
