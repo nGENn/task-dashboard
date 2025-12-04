@@ -1,0 +1,341 @@
+
+{% load static i18n %}<!DOCTYPE html>
+{% get_current_language as LANGUAGE_CODE %}
+<html lang="{{ LANGUAGE_CODE }}">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
+    <title>
+      {% block title %}
+      Ticket Dashboard
+    {% endblock title %}
+  </title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description"
+        content="Awsome Ticket Dashboard" />
+  <meta name="author"
+        content="Justus Jäger" />
+  <link rel="icon" href="{% static 'images/favicons/favicon.ico' %}" />
+  {% block css %}
+    <!-- Latest compiled and minified Bootstrap CSS -->
+    <!-- <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.3/css/bootstrap.min.css"
+          integrity="sha512-SbiR/eusphKoMVVXysTKG/7VseWii+Y3FdHrt0EpKgpToZeemhqHeZeLWLhJutz/2ut2Vw1uQEj2MbRF+TVBUA=="
+          crossorigin="anonymous"
+          referrerpolicy="no-referrer" /> -->
+<!-- Your stuff: Third-party CSS libraries go here -->
+<!-- This file stores project-specific CSS -->
+
+  
+  <link href="{% static 'css/project.css' %}" rel="stylesheet" />
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+{% endblock css %}
+<!-- Le javascript
+    ================================================== -->
+{# Placed at the top of the document so pages load faster with defer #}
+{% block javascript %}
+
+
+<!-- Bootstrap JS -->
+<!-- <script defer
+        src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.3/js/bootstrap.min.js"
+        integrity="sha512-1/RvZTcCDEUjY/CypiMz+iqqtaoQfAITmNSJY17Myp4Ms5mdxPS5UV7iOfdZoxcGhzFbOm6sntTKJppjvuhg4g=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"></script> -->
+<!-- Your stuff: Third-party javascript libraries go here -->
+
+
+<!-- place project specific Javascript in this file -->
+
+  
+  <script defer src="{% static 'js/project.js' %}"></script>
+
+
+{% endblock javascript %}
+</head>
+<body class="{% block bodyclass %}{% endblock bodyclass %}">
+  {% block body %}
+  <div class="mb-1">
+    <!-- Top Navigation Bar -->
+    <nav class="navbar bg-base-100 shadow-sm border-b border-base-300 px-4 lg:px-8 sticky top-0 z-50">
+        <!-- Left: Logo/Title -->
+        <div class="navbar-start">
+            <a href="{% url 'home' %}" class="flex items-center gap-3 hover:opacity-80 transition-opacity" title="Reset Filters & Go Home">
+                <div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary-content" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    </svg>
+                </div>
+                <div class="hidden sm:block">
+                    <h1 class="text-xl font-bold text-base-content">TicketDashboard</h1>
+                    <p class="text-xs text-base-content/60">Track tickets across all platforms</p>
+                </div>
+            </a>
+        </div>
+
+        <!-- Right: Status, Theme, User -->
+        <div class="navbar-end gap-2">
+            <!-- System Status Indicator -->
+            {% if request.user.is_authenticated %}
+              <div class="dropdown dropdown-end">
+            <div tabindex="0" role="button" class="btn btn-ghost btn-sm gap-2 normal-case">
+                <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-{{ global_system_status.color }} opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-{{ global_system_status.color }}"></span>
+                </span>
+                <span class="hidden md:inline text-sm">System: {{ global_system_status.state }}</span>
+                {% if global_system_status.max_latency > 0 %}
+                    <span class="badge badge-ghost badge-sm hidden lg:inline-flex">{{ global_system_status.max_latency }}ms</span>
+                {% endif %}
+            </div>
+            
+            <div tabindex="0" class="dropdown-content z-[100] card card-compact w-72 p-2 shadow-xl bg-base-100 border border-base-300 mt-2">
+                <div class="card-body">
+                    <h3 class="font-bold text-base-content flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-{{ global_system_status.color }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {{ global_system_status.state }}
+                    </h3>
+                    <div class="divider my-1"></div>
+                    <p class="text-xs text-base-content/60 uppercase tracking-wider mb-2">Service Health</p>
+                    
+                    <div class="space-y-2">
+                        {% for service in services_status %}
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm flex items-center gap-2">
+                                {% if service.status == 'online' %}
+                                    <span class="w-2 h-2 rounded-full bg-success"></span>
+                                {% else %}
+                                    <span class="w-2 h-2 rounded-full bg-error"></span>
+                                {% endif %}
+                                {{ service.name }}
+                            </span>
+                            
+                            {% if service.status == 'online' %}
+                                <span class="badge badge-success badge-sm badge-outline">{{ service.latency }}ms</span>
+                            {% else %}
+                                <span class="badge badge-error badge-sm">Offline</span>
+                            {% endif %}
+                        </div>
+                        {% empty %}
+                        <p class="text-xs">No services configured.</p>
+                        {% endfor %}
+                    </div>
+
+                    <div class="divider my-1"></div>
+                    
+                    <div class="flex justify-between items-center mt-2 px-1">
+                        <p class="text-xs text-base-content/60">Auto-refresh: 5m</p>
+                        
+                        <button id="force-refresh-btn" 
+                                class="btn btn-ghost btn-xs btn-circle text-base-content/40 transition-colors duration-300" 
+                                title="Toggle Live Fetch (Ignore Cache)">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+            {% endif %}
+
+            <!-- Theme Toggle -->
+            <div class="dropdown dropdown-end">
+                <div tabindex="0" role="button" class="btn btn-ghost btn-sm btn-square">
+                    <svg id="current-theme-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                </div>
+                <ul tabindex="0" class="dropdown-content z-[100] menu p-2 shadow-xl bg-base-100 rounded-box w-40 border border-base-300 mt-2">
+                    <li><a onclick="setTheme('light')" class="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                        Light
+                    </a></li>
+                    <li><a onclick="setTheme('dark')" class="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                        </svg>
+                        Dark
+                    </a></li>
+                    <li><a onclick="setTheme('system')" class="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        System
+                    </a></li>
+                </ul>
+            </div>
+
+            <!-- Log In/Out Button -->
+            <div class="flex items-center gap-3">
+                  {% if request.user.is_authenticated %}
+                      
+                      <div class="hidden md:block text-right">
+                          <p class="text-sm font-bold text-base-content">
+                              {{ request.user.username|default:request.user.email }}
+                          </p>
+                      </div>
+
+                      <button class="btn btn-sm btn-outline" onclick="logout_modal.showModal()">
+                          Log Out
+                      </button>
+
+                      <dialog id="logout_modal" class="modal">
+                        <div class="modal-box">
+                          <h3 class="font-bold text-lg">Confirm Logout</h3>
+                          <p class="py-4">Are you sure you want to sign out of the dashboard?</p>
+                          <div class="modal-action">
+                            <form method="post" action="{% url 'account_logout' %}">
+                              {% csrf_token %}
+                              <button type="submit" class="btn btn-error">Yes, Log Out</button>
+                            </form>
+                            <form method="dialog">
+                              <button class="btn">Cancel</button>
+                            </form>
+                          </div>
+                        </div>
+                        <form method="dialog" class="modal-backdrop">
+                          <button>close</button>
+                        </form>
+                      </dialog>
+
+                  {% else %}
+                      <a href="{% url 'account_login' %}" class="btn btn-sm btn-primary">
+                          Log In
+                      </a>
+                  {% endif %}
+              </div>
+        </div>
+    </nav>
+  </div>
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-dismissible {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+          {{ message }}
+          <button type="button"
+                  class="btn-close"
+                  data-bs-dismiss="alert"
+                  aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+    {% block main %}
+      {% block content %}
+        <p>Use this document as a way to quick start any new project.</p>
+      {% endblock content %}
+    {% endblock main %}
+
+  {% endblock body %}
+  <!-- /container -->
+  {% block modal %}
+  {% endblock modal %}
+  {% block inline_javascript %}
+    {% comment %}
+    Script tags with only code, no src (defer by default). To run
+    with a "defer" so that you run inline code:
+    <script>
+      window.addEventListener('DOMContentLoaded', () => {
+        /* Run whatever you want */
+      });
+    </script>
+    {% endcomment %}
+    <!-- Theme Toggle Script -->
+    <script>
+        function setTheme(theme) {
+            // 1. Handle the Theme Color
+            if (theme === 'system') {
+                const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                document.documentElement.setAttribute('data-theme', systemPrefersDark ? 'dark' : 'light');
+                localStorage.setItem('theme', 'system');
+            } else {
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem('theme', theme);
+            }
+
+            // 2. Handle the Icon Update
+            updateThemeIcon(theme);
+        }
+
+        function updateThemeIcon(theme) {
+            const iconSvg = document.getElementById('current-theme-icon');
+            if (!iconSvg) return;
+
+            // SVG Paths for Sun, Moon, and System
+            const sunPath = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />';
+            const moonPath = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />';
+            const systemPath = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />';
+
+            // Swap the inner HTML of the SVG based on the selected theme
+            if (theme === 'light') iconSvg.innerHTML = sunPath;
+            if (theme === 'dark') iconSvg.innerHTML = moonPath;
+            if (theme === 'system') iconSvg.innerHTML = systemPath;
+        }
+
+        // Initialize theme on page load
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'system';
+            setTheme(savedTheme);
+        })();
+
+        // Listen for system theme changes (if user is in system mode)
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (localStorage.getItem('theme') === 'system') {
+                document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+            }
+        });
+
+      document.addEventListener("DOMContentLoaded", function() {
+            const refreshBtn = document.getElementById('force-refresh-btn');
+            
+            if (!refreshBtn) return; 
+
+            // 1. Check URL on load to set initial color
+            const urlParams = new URLSearchParams(window.location.search);
+            const isFresh = urlParams.get('refresh') === '1';
+            
+            updateButtonState(isFresh);
+
+            // 2. Handle Click
+            refreshBtn.addEventListener('click', function(e) {
+                const currentUrl = new URL(window.location.href);
+                
+                // Toggle the state based on current URL param
+                if (currentUrl.searchParams.get('refresh') === '1') {
+                    currentUrl.searchParams.delete('refresh'); // Turn OFF
+                } else {
+                    currentUrl.searchParams.set('refresh', '1'); // Turn ON
+                }
+
+                // Visual feedback before reload
+                updateButtonState(!isFresh);
+                
+                // Reload page
+                window.location.href = currentUrl.toString();
+            });
+
+            // Helper to swap styles
+            function updateButtonState(isActive) {
+                if (isActive) {
+                    // Active State: Green, full opacity
+                    refreshBtn.classList.remove('text-base-content/40');
+                    refreshBtn.classList.add('text-success', 'opacity-100');
+                    refreshBtn.setAttribute('title', 'Live Fetch Active');
+                } else {
+                    // Inactive State: Gray, lower opacity
+                    refreshBtn.classList.remove('text-success', 'opacity-100');
+                    refreshBtn.classList.add('text-base-content/40');
+                    refreshBtn.setAttribute('title', 'Using Cached Data');
+                }
+            }
+        });
+    </script>
+  {% endblock inline_javascript %}
+</body>
+</html>

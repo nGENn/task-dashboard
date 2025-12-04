@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+@source not "./tailwindcss";
+@source not "./daisyui{,*}.mjs";
+
+@plugin "./daisyui.mjs";
+
+/* Source Scanning */
+@source "../../templates/**/*.html";
+@source "../../**/views.py";
+@source "../../**/forms.py";
+
+.resizer {
+    /* Position on the right edge */
+    @apply absolute top-0 bottom-0 right-0 w-1 cursor-col-resize z-10 touch-none select-none;
+    /* Invisible by default, becomes Primary color on hover/active */
+    @apply transition-colors duration-200;
+}
+
+/* Show the color when hovering the handle OR the header */
+th:hover .resizer,
+.resizer:hover,
+.resizer.resizing {
+    @apply bg-primary/50;
+}
+
+@layer components {
+
+    /* Form Inputs - Standard Utilities */
+    .textinput,
+    .emailinput,
+    .passwordinput {
+        @apply h-12 px-4 w-full bg-base-200 border border-base-content/20 rounded-lg text-base transition-colors;
+    }
+
+    /* Focus State */
+    .textinput:focus,
+    .emailinput:focus,
+    .passwordinput:focus {
+        @apply outline-none border-primary ring-1 ring-primary bg-base-100;
+    }
+
+    /* Checkbox */
+    .checkboxinput {
+        @apply h-5 w-5 rounded border-base-content/20 cursor-pointer checked:bg-primary checked:border-primary;
+    }
+}
+
+/* FLATPICKR OVERRIDES (Fixed for Tailwind v4) */
+
+/* 1. Main Container */
+.flatpickr-calendar {
+    @apply !bg-base-100 !text-base-content !border !border-base-300 !shadow-xl !rounded-box;
+}
+
+/* 2. Month Headers */
+.flatpickr-months .flatpickr-month {
+    @apply !bg-base-100 !text-base-content !fill-base-content;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months {
+    @apply !bg-base-100 !text-base-content !font-bold;
+}
+
+/* Hover state separated for v4 compliance */
+.flatpickr-current-month .flatpickr-monthDropdown-months:hover {
+    @apply !bg-base-200;
+}
+
+/* 3. Navigation Arrows */
+.flatpickr-months .flatpickr-prev-month,
+.flatpickr-months .flatpickr-next-month {
+    @apply !fill-base-content;
+}
+
+/* Hover state separated */
+.flatpickr-months .flatpickr-prev-month:hover,
+.flatpickr-months .flatpickr-next-month:hover {
+    @apply !text-primary !fill-primary;
+}
+
+/* 4. Weekdays Row */
+.flatpickr-weekdays {
+    @apply !bg-base-200;
+}
+
+span.flatpickr-weekday {
+    @apply !text-base-content/60;
+}
+
+/* 5. Days Grid */
+.flatpickr-day {
+    @apply !text-base-content !border-none;
+}
+
+.flatpickr-day:hover {
+    @apply !bg-base-200;
+}
+
+/* 6. Selected / Range Start / Range End */
+.flatpickr-day.selected,
+.flatpickr-day.startRange,
+.flatpickr-day.endRange,
+.flatpickr-day.selected.inRange,
+.flatpickr-day.startRange.inRange,
+.flatpickr-day.endRange.inRange {
+    @apply !bg-primary !border-primary !text-primary-content;
+}
+
+/* 7. The Range Middle */
+.flatpickr-day.inRange {
+    @apply !bg-primary/20 !shadow-none !border-none !text-base-content;
+}
+
+/* Hover within range */
+.flatpickr-day.inRange:hover {
+    @apply !bg-primary/30;
+}
