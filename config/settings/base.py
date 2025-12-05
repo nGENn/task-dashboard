@@ -275,7 +275,11 @@ ACCOUNT_EMAIL_VERIFICATION = "none"
 # https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_ADAPTER = "ticket_dashboard.users.adapters.AccountAdapter"
 # https://docs.allauth.org/en/latest/account/configuration.html
-ACCOUNT_LOGIN_ATTEMPTS_LIMIT = None
+# Depreciated: ACCOUNT_LOGIN_ATTEMPTS_LIMIT = None
+# New Rate Limit Syntax
+# "key": "amount/duration"
+# login_failed: Block after 5 failed attempts in 5 minutes (300s)
+ACCOUNT_RATE_LIMITS = {"login_failed": "5/5m"}
 # https://docs.allauth.org/en/latest/account/forms.html
 ACCOUNT_FORMS = {"signup": "ticket_dashboard.users.forms.UserSignupForm"}
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
