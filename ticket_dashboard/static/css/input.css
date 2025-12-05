@@ -97,6 +97,12 @@ span.flatpickr-weekday {
     @apply !bg-base-200;
 }
 
+/* Dim days not in current month */
+.flatpickr-day.prevMonthDay,
+.flatpickr-day.nextMonthDay {
+    @apply !text-base-content/30 !bg-transparent;
+}
+
 /* 6. Selected / Range Start / Range End */
 .flatpickr-day.selected,
 .flatpickr-day.startRange,

@@ -1,61 +1,94 @@
-# Ticket Dashboard
+# Universal Ticket Dashboard
 
-Awsome Ticket Dashboard
+An internal operational dashboard aggregating tickets, issues, tasks, and risks from Zammad, GitLab, EspoCRM, OpenProject, and Eramba.
 
-[![Built with Cookiecutter Django](https://img.shields.io/badge/built%20with-Cookiecutter%20Django-ff69b4.svg?logo=cookiecutter)](https://github.com/cookiecutter/cookiecutter-django/)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+## Architecture
 
-License: MIT
+### Data Strategy
 
-## Settings
+The application uses a **"Fetch All, Filter Locally"** pattern to ensure speed and unified security rules:
 
-Moved to [settings](https://cookiecutter-django.readthedocs.io/en/latest/1-getting-started/settings.html).
+1. **Aggregation:** The backend uses global Admin/API Tokens to fetch **all** active tickets from every service.
+2. **Caching:** Results are cached in Redis for 5 minutes. Passing `?refresh=1` in the URL forces a cache bypass.
+3. **Security Gatekeeper:** Raw data never reaches the template. A Gatekeeper in `views.py` filters the cached list based on the user's **Django Group Permissions**.
+      * **Rule:** A user only sees a ticket if their group has explicit access to that Ticket's Origin/Group, OR if the ticket is assigned to their specific email address.
 
-## Basic Commands
+## Development Environment
 
-### Setting Up Your Users
+### Setup
 
-- To create a **normal user account**, just go to Sign Up and fill out the form. Once you submit it, you'll see a "Verify Your E-mail Address" page. Go to your console to see a simulated email verification message. Copy the link into your browser. Now the user's email should be verified and ready to go.
+This project is configured for **VS Code DevContainers**.
 
-- To create a **superuser account**, use this command:
+1. Open the project in VS Code.
+2. Run **"Dev Containers: Reopen in Container"**.
+3. The environment (Python, Node, Docker-in-Docker) will auto-configure.
 
-      uv run python manage.py createsuperuser
+**Note on Resource Usage:**
+The local stack includes a full GitLab instance which is memory intensive. If your local machine struggles, it is recommended to deploy the DevContainer on a remote development server.
 
-For convenience, you can keep your normal user logged in on Chrome and your superuser logged in on Firefox (or similar), so that you can see how the site behaves for both kinds of users.
+### Environment Variables
 
-### Type checks
+Ensure your `.envs/.local/.django` file maps API URLs to internal Docker hosts:
 
-Running type checks with mypy:
+* Zammad: `http://zammad-nginx:8080`
+* EspoCRM: `http://espocrm:80`
+* OpenProject: `http://openproject:80` (Requires `OPENPROJECT_HOST_HEADER=localhost:8082`)
+* GitLab: `http://gitlab:8084`
 
-    uv run mypy ticket_dashboard
+### Database Seeding
 
-### Test coverage
+To populate the local environment with test data, run the management commands:
 
-To run the tests, check your test coverage, and generate an HTML coverage report:
+```bash
+uv run manage.py seed_zammad_demo
+uv run manage.py seed_gitlab_demo
+uv run manage.py seed_espocrm_demo
+```
 
-    uv run coverage run -m pytest
-    uv run coverage html
-    uv run open htmlcov/index.html
+### CSS / Frontend
 
-#### Running tests with pytest
+The project uses Tailwind CSS v4 via a standalone binary. If you modify HTML classes, you must rebuild the CSS file for changes to appear.
 
-    uv run pytest
+**One-time build:**
 
-### Live reloading and Sass CSS compilation
+```bash
+cd ticket_dashboard/static/css
+./tailwindcss -i input.css -o project.css
+```
 
-Moved to [Live reloading and SASS compilation](https://cookiecutter-django.readthedocs.io/en/latest/2-local-development/developing-locally.html#using-webpack-or-gulp).
+**Watch mode (recommended during dev):**
 
-### Sentry
+```bash
+cd ticket_dashboard/static/css
+./tailwindcss -i input.css -o project.css --watch
+```
 
-Sentry is an error logging aggregator service. You can sign up for a free account at <https://sentry.io/signup/?code=cookiecutter> or download and host it yourself.
-The system is set up with reasonable defaults, including 404 logging and integration with the WSGI application.
+## Configuration & Access Control
 
-You must set the DSN url in production.
+### Service Management
 
-## Deployment
+Located in **Admin \> Users \> Service Configurations**.
 
-The following details how to deploy this application.
+* Toggle `is_active` to hide/show a service globally.
+* Disabled services are skipped during the API fetch process to save resources.
 
-### Docker
+### Permissions (RBAC)
 
-See detailed [cookiecutter-django Docker documentation](https://cookiecutter-django.readthedocs.io/en/latest/3-deployment/deployment-with-docker.html).
+Access control is decoupled from the services and managed via **Django Groups**.
+
+1. **Auto-Discovery:** Loading the dashboard triggers a scan of all fetched tickets. New groups (e.g., "Zammad - Support") are automatically added to **Admin \> Users \> External Groups**.
+2. **Assignment:**
+      * Go to **Admin \> Auth \> Groups**.
+      * Edit an internal group (e.g., "Sales Team").
+      * Add a **Ticket Permission** entry inline.
+3. **Access Levels:**
+      * **FULL:** View all tickets in that specific external group.
+      * **LIMITED:** View only tickets in that group that are **Unassigned** or assigned to the **current user**.
+
+## Service Integration Details
+
+* **Zammad:** Fetches via List API. Elasticsearch is disabled in dev environment to reduce overhead. Checks for duplicates before seeding.
+* **GitLab:** Fetches Issues and Merge Requests. Uses an Admin lookup to map User IDs to Email addresses for permission filtering.
+* **EspoCRM:** Fetches Cases and Tasks. Requires the API Key to have a specific Role with "Read All" access to User/Case/Task entities.
+* **OpenProject:** Fetches Work Packages. In local dev, the service injects a `Host` header to bypass OpenProject's strict hostname validation.
+* **Eramba:** Fetches Security Incidents and Operations. Parses nested JSON structures unique to Eramba modules.

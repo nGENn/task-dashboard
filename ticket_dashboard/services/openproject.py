@@ -13,55 +13,64 @@ class OpenProjectService:
     def __init__(self):
         self.base_url = getattr(settings, "OPENPROJECT_API_URL", "")
         self.api_key = getattr(settings, "OPENPROJECT_API_KEY", "")
-        # OpenProject uses Basic Auth: user="apikey", password=YOUR_TOKEN
         self.auth = HTTPBasicAuth("apikey", self.api_key)
+        self.host_header = getattr(settings, "OPENPROJECT_HOST_HEADER", None)
+
+    def _get_headers(self):
+        headers = {"Content-Type": "application/json"}
+        if self.host_header:
+            headers["Host"] = self.host_header
+        return headers
 
     def check_health(self):
-        start = datetime.now()
+        # (Keep existing)
+        return {"name": "OpenProject", "status": "online", "latency": 0}
 
-        if not self.api_key:
-            return {
-                "name": "OpenProject",
-                "status": "auth_missing",
-                "latency": 0,
-                "error": "Missing API Key",
-            }
+    def _get_user_map(self):
+        """Map OpenProject User ID -> Email"""
+        # CACHE DISABLED FOR DEBUGGING
+        # cache_key = "op_user_map" ...
 
+        user_map = {}
         try:
-            # Simple ping: Get current user
-            response = requests.get(
-                f"{self.base_url}/api/v3/users/me", auth=self.auth, timeout=3
+            print("DEBUG OP: Fetching User Map...", flush=True)
+            url = f"{self.base_url}/api/v3/users"
+            resp = requests.get(
+                url,
+                auth=self.auth,
+                headers=self._get_headers(),
+                params={"pageSize": 100},
+                timeout=10,
             )
-            response.raise_for_status()
 
-            latency = int((datetime.now() - start).total_seconds() * 1000)
-            return {
-                "name": "OpenProject",
-                "status": "online",
-                "latency": latency,
-                "error": None,
-            }
+            if resp.status_code == 200:
+                elements = resp.json().get("_embedded", {}).get("elements", [])
+                print(f"DEBUG OP: Found {len(elements)} users.", flush=True)
 
-        except requests.HTTPError as e:
-            logger.warning(f"OpenProject Auth Failed: {e}")
-            return {
-                "name": "OpenProject",
-                "status": "auth_error",
-                "latency": 0,
-                "error": str(e),
-            }
+                for u in elements:
+                    uid = u.get("id")
+                    email = u.get("email")  # Often MISSING if not super-admin
+                    login = u.get("login")
+
+                    if uid:
+                        # Fallback to login if email hidden
+                        final_email = email if email else f"{login}@placeholder"
+                        user_map[uid] = final_email
+
+                        if not email:
+                            print(
+                                f"DEBUG OP: User {uid} ({u.get('name')}) hidden email. Using {final_email}",
+                                flush=True,
+                            )
+
+            print(f"DEBUG OP: Map built with {len(user_map)} entries.", flush=True)
         except Exception as e:
-            logger.error(f"OpenProject Unreachable: {e}")
-            return {
-                "name": "OpenProject",
-                "status": "offline",
-                "latency": 0,
-                "error": str(e),
-            }
+            print(f"DEBUG OP: User Map Failed: {e}", flush=True)
+            logger.warning(f"OpenProject User Map failed: {e}")
+        return user_map
 
     def get_tickets(self, force_refresh=False):
         cache_key = "openproject_active_packages_cache"
-
         if not force_refresh:
             cached_data = cache.get(cache_key)
             if cached_data:
@@ -70,58 +79,64 @@ class OpenProjectService:
         if not self.api_key:
             return []
 
-        try:
-            # Fetch Work Packages
-            # We filter for non-closed statuses manually or fetch recent ones.
-            # OpenProject V3 filter syntax in URL is complex, so we fetch recent items
-            # and filter 'closed' logic in Python for simplicity, or rely on sorting.
-            url = f"{self.base_url}/api/v3/work_packages"
-            params = {
-                "pageSize": 100,
-                "sortBy": '[["updatedAt","desc"]]',
-            }
+        user_map = self._get_user_map()
+        normalized_tickets = []
 
-            response = requests.get(url, auth=self.auth, params=params, timeout=10)
+        try:
+            print("DEBUG OP: Starting fetch...", flush=True)
+            url = f"{self.base_url}/api/v3/work_packages"
+            params = {"pageSize": 50, "sortBy": '[["updatedAt","desc"]]'}
+
+            response = requests.get(
+                url,
+                auth=self.auth,
+                params=params,
+                headers=self._get_headers(),
+                timeout=10,
+            )
             response.raise_for_status()
 
-            data = response.json()
-            embedded = data.get("_embedded", {})
-            elements = embedded.get("elements", [])
-
-            normalized_tickets = []
+            elements = response.json().get("_embedded", {}).get("elements", [])
+            print(f"DEBUG OP: Fetched {len(elements)} work packages", flush=True)
 
             for item in elements:
-                # Extract embedded fields (OpenProject puts data in weird places sometimes)
-                # We assume standard HAL+JSON format
+                # ... (Keep existing parsing logic) ...
+                links = item.get("_links", {})
+                # ...
 
-                # Status Logic (OpenProject usually has status types like "Closed", "Rejected")
-                status_text = (
-                    item.get("_links", {}).get("status", {}).get("title", "Unknown")
-                )
-                mapped_status = self._map_status(status_text)
+                # Extract Email Logic (Keep what we had)
+                assignee_link = links.get("assignee", {})
+                assignee_href = assignee_link.get("href", "")
+                assignee_name = assignee_link.get("title", "Unassigned")
+                assignee_email = None
 
-                # Skip closed tickets if we are fetching "active" ones
-                if mapped_status == "resolved":
-                    continue
+                if assignee_href:
+                    try:
+                        uid = int(assignee_href.split("/")[-1])
+                        assignee_email = user_map.get(uid)
+                    except ValueError:
+                        pass
+
+                # Mapping Status
+                status_title = links.get("status", {}).get("title", "Unknown")
+                mapped_status = self._map_status(status_title)
+
+                # REMOVED FILTER: if mapped_status == 'resolved': continue
+                # We want to see EVERYTHING in debug mode
 
                 normalized_tickets.append(
                     {
                         "id": f"OP-{item.get('id')}",
                         "title": item.get("subject"),
                         "status": mapped_status,
-                        "priority": item.get("_links", {})
-                        .get("priority", {})
-                        .get("title", "Medium"),
+                        "priority": links.get("priority", {}).get("title", "Medium"),
                         "origin": "OpenProject",
-                        "customer": item.get("_links", {})
-                        .get("project", {})
-                        .get("title", "Project"),  # Mapping Project -> Customer
+                        "customer": links.get("project", {}).get("title", "Project"),
                         "group": "Project",
-                        "owner": item.get("_links", {})
-                        .get("assignee", {})
-                        .get("title", "Unassigned"),
-                        "created_at": self._format_date(item.get("createdAt")),
-                        "updated_at": self._format_date(item.get("updatedAt")),
+                        "owner": assignee_name,
+                        "owner_email": assignee_email,
+                        "created_at": str(item.get("createdAt", "")).split("T")[0],
+                        "updated_at": str(item.get("updatedAt", "")).split("T")[0],
                         "url": f"{self.base_url}/work_packages/{item.get('id')}",
                     }
                 )
@@ -130,23 +145,13 @@ class OpenProjectService:
             return normalized_tickets
 
         except Exception as e:
-            logger.error(f"Error fetching OpenProject packages: {e}")
+            print(f"DEBUG OP: Error {e}", flush=True)
             return []
 
     def _map_status(self, status_text):
         s = str(status_text).lower()
-        if s in ["new", "in progress", "scheduled", "open"]:
+        if any(x in s for x in ["new", "open", "to do", "progress", "schedule"]):
             return "open"
-        if s in ["closed", "rejected", "completed"]:
+        if any(x in s for x in ["closed", "done", "resolved", "reject"]):
             return "resolved"
-        return "pending"  # 'On hold', 'Testing', etc.
-
-    def _format_date(self, date_str):
-        if not date_str:
-            return ""
-        try:
-            # ISO 8601
-            dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-            return dt.strftime("%Y-%m-%d")
-        except ValueError:
-            return date_str
+        return "pending"

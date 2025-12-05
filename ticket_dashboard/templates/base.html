@@ -15,7 +15,7 @@
         content="Awsome Ticket Dashboard" />
   <meta name="author"
         content="Justus Jäger" />
-  <link rel="icon" href="{% static 'images/favicons/favicon.ico' %}" />
+  <link rel="icon" type="image/svg+xml" href="{% static 'images/favicons/logo.svg' %}">
   {% block css %}
     <!-- Latest compiled and minified Bootstrap CSS -->
     <!-- <link rel="stylesheet"
@@ -65,12 +65,17 @@
         <div class="navbar-start">
             <a href="{% url 'home' %}" class="flex items-center gap-3 hover:opacity-80 transition-opacity" title="Reset Filters & Go Home">
                 <div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary-content" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary-content" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+                      <path d="M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      <path d="M9 5a2 2 0 002 2h2a2 2 0 002-2" />
+                      <path d="M9 14l2 2 4-4" />
                     </svg>
+
                 </div>
                 <div class="hidden sm:block">
-                    <h1 class="text-xl font-bold text-base-content">TicketDashboard</h1>
+                    <h1 class="text-xl font-bold text-base-content">Ticket Dashboard</h1>
                     <p class="text-xs text-base-content/60">Track tickets across all platforms</p>
                 </div>
             </a>
@@ -232,17 +237,6 @@
         </div>
     </nav>
   </div>
-    {% if messages %}
-      {% for message in messages %}
-        <div class="alert alert-dismissible {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-          {{ message }}
-          <button type="button"
-                  class="btn-close"
-                  data-bs-dismiss="alert"
-                  aria-label="Close"></button>
-        </div>
-      {% endfor %}
-    {% endif %}
     {% block main %}
       {% block content %}
         <p>Use this document as a way to quick start any new project.</p>
@@ -253,6 +247,9 @@
   <!-- /container -->
   {% block modal %}
   {% endblock modal %}
+
+  <div id="toast-container" class="toast toast-top toast-end mt-16 z-[9999]"></div>
+
   {% block inline_javascript %}
     {% comment %}
     Script tags with only code, no src (defer by default). To run
@@ -402,6 +399,23 @@
             showToast("Failed to copy to clipboard", "error");
         });
     }
+
+    {% if messages %}
+            {% for message in messages %}
+                // Map Django tags to our toast types
+                // Django: debug, info, success, warning, error
+                // Toast: success, error
+                var type = "{{ message.tags }}";
+                if (type === 'warning' || type === 'error') type = 'error';
+                else type = 'success';
+                
+                // Call the function with a slight delay for multiple messages
+                setTimeout(() => {
+                    showToast("{{ message|escapejs }}", type);
+                }, {{ forloop.counter0 }} * 500); // Stagger by 500ms
+            {% endfor %}
+        {% endif %}
+
         });
     </script>
   {% endblock inline_javascript %}

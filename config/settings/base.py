@@ -328,6 +328,7 @@ ESPO_API_KEY = env("ESPO_API_KEY", default="")
 # OpenProject Integration
 OPENPROJECT_API_URL = env("OPENPROJECT_API_URL", default="")
 OPENPROJECT_API_KEY = env("OPENPROJECT_API_KEY", default="")
+OPENPROJECT_HOST_HEADER = env("OPENPROJECT_HOST_HEADER", default=None)
 
 # GitLab Integration
 GITLAB_API_URL = env("GITLAB_API_URL", default="")
