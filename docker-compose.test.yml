@@ -1,0 +1,39 @@
+# Minimal Compose stack for CI pytest: django + postgres only
+# Reuses existing build contexts; excludes EspoCRM, OpenProject, Zammad, GitLab
+# Usage in CI will be:
+#   docker compose -f docker-compose.test.yml build
+#   docker compose -f docker-compose.test.yml up -d postgres
+#   docker compose -f docker-compose.test.yml run --rm django python manage.py migrate
+#   docker compose -f docker-compose.test.yml run --rm django pytest
+
+services:
+  django:
+    build:
+      context: .
+      dockerfile: ./compose/local/django/Dockerfile
+    image: ticket_dashboard_test_django
+    container_name: ticket_dashboard_test_django
+    depends_on:
+      - postgres
+    # Keep the same dev mounts so the container sees repo code
+    volumes:
+      - /app/.venv
+      - .:/app:z
+    env_file:
+      - ${ENV_DJANGO_FILE:-.envs/.local/.django}
+      - ${ENV_POSTGRES_FILE:-.envs/.local/.postgres}
+    # No ports published in CI
+    command: /start
+
+  postgres:
+    # Reuse the existing production Postgres build context (as in local compose)
+    build:
+      context: .
+      dockerfile: ./compose/production/postgres/Dockerfile
+    image: ticket_dashboard_test_postgres
+    container_name: ticket_dashboard_test_postgres
+    env_file:
+      - ${ENV_POSTGRES_FILE:-.envs/.local/.postgres}
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+    # No volumes for CI to keep it ephemeral and fast

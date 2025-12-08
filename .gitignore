@@ -274,6 +274,8 @@ ticket_dashboard/media/
 .ipython/
 .env
 .envs/*
+!.envs/
+!.envs/.ci/
 .agent/
 .ruff_cache/
 .github/
