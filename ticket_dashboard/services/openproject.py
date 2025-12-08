@@ -23,17 +23,45 @@ class OpenProjectService:
         return headers
 
     def check_health(self):
-        # (Keep existing)
-        return {"name": "OpenProject", "status": "online", "latency": 0}
+        start = datetime.now()
+        if not self.api_key:
+            return {
+                "name": "OpenProject",
+                "status": "auth_missing",
+                "latency": 0,
+                "error": "Missing API Key",
+            }
+        try:
+            requests.get(
+                f"{self.base_url}/api/v3/users/me",
+                auth=self.auth,
+                headers=self._get_headers(),
+                timeout=5,
+            )
+            latency = int((datetime.now() - start).total_seconds() * 1000)
+            return {
+                "name": "OpenProject",
+                "status": "online",
+                "latency": latency,
+                "error": None,
+            }
+        except Exception as e:
+            return {
+                "name": "OpenProject",
+                "status": "offline",
+                "latency": 0,
+                "error": str(e),
+            }
 
     def _get_user_map(self):
         """Map OpenProject User ID -> Email"""
-        # CACHE DISABLED FOR DEBUGGING
-        # cache_key = "op_user_map" ...
+        cache_key = "op_user_map"
+        cached_map = cache.get(cache_key)
+        if cached_map:
+            return cached_map
 
         user_map = {}
         try:
-            print("DEBUG OP: Fetching User Map...", flush=True)
             url = f"{self.base_url}/api/v3/users"
             resp = requests.get(
                 url,
@@ -45,11 +73,10 @@ class OpenProjectService:
 
             if resp.status_code == 200:
                 elements = resp.json().get("_embedded", {}).get("elements", [])
-                print(f"DEBUG OP: Found {len(elements)} users.", flush=True)
 
                 for u in elements:
                     uid = u.get("id")
-                    email = u.get("email")  # Often MISSING if not super-admin
+                    email = u.get("email")
                     login = u.get("login")
 
                     if uid:
@@ -57,15 +84,8 @@ class OpenProjectService:
                         final_email = email if email else f"{login}@placeholder"
                         user_map[uid] = final_email
 
-                        if not email:
-                            print(
-                                f"DEBUG OP: User {uid} ({u.get('name')}) hidden email. Using {final_email}",
-                                flush=True,
-                            )
-
-            print(f"DEBUG OP: Map built with {len(user_map)} entries.", flush=True)
+            cache.set(cache_key, user_map, timeout=3600)
         except Exception as e:
-            print(f"DEBUG OP: User Map Failed: {e}", flush=True)
             logger.warning(f"OpenProject User Map failed: {e}")
         return user_map
 
@@ -83,7 +103,6 @@ class OpenProjectService:
         normalized_tickets = []
 
         try:
-            print("DEBUG OP: Starting fetch...", flush=True)
             url = f"{self.base_url}/api/v3/work_packages"
             params = {"pageSize": 50, "sortBy": '[["updatedAt","desc"]]'}
 
@@ -97,17 +116,14 @@ class OpenProjectService:
             response.raise_for_status()
 
             elements = response.json().get("_embedded", {}).get("elements", [])
-            print(f"DEBUG OP: Fetched {len(elements)} work packages", flush=True)
 
             for item in elements:
-                # ... (Keep existing parsing logic) ...
                 links = item.get("_links", {})
-                # ...
 
-                # Extract Email Logic (Keep what we had)
+                # Extract Email Logic
                 assignee_link = links.get("assignee", {})
                 assignee_href = assignee_link.get("href", "")
-                assignee_name = assignee_link.get("title", "Unassigned")
+                assignee_name = assignee_link.get("title", "-")
                 assignee_email = None
 
                 if assignee_href:
@@ -120,9 +136,6 @@ class OpenProjectService:
                 # Mapping Status
                 status_title = links.get("status", {}).get("title", "Unknown")
                 mapped_status = self._map_status(status_title)
-
-                # REMOVED FILTER: if mapped_status == 'resolved': continue
-                # We want to see EVERYTHING in debug mode
 
                 normalized_tickets.append(
                     {
@@ -145,7 +158,7 @@ class OpenProjectService:
             return normalized_tickets
 
         except Exception as e:
-            print(f"DEBUG OP: Error {e}", flush=True)
+            logger.error(f"Error fetching OpenProject packages: {e}")
             return []
 
     def _map_status(self, status_text):

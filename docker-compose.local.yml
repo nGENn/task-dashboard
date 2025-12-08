@@ -98,9 +98,9 @@ services:
       image: openproject/openproject:${TAG:-16}
       container_name: ticket_dashboard_openproject
       ports:
-        - "${PORT:-8002}:80"
+        - "8002:80"
       environment:
-        OPENPROJECT_HOST__NAME: "${OPENPROJECT_HOST__NAME:-localhost:8002}"
+        OPENPROJECT_HOST__NAME: "213.135.195.194:8002"
         OPENPROJECT_HTTPS: "${OPENPROJECT_HTTPS:-false}"
         OPENPROJECT_SECRET_KEY_BASE: "${OPENPROJECT_SECRET_KEY_BASE:-devsecret}"
       volumes:
@@ -175,8 +175,8 @@ services:
         prometheus_monitoring['enable'] = false
         gitlab_rails['gitlab_shell_ssh_port'] = 2222
     ports:
-      - "8004:8084"
-      - "2222:22" # Offset SSH port
+      - "8004:8004"
+      - "2424:22" # Offset SSH port
     volumes:
       - gitlab_config:/etc/gitlab
       - gitlab_logs:/var/log/gitlab

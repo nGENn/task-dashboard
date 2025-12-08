@@ -96,7 +96,7 @@ class GitLabService:
 
                 # Determine Owner (Assignee)
                 assignee_data = item.get("assignee")
-                owner_name = "Unassigned"
+                owner_name = "-"
                 owner_email = None
 
                 if assignee_data:
