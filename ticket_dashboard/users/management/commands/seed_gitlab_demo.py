@@ -1,0 +1,67 @@
+import httpx
+from django.conf import settings
+from django.core.management.base import BaseCommand
+
+
+class Command(BaseCommand):
+    help = "Simple GitLab Seeder"
+
+    def handle(self, *args, **options):
+        base_url = settings.GITLAB_API_URL.rstrip("/")
+        token = settings.GITLAB_API_TOKEN
+        headers = {"Private-Token": token}
+        client = httpx.Client(headers=headers, verify=False, timeout=10)
+
+        self.stdout.write("🌱 Seeding GitLab...")
+
+        # 1. Get or Create Project
+        project_name = "Dashboard Demo"
+        # Search for project owned by user
+        projs = client.get(
+            f"{base_url}/api/v4/projects?search={project_name}&membership=true"
+        ).json()
+
+        if projs:
+            pid = projs[0]["id"]
+            self.stdout.write(f"  - Using existing project ID: {pid}")
+        else:
+            resp = client.post(
+                f"{base_url}/api/v4/projects",
+                json={"name": project_name, "visibility": "private"},
+            )
+            if resp.status_code != 201:
+                self.stdout.write(
+                    self.style.ERROR(f"Failed to create project: {resp.text}")
+                )
+                return
+            pid = resp.json()["id"]
+            self.stdout.write(f"  - Created project ID: {pid}")
+
+        # 2. Create Issues
+        issues = [
+            {"title": "Fix CSS on Login Page", "labels": "High,Bug"},
+            {"title": "Update Documentation", "labels": "Low,Docs"},
+            {"title": "Refactor User Model", "labels": "Critical,Backend"},
+        ]
+
+        for i in issues:
+            # Idempotency check
+            check = client.get(
+                f"{base_url}/api/v4/projects/{pid}/issues?search={i['title']}"
+            ).json()
+            if check:
+                continue
+
+            client.post(
+                f"{base_url}/api/v4/projects/{pid}/issues",
+                json={"title": i["title"], "labels": i["labels"]},
+            )
+            self.stdout.write(self.style.SUCCESS(f"  + Issue: {i['title']}"))
+
+        # 3. Create Merge Requests
+        # MRs require a branch. For simplicity, we just check if any exist, if not create one dummy one if possible.
+        # Creating MRs via API from scratch requires creating branches first which is complex.
+        # We will skip MR creation logic here to keep it simple unless you specifically need it.
+        # If you need it, simply creating Issues (as above) is usually enough to populate the dashboard.
+
+        self.stdout.write("✅ GitLab seeding complete.")

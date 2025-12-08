@@ -1,0 +1,700 @@
+{% extends "base.html" %} {% block content %}
+{% load dashboard_extras %}
+<div class="w-full max-w-[1920px] mx-auto px-4 lg:px-8 py-8">
+  <main class="w-full">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            
+            <div class="stat bg-base-100 rounded-box shadow-sm border border-base-300 p-4">
+                <div class="stat-figure text-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                </div>
+                <div class="stat-title text-xs">Total Tickets</div>
+                <div class="stat-value text-2xl">{{ stats.total }}</div>
+            </div>
+
+            <div class="stat bg-base-100 rounded-box shadow-sm border border-base-300 p-4">
+                <div class="stat-figure text-secondary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                </div>
+                <div class="stat-title text-xs font-bold text-secondary">Assigned to Me</div>
+                <div class="stat-value text-2xl text-secondary">{{ stats.my_tickets }}</div>
+            </div>
+
+            <div class="stat bg-base-100 rounded-box shadow-sm border border-base-300 p-4">
+                <div class="stat-figure text-warning">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <div class="stat-title text-xs">Open</div>
+                <div class="stat-value text-2xl text-warning">{{ stats.open }}</div>
+            </div>
+
+            <div class="stat bg-base-100 rounded-box shadow-sm border border-base-300 p-4">
+                <div class="stat-figure text-info">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </div>
+                <div class="stat-title text-xs">Pending</div>
+                <div class="stat-value text-2xl text-info">{{ stats.pending }}</div>
+            </div>
+        </div>
+
+    <form method="GET" action="." class="mb-8">
+      <div class="form-control w-full md:w-1/3 mb-4">
+        <div class="relative">
+          <input
+            type="text"
+            name="q"
+            placeholder="Search by Ticket ID, Title, or Customer..."
+            class="input input-bordered w-full pl-12"
+            value="{{ request.GET.q|default:'' }}"
+          />
+          <div
+            class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-5 w-5 text-base-content/50"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-base-100 rounded-box shadow-sm border border-base-300 p-4">
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-3 mb-4">
+                    
+                    <div class="dropdown w-full">
+                        <div tabindex="0" role="button" class="select select-bordered w-full flex items-center justify-between px-3">
+                            <span class="text-base-content/60 text-sm">Origin</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                        <ul tabindex="0" class="dropdown-content z-[50] menu p-2 shadow-xl bg-base-100 rounded-box min-w-full w-max border border-base-300 mt-1 max-h-60 overflow-y-auto flex-col flex-nowrap">
+                            {% for origin in filter_options.origins %}
+                            <li><label class="label cursor-pointer justify-start gap-2 py-1">
+                                <input type="checkbox" name="origin" value="{{ origin }}" class="checkbox checkbox-sm checkbox-primary filter-checkbox" />
+                                <span class="text-sm whitespace-nowrap">{{ origin }}</span>
+                            </label></li>
+                            {% empty %}
+                            <li class="disabled"><span class="text-xs opacity-50">No data</span></li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <div class="dropdown w-full">
+                        <div tabindex="0" role="button" class="select select-bordered w-full flex items-center justify-between px-3">
+                            <span class="text-base-content/60 text-sm">Customer</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                        <ul tabindex="0" class="dropdown-content z-[50] menu p-2 shadow-xl bg-base-100 rounded-box min-w-full w-max border border-base-300 mt-1 max-h-60 overflow-y-auto flex-col flex-nowrap">
+                            {% for customer in filter_options.customers %}
+                            <li><label class="label cursor-pointer justify-start gap-2 py-1">
+                                <input type="checkbox" name="customer" value="{{ customer }}" class="checkbox checkbox-sm checkbox-primary filter-checkbox" />
+                                <span class="text-sm whitespace-nowrap">{{ customer }}</span>
+                            </label></li>
+                            {% empty %}
+                            <li class="disabled"><span class="text-xs opacity-50">No data</span></li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <div class="dropdown w-full">
+                        <div tabindex="0" role="button" class="select select-bordered w-full flex items-center justify-between px-3">
+                            <span class="text-base-content/60 text-sm">Group</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                        <ul tabindex="0" class="dropdown-content z-[50] menu p-2 shadow-xl bg-base-100 rounded-box min-w-full w-max border border-base-300 mt-1 max-h-60 overflow-y-auto flex-col flex-nowrap">
+                            {% for group in filter_options.groups %}
+                            <li><label class="label cursor-pointer justify-start gap-2 py-1">
+                                <input type="checkbox" name="group" value="{{ group }}" class="checkbox checkbox-sm checkbox-primary filter-checkbox" />
+                                <span class="text-sm whitespace-nowrap">{{ group }}</span>
+                            </label></li>
+                            {% empty %}
+                            <li class="disabled"><span class="text-xs opacity-50">No data</span></li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <div class="dropdown w-full">
+                        <div tabindex="0" role="button" class="select select-bordered w-full flex items-center justify-between px-3">
+                            <span class="text-base-content/60 text-sm">Owner</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                        <ul tabindex="0" class="dropdown-content z-[50] menu p-2 shadow-xl bg-base-100 rounded-box min-w-full w-max border border-base-300 mt-1 max-h-60 overflow-y-auto flex-col flex-nowrap">
+                            {% for owner in filter_options.owners %}
+                            <li><label class="label cursor-pointer justify-start gap-2 py-1">
+                                <input type="checkbox" name="owner" value="{{ owner }}" class="checkbox checkbox-sm checkbox-primary filter-checkbox" />
+                                <span class="text-sm whitespace-nowrap">{{ owner }}</span>
+                            </label></li>
+                            {% empty %}
+                            <li class="disabled"><span class="text-xs opacity-50">No data</span></li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <div class="dropdown dropdown-end w-full">
+                        <div tabindex="0" role="button" class="select select-bordered w-full flex items-center justify-between px-3">
+                            <span class="text-base-content/60 text-sm">State</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                        <ul tabindex="0" class="dropdown-content z-[50] menu p-2 shadow-xl bg-base-100 rounded-box min-w-full w-max border border-base-300 mt-1 max-h-60 overflow-y-auto flex-col flex-nowrap">
+                            {% for state in filter_options.states %}
+                            <li><label class="label cursor-pointer justify-start gap-2 py-1">
+                                <input type="checkbox" name="state" value="{{ state }}" class="checkbox checkbox-sm checkbox-primary filter-checkbox" />
+                                <span class="text-sm whitespace-nowrap capitalize">{{ state }}</span>
+                            </label></li>
+                            {% empty %}
+                            <li class="disabled"><span class="text-xs opacity-50">No data</span></li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <div class="dropdown dropdown-end w-full">
+                        <div tabindex="0" role="button" class="select select-bordered w-full flex items-center justify-between px-3">
+                            <span class="text-base-content/60 text-sm">Priority</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                        <ul tabindex="0" class="dropdown-content z-[50] menu p-2 shadow-xl bg-base-100 rounded-box min-w-full w-max border border-base-300 mt-1 max-h-60 overflow-y-auto flex-col flex-nowrap">
+                            {% for priority in filter_options.priorities %}
+                            <li><label class="label cursor-pointer justify-start gap-2 py-1">
+                                <input type="checkbox" name="priority" value="{{ priority }}" class="checkbox checkbox-sm checkbox-primary filter-checkbox" />
+                                <span class="text-sm whitespace-nowrap capitalize">{{ priority }}</span>
+                            </label></li>
+                            {% empty %}
+                            <li class="disabled"><span class="text-xs opacity-50">No data</span></li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <div class="w-full relative">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none z-10">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-base-content/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        </div>
+                        <input type="text" id="date-range-picker" name="date_range" class="input input-bordered w-full pl-10 filter-date text-sm" placeholder="Select Range..." value="{{ request.GET.date_range|default:'' }}" />
+                    </div>
+
+                </div>
+
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-t border-base-200 pt-4">
+                    
+                    <div id="active-filters-container" class="flex flex-wrap items-center gap-2 min-h-[2rem]">
+                        <span class="text-sm text-base-content/60 mr-1 hidden" id="active-filters-label">Active filters:</span>
+                        </div>
+
+                    <div class="flex items-center gap-2 whitespace-nowrap">
+                        <a href="." class="btn btn-ghost btn-sm">Reset</a>
+                        <button type="submit" class="btn btn-primary btn-sm">Apply Filters</button>
+                    </div>
+                </div>
+            </div>
+    </form>
+
+    <div
+      class="bg-base-100 rounded-box shadow-sm border border-base-300 overflow-hidden"
+    >
+      <div class="overflow-x-auto">
+                <table class="table table-zebra w-full">
+                    <thead class="bg-base-200 text-base-content/70">
+                        <tr>
+                            {% with request.GET.sort as current_sort %}
+                            {% with request.GET.direction as current_dir %}
+                            
+                            <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
+                                <a class="flex items-center justify-between w-full h-full px-2" 
+                                   href="?{% url_replace sort='origin' direction=current_dir|toggle_direction %}">
+                                    <span>Origin</span>
+                                    {% if current_sort == 'origin' %}
+                                        <span class="text-xs">{% if current_dir == 'asc' %}▲{% else %}▼{% endif %}</span>
+                                    {% endif %}
+                                </a>
+                                <div class="resizer"></div>
+                            </th>
+                            
+                            <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
+                                <a class="flex items-center justify-between w-full h-full px-2" 
+                                   href="?{% url_replace sort='id' direction=current_dir|toggle_direction %}">
+                                    <span>ID</span>
+                                    {% if current_sort == 'id' %}
+                                        <span class="text-xs">{% if current_dir == 'asc' %}▲{% else %}▼{% endif %}</span>
+                                    {% endif %}
+                                </a>
+                                <div class="resizer"></div>
+                            </th>
+                            
+                            <th class="font-semibold relative group min-w-[200px] cursor-pointer hover:bg-base-300 transition-colors">
+                                <a class="flex items-center justify-between w-full h-full px-2" 
+                                   href="?{% url_replace sort='title' direction=current_dir|toggle_direction %}">
+                                    <span>Title</span>
+                                    {% if current_sort == 'title' %}
+                                        <span class="text-xs">{% if current_dir == 'asc' %}▲{% else %}▼{% endif %}</span>
+                                    {% endif %}
+                                </a>
+                                <div class="resizer"></div>
+                            </th>
+                            
+                            <th class="font-semibold relative group min-w-[150px] cursor-pointer hover:bg-base-300 transition-colors">
+                                <a class="flex items-center justify-between w-full h-full px-2" 
+                                   href="?{% url_replace sort='customer' direction=current_dir|toggle_direction %}">
+                                    <span>Customer</span>
+                                    {% if current_sort == 'customer' %}
+                                        <span class="text-xs">{% if current_dir == 'asc' %}▲{% else %}▼{% endif %}</span>
+                                    {% endif %}
+                                </a>
+                                <div class="resizer"></div>
+                            </th>
+                            
+                            <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
+                                <a class="flex items-center justify-between w-full h-full px-2" 
+                                   href="?{% url_replace sort='group' direction=current_dir|toggle_direction %}">
+                                    <span>Group</span>
+                                    {% if current_sort == 'group' %}
+                                        <span class="text-xs">{% if current_dir == 'asc' %}▲{% else %}▼{% endif %}</span>
+                                    {% endif %}
+                                </a>
+                                <div class="resizer"></div>
+                            </th>
+                            
+                            <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
+                                <a class="flex items-center justify-between w-full h-full px-2" 
+                                   href="?{% url_replace sort='owner' direction=current_dir|toggle_direction %}">
+                                    <span>Owner</span>
+                                    {% if current_sort == 'owner' %}
+                                        <span class="text-xs">{% if current_dir == 'asc' %}▲{% else %}▼{% endif %}</span>
+                                    {% endif %}
+                                </a>
+                                <div class="resizer"></div>
+                            </th>
+                            
+                            <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
+                                <a class="flex items-center justify-between w-full h-full px-2" 
+                                   href="?{% url_replace sort='status' direction=current_dir|toggle_direction %}">
+                                    <span>State</span>
+                                    {% if current_sort == 'status' %}
+                                        <span class="text-xs">{% if current_dir == 'asc' %}▲{% else %}▼{% endif %}</span>
+                                    {% endif %}
+                                </a>
+                                <div class="resizer"></div>
+                            </th>
+                            
+                            <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
+                                <a class="flex items-center justify-between w-full h-full px-2" 
+                                   href="?{% url_replace sort='priority' direction=current_dir|toggle_direction %}">
+                                    <span>Priority</span>
+                                    {% if current_sort == 'priority' %}
+                                        <span class="text-xs">{% if current_dir == 'asc' %}▲{% else %}▼{% endif %}</span>
+                                    {% endif %}
+                                </a>
+                                <div class="resizer"></div>
+                            </th>
+                            
+                            <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
+                                <a class="flex items-center justify-between w-full h-full px-2" 
+                                   href="?{% url_replace sort='created_at' direction=current_dir|toggle_direction %}">
+                                    <span>Created</span>
+                                    {% if current_sort == 'created_at' %}
+                                        <span class="text-xs">{% if current_dir == 'asc' %}▲{% else %}▼{% endif %}</span>
+                                    {% endif %}
+                                </a>
+                                <div class="resizer"></div>
+                            </th>
+                            
+                            <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
+                                <a class="flex items-center justify-between w-full h-full px-2" 
+                                   href="?{% url_replace sort='updated_at' direction=current_dir|toggle_direction %}">
+                                    <span>Updated</span>
+                                    {% if current_sort == 'updated_at' %}
+                                        <span class="text-xs">{% if current_dir == 'asc' %}▲{% else %}▼{% endif %}</span>
+                                    {% endif %}
+                                </a>
+                                <div class="resizer"></div>
+                            </th>
+                            
+                            <th class="font-semibold text-center w-px whitespace-nowrap px-4">Link</th>
+                            
+                            {% endwith %}
+                            {% endwith %}
+                        </tr>
+                    </thead>
+                    <tbody>
+            {% for ticket in tickets %}
+            <tr class="hover cursor-pointer">
+              <td>
+                <span class="badge badge-ghost text-xs"
+                  >{{ ticket.origin }}</span
+                >
+              </td>
+
+              <td class="font-mono text-sm font-bold whitespace-nowrap">
+                {{ ticket.id }}
+              </td>
+
+              <td class="min-w-[200px] max-w-[400px]">
+                <span
+                  class="truncate block font-medium"
+                  title="{{ ticket.title }}"
+                  >{{ ticket.title }}</span
+                >
+              </td>
+
+              <td
+                class="text-sm min-w-[150px] max-w-[250px] whitespace-normal break-all"
+              >
+                {{ ticket.customer }}
+              </td>
+
+              <td class="text-sm whitespace-nowrap">{{ ticket.group }}</td>
+
+              <td class="text-sm font-medium whitespace-nowrap">
+                                {% if ticket.owner_email %}
+                                    <span class="text-primary">{{ ticket.owner_email }}</span>
+                                {% else %}
+                                    <span class="text-base-content/50 italic">{{ ticket.owner }}</span>
+                                {% endif %}
+                            </td>
+
+              <td>
+                {% if ticket.status == 'open' %}
+                <span
+                  class="badge badge-warning gap-1 text-xs whitespace-nowrap"
+                  ><span
+                    class="w-1.5 h-1.5 rounded-full bg-warning-content/60"
+                  ></span>
+                  Open</span
+                >
+                {% elif ticket.status == 'resolved' %}
+                <span
+                  class="badge badge-success gap-1 text-xs whitespace-nowrap"
+                  ><span
+                    class="w-1.5 h-1.5 rounded-full bg-success-content/60"
+                  ></span>
+                  Resolved</span
+                >
+                {% else %}
+                <span class="badge badge-info gap-1 text-xs whitespace-nowrap"
+                  ><span
+                    class="w-1.5 h-1.5 rounded-full bg-info-content/60"
+                  ></span>
+                  {{ ticket.status|title }}</span
+                >
+                {% endif %}
+              </td>
+
+              <td>
+                {% if ticket.priority == 'Critical' %}
+                <span
+                  class="text-error flex items-center gap-1 font-semibold text-xs whitespace-nowrap"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-3 w-3"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                  Critical
+                </span>
+                {% else %}
+                <span class="text-base-content/70 text-xs whitespace-nowrap"
+                  >{{ ticket.priority }}</span
+                >
+                {% endif %}
+              </td>
+
+              <td class="text-xs text-base-content/70 whitespace-nowrap">
+                {{ ticket.created_at }}
+              </td>
+              <td class="text-xs text-base-content/70 whitespace-nowrap">
+                {{ ticket.updated_at }}
+              </td>
+
+              <td class="text-center">
+                <a
+                  href="{{ ticket.url }}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="btn btn-ghost btn-xs text-primary"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
+                  </svg>
+                </a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="11" class="text-center py-8 text-base-content/50">
+                No tickets found matching your filters.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="flex items-center justify-center p-4 border-t border-base-300 bg-base-100">
+                <div class="join">
+                    
+                    {% if tickets.has_previous %}
+                        <button onclick="changePage({{ tickets.previous_page_number }})" class="join-item btn btn-sm">«</button>
+                    {% else %}
+                        <button class="join-item btn btn-sm btn-disabled">«</button>
+                    {% endif %}
+
+                    {% for page_num in custom_page_range %}
+                        {% if page_num == tickets.paginator.ELLIPSIS %}
+                            <button class="join-item btn btn-sm btn-disabled">...</button>
+                        {% elif page_num == tickets.number %}
+                            <button class="join-item btn btn-sm btn-active">{{ page_num }}</button>
+                        {% else %}
+                            <button onclick="changePage({{ page_num }})" class="join-item btn btn-sm bg-base-100">{{ page_num }}</button>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if tickets.has_next %}
+                        <button onclick="changePage({{ tickets.next_page_number }})" class="join-item btn btn-sm">»</button>
+                    {% else %}
+                        <button class="join-item btn btn-sm btn-disabled">»</button>
+                    {% endif %}
+                    
+                </div>
+            </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // 1. Initialize Flatpickr
+    const isMobile = window.innerWidth < 768;
+        
+    flatpickr("#date-range-picker", {
+      mode: "range",
+      dateFormat: "Y-m-d",
+      altInput: true,
+      altFormat: "d.m.Y",
+      theme: "dark",
+      static: false, // Allow positioning logic to work
+      position: isMobile ? "auto right" : "auto left",
+      onChange: function (selectedDates, dateStr, instance) {
+        updateBadges(); // Update badges when date changes
+      },
+    });
+
+    // 2. Initial Setup: Check boxes based on URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.forEach((value, key) => {
+      if (key === "date_range") return; // Date handled by value="" attribute in HTML
+      // Find checkbox and check it
+      const checkbox = document.querySelector(
+        `input[name="${key}"][value="${value}"]`
+      );
+      if (checkbox) checkbox.checked = true;
+    });
+
+    // 3. Listen for changes on ALL checkboxes
+    const checkboxes = document.querySelectorAll(".filter-checkbox");
+    checkboxes.forEach((box) => {
+      box.addEventListener("change", updateBadges);
+    });
+
+    // 4. Initial Badge Render
+    updateBadges();
+
+    function updateBadges() {
+      const container = document.getElementById("active-filters-container");
+      const label = document.getElementById("active-filters-label");
+
+      // Clear existing badges (except label)
+      // We rebuild them from the CURRENT DOM STATE (what the user sees selected)
+      // This creates the "Hybrid" feel: Immediate visual feedback before applying.
+      const existingBadges = container.querySelectorAll(".badge");
+      existingBadges.forEach((b) => b.remove());
+
+      let hasFilters = false;
+
+      // A. Checkboxes
+      document.querySelectorAll(".filter-checkbox:checked").forEach((box) => {
+        hasFilters = true;
+        createBadge(
+          container,
+          box.name,
+          box.value,
+          box.nextElementSibling.innerText
+        );
+      });
+
+      // B. Date Picker
+      const dateInput = document.getElementById("date-range-picker");
+      // We use the flatpickr instance value if available, or the input value
+      if (dateInput.value) {
+        hasFilters = true;
+        // Format: "2024-12-01 to 2024-12-31" -> "01.12.2024 - 31.12.2024"
+        const formattedDate = dateInput.value
+          .replace(/(\d{4})-(\d{2})-(\d{2})/g, "$3.$2.$1")
+          .replace(" to ", " - ");
+        createBadge(
+          container,
+          "date_range",
+          dateInput.value,
+          formattedDate,
+          "badge-neutral"
+        );
+      }
+
+      // Toggle Label visibility
+      if (hasFilters) {
+        label.classList.remove("hidden");
+        // Add Clear All link
+        if (!container.querySelector(".clear-all-link")) {
+          const clearBtn = document.createElement("a");
+          clearBtn.href = ".";
+          clearBtn.className = "btn btn-ghost btn-xs text-error clear-all-link";
+          clearBtn.innerText = "Clear all";
+          container.appendChild(clearBtn);
+        }
+      } else {
+        label.classList.add("hidden");
+        const clearBtn = container.querySelector(".clear-all-link");
+        if (clearBtn) clearBtn.remove();
+      }
+    }
+
+    function createBadge(
+      container,
+      key,
+      value,
+      displayText,
+      colorClass = "badge-primary"
+    ) {
+      const badge = document.createElement("div");
+      badge.className = `badge ${colorClass} gap-1 pr-0 py-3`;
+      badge.innerHTML = `
+                ${displayText}
+                <button type="button" class="btn btn-ghost btn-xs text-primary-content hover:bg-transparent" 
+                        onclick="removeBadge('${key}', '${value}')">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            `;
+      // Insert before the Clear All link (which is always last)
+      const clearLink = container.querySelector(".clear-all-link");
+      if (clearLink) {
+        container.insertBefore(badge, clearLink);
+      } else {
+        container.appendChild(badge);
+      }
+    }
+
+    // Global function for the onclick event in the badge
+    window.removeBadge = function (key, value) {
+      if (key === "date_range") {
+        const dateInput = document.getElementById("date-range-picker");
+        // Clear Flatpickr
+        if (dateInput._flatpickr) dateInput._flatpickr.clear();
+        dateInput.value = "";
+      } else {
+        // Uncheck the specific checkbox
+        const checkbox = document.querySelector(
+          `input[name="${key}"][value="${value}"]`
+        );
+        if (checkbox) {
+          checkbox.checked = false;
+        }
+      }
+      // Update badges immediately
+      updateBadges();
+    };
+    const table = document.querySelector("table");
+    const resizers = document.querySelectorAll(".resizer");
+    let currentResizer;
+    let startX = 0;
+    let startWidth = 0;
+
+    resizers.forEach(function (resizer) {
+      resizer.addEventListener("mousedown", function (e) {
+        e.preventDefault(); // Prevent text selection
+        currentResizer = resizer;
+
+        // Get the parent TH
+        const th = currentResizer.parentElement;
+
+        // Calculate current width
+        startWidth = th.offsetWidth;
+        startX = e.pageX;
+
+        // Add visual class
+        currentResizer.classList.add("resizing");
+
+        // Attach listeners to document (so you can drag outside the table)
+        document.addEventListener("mousemove", mouseMoveHandler);
+        document.addEventListener("mouseup", mouseUpHandler);
+      });
+    });
+
+    const mouseMoveHandler = function (e) {
+      if (!currentResizer) return;
+
+      // Calculate how far we moved
+      const dx = e.pageX - startX;
+      const th = currentResizer.parentElement;
+
+      // Apply new width (prevent making it too small, e.g., < 50px)
+      if (startWidth + dx > 50) {
+        th.style.width = `${startWidth + dx}px`;
+        // Force the table to respect the manual width
+        th.style.minWidth = `${startWidth + dx}px`;
+      }
+    };
+
+    const mouseUpHandler = function () {
+      if (currentResizer) {
+        currentResizer.classList.remove("resizing");
+        currentResizer = null;
+      }
+      document.removeEventListener("mousemove", mouseMoveHandler);
+      document.removeEventListener("mouseup", mouseUpHandler);
+    };
+  });
+
+  function changePage(pageNumber) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('page', pageNumber);
+        window.location.href = url.toString();
+    }
+</script>
+{% endblock content %}

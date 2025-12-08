@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block head_title %}{% trans "Sign Out" %}{% endblock %}
+
+{% block content %}
+<div class="min-h-[60vh] flex items-center justify-center">
+  <div class="card w-96 bg-base-100 shadow-xl border border-base-200">
+    <div class="card-body text-center">
+      <h2 class="card-title justify-center text-2xl mb-4">{% trans "Sign Out" %}</h2>
+      <p class="mb-6">{% trans "Are you sure you want to sign out?" %}</p>
+
+      <form method="post" action="{% url 'account_logout' %}">
+        {% csrf_token %}
+        {% if redirect_field_value %}
+        <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}"/>
+        {% endif %}
+        <button type="submit" class="btn btn-error w-full">{% trans "Sign Out" %}</button>
+      </form>
+      
+      <div class="mt-4">
+        <a href="/" class="btn btn-ghost btn-sm">Cancel</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
