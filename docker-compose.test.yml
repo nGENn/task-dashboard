@@ -15,10 +15,7 @@ services:
     container_name: ticket_dashboard_test_django
     depends_on:
       - postgres
-    # Keep the same dev mounts so the container sees repo code
-    volumes:
-      - /app/.venv
-      - .:/app:z
+    # No bind mounts in CI to avoid DinD path shadowing
     env_file:
       - ${ENV_DJANGO_FILE:-.envs/.local/.django}
       - ${ENV_POSTGRES_FILE:-.envs/.local/.postgres}

@@ -31,6 +31,6 @@ pytest:
     - docker compose -f docker-compose.test.yml build
     - docker compose -f docker-compose.test.yml up -d postgres
     # Ensure celerybeat does not crash due to non-existent tables
-    - docker compose -f docker-compose.test.yml run --rm django python manage.py migrate
+    - docker compose -f docker-compose.test.yml run --rm -e DJANGO_SETTINGS_MODULE=config.settings.test django python manage.py migrate
   script:
     - docker compose -f docker-compose.test.yml run --rm django pytest
