@@ -1,5 +1,4 @@
 from allauth.account.decorators import secure_admin_login
-from allauth.socialaccount.models import SocialAccount
 from allauth.socialaccount.models import SocialApp
 from allauth.socialaccount.models import SocialToken
 from django.conf import settings

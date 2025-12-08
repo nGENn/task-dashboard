@@ -1,3 +1,5 @@
+from http import HTTPStatus
+
 import httpx
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -10,7 +12,8 @@ class Command(BaseCommand):
         base_url = settings.GITLAB_API_URL.rstrip("/")
         token = settings.GITLAB_API_TOKEN
         headers = {"Private-Token": token}
-        client = httpx.Client(headers=headers, verify=False, timeout=10)
+        verify_ssl = getattr(settings, "GITLAB_VERIFY_SSL", True)
+        client = httpx.Client(headers=headers, verify=verify_ssl, timeout=10)
 
         self.stdout.write("🌱 Seeding GitLab...")
 
@@ -18,7 +21,7 @@ class Command(BaseCommand):
         project_name = "Dashboard Demo"
         # Search for project owned by user
         projs = client.get(
-            f"{base_url}/api/v4/projects?search={project_name}&membership=true"
+            f"{base_url}/api/v4/projects?search={project_name}&membership=true",
         ).json()
 
         if projs:
@@ -29,9 +32,9 @@ class Command(BaseCommand):
                 f"{base_url}/api/v4/projects",
                 json={"name": project_name, "visibility": "private"},
             )
-            if resp.status_code != 201:
+            if resp.status_code != HTTPStatus.CREATED:
                 self.stdout.write(
-                    self.style.ERROR(f"Failed to create project: {resp.text}")
+                    self.style.ERROR(f"Failed to create project: {resp.text}"),
                 )
                 return
             pid = resp.json()["id"]
@@ -47,7 +50,7 @@ class Command(BaseCommand):
         for i in issues:
             # Idempotency check
             check = client.get(
-                f"{base_url}/api/v4/projects/{pid}/issues?search={i['title']}"
+                f"{base_url}/api/v4/projects/{pid}/issues?search={i['title']}",
             ).json()
             if check:
                 continue
@@ -59,9 +62,9 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"  + Issue: {i['title']}"))
 
         # 3. Create Merge Requests
-        # MRs require a branch. For simplicity, we just check if any exist, if not create one dummy one if possible.
-        # Creating MRs via API from scratch requires creating branches first which is complex.
-        # We will skip MR creation logic here to keep it simple unless you specifically need it.
-        # If you need it, simply creating Issues (as above) is usually enough to populate the dashboard.
+        # MRs require a branch. For simplicity, we just check if any exist, if not create one dummy one if possible.  # noqa: E501  # noqa: E501
+        # Creating MRs via API from scratch requires creating branches first which is complex.  # noqa: E501  # noqa: E501
+        # We will skip MR creation logic here to keep it simple unless you specifically need it.  # noqa: E501  # noqa: E501
+        # If you need it, simply creating Issues (as above) is usually enough to populate the dashboard.  # noqa: E501  # noqa: E501
 
         self.stdout.write("✅ GitLab seeding complete.")

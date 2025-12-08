@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import typing
 
 from allauth.account.adapter import DefaultAccountAdapter
@@ -18,7 +19,7 @@ class AccountAdapter(DefaultAccountAdapter):
     def is_open_for_signup(self, request: HttpRequest) -> bool:
         return getattr(settings, "ACCOUNT_ALLOW_REGISTRATION", True)
 
-    def save_user(self, request, user, form, commit=True):
+    def save_user(self, request, user, form, *, commit=True):
         """
         This is called when a user is registered (Local OR Social).
         We override it to assign a default group.
@@ -35,9 +36,11 @@ class AccountAdapter(DefaultAccountAdapter):
                 # get_or_create ensures we don't crash if the group is missing
                 group, _ = Group.objects.get_or_create(name=default_group_name)
                 user.groups.add(group)
-            except Exception as e:
-                # Log error but let the user sign in
-                print(f"Error assigning default group: {e}")
+            except Exception as e:  # noqa: BLE001
+                logging.getLogger(__name__).warning(
+                    "Error assigning default group: %s",
+                    e,
+                )
 
         return user
 

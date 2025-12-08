@@ -1,9 +1,12 @@
 import logging
+from datetime import UTC
 from datetime import datetime
+from http import HTTPStatus
 
 import requests
 from django.conf import settings
 from django.core.cache import cache
+from requests import RequestException
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +21,7 @@ class EspoService:
         }
 
     def check_health(self):
-        start = datetime.now()
+        start = datetime.now(tz=UTC)
         if not self.api_key:
             return {
                 "name": "EspoCRM",
@@ -28,16 +31,12 @@ class EspoService:
             }
         try:
             response = requests.get(
-                f"{self.base_url}/api/v1/App/user", headers=self.headers, timeout=3
+                f"{self.base_url}/api/v1/App/user",
+                headers=self.headers,
+                timeout=3,
             )
             response.raise_for_status()
-            latency = int((datetime.now() - start).total_seconds() * 1000)
-            return {
-                "name": "EspoCRM",
-                "status": "online",
-                "latency": latency,
-                "error": None,
-            }
+            latency = int((datetime.now(tz=UTC) - start).total_seconds() * 1000)
         except requests.HTTPError as e:
             return {
                 "name": "EspoCRM",
@@ -45,12 +44,20 @@ class EspoService:
                 "latency": 0,
                 "error": str(e),
             }
-        except Exception as e:
+        except Exception:
+            logger.exception("EspoCRM Unreachable")
             return {
                 "name": "EspoCRM",
                 "status": "offline",
                 "latency": 0,
-                "error": str(e),
+                "error": "Unreachable",
+            }
+        else:
+            return {
+                "name": "EspoCRM",
+                "status": "online",
+                "latency": latency,
+                "error": None,
             }
 
     def _get_user_map(self):
@@ -70,7 +77,7 @@ class EspoService:
 
             resp = requests.get(url, headers=self.headers, params=params, timeout=5)
 
-            if resp.status_code == 200:
+            if resp.status_code == HTTPStatus.OK:
                 users = resp.json().get("list", [])
 
                 for u in users:
@@ -84,12 +91,12 @@ class EspoService:
                         )
 
             cache.set(cache_key, user_map, timeout=3600)
-        except Exception as e:
-            logger.warning(f"Espo User Map failed: {e}")
+        except RequestException as e:
+            logger.warning("Espo User Map failed: %s", e)
 
         return user_map
 
-    def get_tickets(self, force_refresh=False):
+    def get_tickets(self, *, force_refresh=False):
         cache_key = "espo_active_items_cache"
         if not force_refresh:
             cached_data = cache.get(cache_key)
@@ -126,11 +133,12 @@ class EspoService:
             )
 
             cache.set(cache_key, normalized_tickets, timeout=300)
-            return normalized_tickets
 
-        except Exception as e:
-            logger.error(f"Error fetching EspoCRM data: {e}")
+        except RequestException:
+            logger.exception("Error fetching EspoCRM data")
             return []
+        else:
+            return normalized_tickets
 
     def _fetch_entity(self, url, entity_type, params, target_list, user_map):
         try:
@@ -157,10 +165,10 @@ class EspoService:
                         "created_at": str(item.get("createdAt", "")).split(" ")[0],
                         "updated_at": str(item.get("modifiedAt", "")).split(" ")[0],
                         "url": f"{self.base_url}/#{entity_type}/view/{item.get('id')}",
-                    }
+                    },
                 )
-        except Exception as e:
-            logger.warning(f"Failed to fetch Espo {entity_type}: {e}")
+        except RequestException as e:
+            logger.warning("Failed to fetch Espo %s: %s", entity_type, e)
 
     def _map_status(self, espo_status):
         s = str(espo_status).lower()

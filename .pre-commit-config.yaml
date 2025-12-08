@@ -34,8 +34,12 @@ repos:
       # Linter
       - id: ruff-check
         args: [--fix, --exit-non-zero-on-fix]
+        env:
+          RUFF_CACHE_DIR: /tmp/ruff_cache
       # Formatter
       - id: ruff-format
+        env:
+          RUFF_CACHE_DIR: /tmp/ruff_cache
 
   - repo: https://github.com/Riverside-Healthcare/djLint
     rev: v1.36.4

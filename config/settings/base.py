@@ -304,9 +304,9 @@ SOCIALACCOUNT_PROVIDERS = {
                 "settings": {
                     "server_url": env("KEYCLOAK_SERVER_URL", default=""),
                 },
-            }
-        ]
-    }
+            },
+        ],
+    },
 }
 
 SOCIALACCOUNT_AUTO_SIGNUP = True

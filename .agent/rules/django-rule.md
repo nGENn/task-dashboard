@@ -54,6 +54,5 @@ trigger: always_on
   1. Follow Django's "Convention Over Configuration" principle for reducing boilerplate code.
   2. Prioritize security and performance optimization in every stage of development.
   3. Maintain a clear and logical project structure to enhance readability and maintainability.
-  
+
   Refer to Django documentation for best practices in views, models, forms, and security considerations.
-  

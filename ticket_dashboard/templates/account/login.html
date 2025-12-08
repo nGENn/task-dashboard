@@ -1,93 +1,99 @@
 {% extends "base.html" %}
+
 {% load i18n %}
 {% load account socialaccount %}
 {% load crispy_forms_tags %}
 
-{% block head_title %}{% trans "Sign In" %}{% endblock %}
-
+{% block head_title %}
+  {% trans "Sign In" %}
+{% endblock head_title %}
 {% block content %}
-<div class="min-h-[80vh] flex items-center justify-center">
-  <div class="card w-full max-w-md bg-base-100 shadow-xl border border-base-200">
-    <div class="card-body text-center">
-      
-      <h2 class="card-title justify-center text-3xl font-bold mb-2">Welcome Back</h2>
-      <p class="text-base-content/60 mb-6">Ticket Management System</p>
-
-      {% get_providers as socialaccount_providers %}
-      {% for provider in socialaccount_providers %}
-        {% if provider.id == "keycloak" or provider.name == "Keycloak" %}
-        <a title="{{ provider.name }}" 
-           href="{% provider_login_url provider.id process='login' scope=scope auth_params=auth_params %}"
-           class="btn btn-primary btn-lg w-full gap-3 shadow-lg hover:scale-[1.02] transition-transform">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-            Sign in with SSO (Keycloak)
-        </a>
-        {% endif %}
-      {% endfor %}
-
-      <div class="divider my-6">OR</div>
-
-      <div tabindex="0" class="collapse collapse-arrow border border-base-300 bg-base-100 rounded-box text-left {% if form.errors %}collapse-open{% endif %}">
-        
-        <div class="collapse-title text-sm font-medium text-base-content/70 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+  <div class="min-h-[80vh] flex items-center justify-center">
+    <div class="card w-full max-w-md bg-base-100 shadow-xl border border-base-200">
+      <div class="card-body text-center">
+        <h2 class="card-title justify-center text-3xl font-bold mb-2">Welcome Back</h2>
+        <p class="text-base-content/60 mb-6">Ticket Management System</p>
+        {% get_providers as socialaccount_providers %}
+        {% for provider in socialaccount_providers %}
+          {% if provider.id == "keycloak" or provider.name == "Keycloak" %}
+            <a title="{{ provider.name }}"
+               href="{% provider_login_url provider.id process='login' scope=scope auth_params=auth_params %}"
+               class="btn btn-primary btn-lg w-full gap-3 shadow-lg hover:scale-[1.02] transition-transform">
+              <svg xmlns="http://www.w3.org/2000/svg"
+                   class="h-6 w-6"
+                   fill="none"
+                   viewBox="0 0 24 24"
+                   stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              Sign in with SSO (Keycloak)
+            </a>
+          {% endif %}
+        {% endfor %}
+        <div class="divider my-6">OR</div>
+        <div tabindex="0"
+             class="collapse collapse-arrow border border-base-300 bg-base-100 rounded-box text-left {% if form.errors %}collapse-open{% endif %}">
+          <div class="collapse-title text-sm font-medium text-base-content/70 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 class="h-4 w-4"
+                 fill="none"
+                 viewBox="0 0 24 24"
+                 stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
             Admin Login
-        </div>
-        <div class="collapse-content">
-            <form class="login" method="POST" action="{% url 'account_login' %}">
-                {% csrf_token %}
-
-                {% if form.non_field_errors %}
+          </div>
+          <div class="collapse-content">
+            <form class="login" method="post" action="{% url 'account_login' %}">
+              {% csrf_token %}
+              {% if form.non_field_errors %}
                 <div role="alert" class="alert alert-error mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    <span>
-                        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
-                    </span>
+                  <svg xmlns="http://www.w3.org/2000/svg"
+                       class="stroke-current shrink-0 h-6 w-6"
+                       fill="none"
+                       viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>
+                    {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                  </span>
                 </div>
-                {% endif %}
-                
-                <div class="form-control w-full mb-3">
-                    <label class="label"><span class="label-text font-bold">Email</span></label>
-                    {{ form.login }} 
-                    {% for error in form.login.errors %}
-                        <span class="text-error text-xs mt-1">{{ error }}</span>
-                    {% endfor %}
-                </div>
-
-                <div class="form-control w-full mb-3">
-                    <label class="label"><span class="label-text font-bold">Password</span></label>
-                    {{ form.password }}
-                    {% for error in form.password.errors %}
-                        <span class="text-error text-xs mt-1">{{ error }}</span>
-                    {% endfor %}
-                </div>
-
-                <div class="form-control mb-4">
-                    <label class="label cursor-pointer justify-start gap-2">
-                        {{ form.remember }}
-                        <span class="label-text">Remember Me</span>
-                    </label>
-                </div>
-
-                {% if redirect_field_value %}
-                <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}" />
-                {% endif %}
-                
-                <button class="btn btn-neutral w-full" type="submit">Sign In</button>
+              {% endif %}
+              <div class="form-control w-full mb-3">
+                <label class="label">
+                  <span class="label-text font-bold">Email</span>
+                </label>
+                {{ form.login }}
+                {% for error in form.login.errors %}<span class="text-error text-xs mt-1">{{ error }}</span>{% endfor %}
+              </div>
+              <div class="form-control w-full mb-3">
+                <label class="label">
+                  <span class="label-text font-bold">Password</span>
+                </label>
+                {{ form.password }}
+                {% for error in form.password.errors %}<span class="text-error text-xs mt-1">{{ error }}</span>{% endfor %}
+              </div>
+              <div class="form-control mb-4">
+                <label class="label cursor-pointer justify-start gap-2">
+                  {{ form.remember }}
+                  <span class="label-text">Remember Me</span>
+                </label>
+              </div>
+              {% if redirect_field_value %}
+                <input type="hidden"
+                       name="{{ redirect_field_name }}"
+                       value="{{ redirect_field_value }}" />
+              {% endif %}
+              <button class="btn btn-neutral w-full" type="submit">Sign In</button>
             </form>
-
             <div class="text-center mt-3">
-                <a class="link link-hover text-xs" href="{% url 'account_reset_password' %}">{% trans "Forgot Password?" %}</a>
+              <a class="link link-hover text-xs"
+                 href="{% url 'account_reset_password' %}">{% trans "Forgot Password?" %}</a>
             </div>
+          </div>
         </div>
       </div>
-
     </div>
   </div>
-</div>
-{% endblock %}
+{% endblock content %}

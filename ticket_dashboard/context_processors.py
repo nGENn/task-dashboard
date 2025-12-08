@@ -7,8 +7,10 @@ from ticket_dashboard.services.openproject import OpenProjectService
 from ticket_dashboard.services.zammad import ZammadService
 from ticket_dashboard.users.models import ServiceConfiguration
 
+MAX_HEALTHY_LATENCY_MS = 1000
 
-def system_status(request):
+
+def system_status(request):  # noqa: C901
     """
     Adds 'services_status' and 'global_system_status' to context.
     - List of services is fetched LIVE from DB (Instant Admin Toggle).
@@ -33,16 +35,18 @@ def system_status(request):
     # We query this every time so the Admin Toggle is instant.
     # It's a tiny table, so the performance cost is negligible.
     active_configs = ServiceConfiguration.objects.filter(
-        is_active=True, name__in=service_map.keys()
+        is_active=True,
+        name__in=service_map.keys(),
     ).order_by("name")
 
     results = []
     latencies = []
-    any_offline = False
 
     for config in active_configs:
         # Get the class
-        ServiceClass = service_map.get(config.name)
+        service_class = service_map.get(config.name)
+        if service_class is None:
+            continue
 
         # 4. Per-Service Caching
         # We look for a cached result for THIS specific service
@@ -51,7 +55,7 @@ def system_status(request):
 
         # If refresh is requested OR no cache exists, fetch fresh
         if force_refresh or health is None:
-            service_instance = ServiceClass()
+            service_instance = service_class()
             health = service_instance.check_health()
             # Cache this specific result for 5 minutes
             cache.set(cache_key, health, timeout=300)
@@ -61,7 +65,7 @@ def system_status(request):
         if health["status"] == "online":
             latencies.append(health["latency"])
         else:
-            any_offline = True
+            pass
 
     # 5. Calculate Global State
     max_latency = max(latencies) if latencies else 0
@@ -81,7 +85,7 @@ def system_status(request):
     elif "auth_missing" in status_list:
         global_state = "Setup Needed"
         global_color = "warning"
-    elif max_latency > 1000:
+    elif max_latency > MAX_HEALTHY_LATENCY_MS:
         global_state = "Degraded"
         global_color = "warning"
     else:

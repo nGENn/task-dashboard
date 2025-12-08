@@ -1,9 +1,12 @@
 import logging
+from datetime import UTC
 from datetime import datetime
+from http import HTTPStatus
 
 import requests
 from django.conf import settings
 from django.core.cache import cache
+from requests import RequestException
 from requests.auth import HTTPBasicAuth
 
 logger = logging.getLogger(__name__)
@@ -23,7 +26,7 @@ class OpenProjectService:
         return headers
 
     def check_health(self):
-        start = datetime.now()
+        start = datetime.now(tz=UTC)
         if not self.api_key:
             return {
                 "name": "OpenProject",
@@ -38,19 +41,20 @@ class OpenProjectService:
                 headers=self._get_headers(),
                 timeout=5,
             )
-            latency = int((datetime.now() - start).total_seconds() * 1000)
-            return {
-                "name": "OpenProject",
-                "status": "online",
-                "latency": latency,
-                "error": None,
-            }
-        except Exception as e:
+            latency = int((datetime.now(tz=UTC) - start).total_seconds() * 1000)
+        except RequestException as e:
             return {
                 "name": "OpenProject",
                 "status": "offline",
                 "latency": 0,
                 "error": str(e),
+            }
+        else:
+            return {
+                "name": "OpenProject",
+                "status": "online",
+                "latency": latency,
+                "error": None,
             }
 
     def _get_user_map(self):
@@ -70,8 +74,7 @@ class OpenProjectService:
                 params={"pageSize": 100},
                 timeout=10,
             )
-
-            if resp.status_code == 200:
+            if resp.status_code == HTTPStatus.OK:
                 elements = resp.json().get("_embedded", {}).get("elements", [])
 
                 for u in elements:
@@ -85,11 +88,11 @@ class OpenProjectService:
                         user_map[uid] = final_email
 
             cache.set(cache_key, user_map, timeout=3600)
-        except Exception as e:
-            logger.warning(f"OpenProject User Map failed: {e}")
+        except RequestException as e:
+            logger.warning("OpenProject User Map failed: %s", e)
         return user_map
 
-    def get_tickets(self, force_refresh=False):
+    def get_tickets(self, *, force_refresh=False):
         cache_key = "openproject_active_packages_cache"
         if not force_refresh:
             cached_data = cache.get(cache_key)
@@ -151,15 +154,16 @@ class OpenProjectService:
                         "created_at": str(item.get("createdAt", "")).split("T")[0],
                         "updated_at": str(item.get("updatedAt", "")).split("T")[0],
                         "url": f"{self.base_url}/work_packages/{item.get('id')}",
-                    }
+                    },
                 )
 
             cache.set(cache_key, normalized_tickets, timeout=300)
-            return normalized_tickets
 
-        except Exception as e:
-            logger.error(f"Error fetching OpenProject packages: {e}")
+        except RequestException:
+            logger.exception("Error fetching OpenProject packages")
             return []
+        else:
+            return normalized_tickets
 
     def _map_status(self, status_text):
         s = str(status_text).lower()

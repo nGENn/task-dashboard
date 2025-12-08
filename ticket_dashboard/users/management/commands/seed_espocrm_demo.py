@@ -10,17 +10,18 @@ class Command(BaseCommand):
         base_url = settings.ESPO_API_URL.rstrip("/")
         api_key = settings.ESPO_API_KEY
         headers = {"X-Api-Key": api_key, "Content-Type": "application/json"}
-        client = httpx.Client(headers=headers, verify=False, timeout=10)
+        verify_ssl = getattr(settings, "ESPO_VERIFY_SSL", True)
+        client = httpx.Client(headers=headers, verify=verify_ssl, timeout=10)
 
         self.stdout.write("🌱 Seeding EspoCRM...")
 
         # 1. Find User ID (Admin)
         try:
             resp = client.get(f"{base_url}/api/v1/User?maxSize=1")
-            resp.raise_for_status()  # Raise error if 403 Forbidden
+            resp.raise_for_status()
             users = resp.json()["list"]
             user_id = users[0]["id"]
-        except Exception as e:
+        except (httpx.RequestError, httpx.HTTPStatusError) as e:
             # Print the actual error from the server
             self.stdout.write(self.style.ERROR(f"Espo Error: {e}"))
             if "resp" in locals():
@@ -30,14 +31,15 @@ class Command(BaseCommand):
         # 2. Find or Create Account (Customer)
         account_name = "Acme Corp"
         acc_search = client.get(
-            f"{base_url}/api/v1/Account?where[0][type]=equals&where[0][attribute]=name&where[0][value]={account_name}"
+            f"{base_url}/api/v1/Account?where[0][type]=equals&where[0][attribute]=name&where[0][value]={account_name}",
         ).json()
 
         if acc_search["total"] > 0:
             account_id = acc_search["list"][0]["id"]
         else:
             resp = client.post(
-                f"{base_url}/api/v1/Account", json={"name": account_name}
+                f"{base_url}/api/v1/Account",
+                json={"name": account_name},
             )
             account_id = resp.json()["id"]
 
@@ -55,7 +57,7 @@ class Command(BaseCommand):
         for c in cases:
             # Check existence
             check = client.get(
-                f"{base_url}/api/v1/Case?where[0][type]=equals&where[0][attribute]=name&where[0][value]={c['name']}"
+                f"{base_url}/api/v1/Case?where[0][type]=equals&where[0][attribute]=name&where[0][value]={c['name']}",
             ).json()
             if check["total"] > 0:
                 continue
@@ -78,7 +80,7 @@ class Command(BaseCommand):
 
         for t in tasks:
             check = client.get(
-                f"{base_url}/api/v1/Task?where[0][type]=equals&where[0][attribute]=name&where[0][value]={t['name']}"
+                f"{base_url}/api/v1/Task?where[0][type]=equals&where[0][attribute]=name&where[0][value]={t['name']}",
             ).json()
             if check["total"] > 0:
                 continue

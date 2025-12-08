@@ -1,9 +1,12 @@
 import logging
+from datetime import UTC
 from datetime import datetime
+from http import HTTPStatus
 
 import requests
 from django.conf import settings
 from django.core.cache import cache
+from requests import RequestException
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +17,7 @@ class GitLabService:
         self.token = getattr(settings, "GITLAB_API_TOKEN", "")
         self.headers = {"Private-Token": self.token}
 
-    def get_tickets(self, force_refresh=False):
+    def get_tickets(self, *, force_refresh=False):
         """
         Fetches ALL open Issues and Merge Requests.
         Enriches them with real Emails for security filtering.
@@ -31,28 +34,31 @@ class GitLabService:
             return []
 
         # 1. FETCH USER MAP (ID -> Email)
-        # We need this because MR lists don't include emails, but we need email for filtering.
+        # We need this because MR lists don't include emails, but we need email for filtering.  # noqa: E501
         user_map = self._get_user_map()
 
         normalized_items = []
 
         try:
             # 2. FETCH ISSUES
-            issues_url = f"{self.base_url}/api/v4/issues?scope=all&state=opened&per_page=100&order_by=updated_at"
+            issues_url = f"{self.base_url}/api/v4/issues?scope=all&state=opened&per_page=100&order_by=updated_at"  # noqa: E501
             self._fetch_and_normalize(issues_url, "Issue", normalized_items, user_map)
 
             # 3. FETCH MERGE REQUESTS
-            mrs_url = f"{self.base_url}/api/v4/merge_requests?scope=all&state=opened&per_page=100&order_by=updated_at"
+            mrs_url = f"{self.base_url}/api/v4/merge_requests?scope=all&state=opened&per_page=100&order_by=updated_at"  # noqa: E501
             self._fetch_and_normalize(
-                mrs_url, "Merge Request", normalized_items, user_map
+                mrs_url,
+                "Merge Request",
+                normalized_items,
+                user_map,
             )
 
             # Save combined list to cache (5 mins)
             cache.set(cache_key, normalized_items, timeout=300)
-            return normalized_items
+            return normalized_items  # noqa: TRY300
 
-        except Exception as e:
-            logger.error(f"Error fetching GitLab data: {e}")
+        except RequestException:
+            logger.exception("Error fetching GitLab data")
             return []
 
     def _get_user_map(self):
@@ -70,7 +76,7 @@ class GitLabService:
             # Fetch users (Admin token required to see emails)
             url = f"{self.base_url}/api/v4/users?per_page=100&active=true"
             response = requests.get(url, headers=self.headers, timeout=10)
-            if response.status_code == 200:
+            if response.status_code == HTTPStatus.OK:
                 for u in response.json():
                     # Map ID to Public Email (or primary email if admin)
                     email = u.get("public_email") or u.get("email")
@@ -78,8 +84,8 @@ class GitLabService:
                         user_map[u["id"]] = email
 
             cache.set(map_cache_key, user_map, timeout=3600)  # Cache for 1 hour
-        except Exception as e:
-            logger.warning(f"Failed to build GitLab user map: {e}")
+        except RequestException as e:
+            logger.warning("Failed to build GitLab user map: %s", e)
 
         return user_map
 
@@ -125,18 +131,18 @@ class GitLabService:
                         "created_at": self._format_date(item.get("created_at")),
                         "updated_at": self._format_date(item.get("updated_at")),
                         "url": item.get("web_url"),
-                    }
+                    },
                 )
-        except Exception as e:
-            logger.warning(f"Failed to fetch GitLab {item_type}s: {e}")
+        except RequestException as e:
+            logger.warning("Failed to fetch GitLab %s: %s", item_type, e)
 
     def _extract_priority(self, labels):
-        labels = [l.lower() for l in labels]
-        if any("critical" in l or "urgent" in l for l in labels):
+        labels = [lab.lower() for lab in labels]
+        if any("critical" in lab or "urgent" in lab for lab in labels):
             return "Critical"
-        if any("high" in l for l in labels):
+        if any("high" in lab for lab in labels):
             return "High"
-        if any("low" in l for l in labels):
+        if any("low" in lab for lab in labels):
             return "Low"
         return "Medium"
 
@@ -150,7 +156,7 @@ class GitLabService:
             return date_str
 
     def check_health(self):
-        start = datetime.now()
+        start = datetime.now(tz=UTC)
 
         if not self.token:
             return {
@@ -162,12 +168,16 @@ class GitLabService:
 
         try:
             response = requests.get(
-                f"{self.base_url}/api/v4/user", headers=self.headers, timeout=3
+                f"{self.base_url}/api/v4/user",
+                headers=self.headers,
+                timeout=3,
             )
             response.raise_for_status()
 
-            latency = int((datetime.now() - start).total_seconds() * 1000)
-            return {
+            latency = int(
+                (datetime.now(tz=UTC) - start).total_seconds() * 1000,
+            )
+            return {  # noqa: TRY300
                 "name": "GitLab",
                 "status": "online",
                 "latency": latency,
@@ -175,18 +185,18 @@ class GitLabService:
             }
 
         except requests.HTTPError as e:
-            logger.warning(f"GitLab Auth Failed: {e}")
+            logger.warning("GitLab Auth Failed: %s", e)
             return {
                 "name": "GitLab",
                 "status": "auth_error",
                 "latency": 0,
                 "error": str(e),
             }
-        except Exception as e:
-            logger.error(f"GitLab Unreachable: {e}")
+        except Exception:
+            logger.exception("GitLab Unreachable")
             return {
                 "name": "GitLab",
                 "status": "offline",
                 "latency": 0,
-                "error": str(e),
+                "error": "Unreachable",
             }

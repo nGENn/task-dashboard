@@ -1,9 +1,12 @@
 import logging
+from datetime import UTC
 from datetime import datetime
+from http import HTTPStatus
 
 import requests
 from django.conf import settings
 from django.core.cache import cache
+from requests import RequestException
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +23,7 @@ class ErambaService:
         }
 
     def check_health(self):
-        start = datetime.now()
+        start = datetime.now(tz=UTC)
 
         if not self.api_key:
             return {
@@ -34,12 +37,14 @@ class ErambaService:
             # Ping settings or simple endpoint to verify access
             # /settings/index.json is usually lightweight
             response = requests.get(
-                f"{self.base_url}/settings/index.json", headers=self.headers, timeout=5
+                f"{self.base_url}/settings/index.json",
+                headers=self.headers,
+                timeout=5,
             )
             response.raise_for_status()
 
-            latency = int((datetime.now() - start).total_seconds() * 1000)
-            return {
+            latency = int((datetime.now(tz=UTC) - start).total_seconds() * 1000)
+            return {  # noqa: TRY300
                 "name": "Eramba",
                 "status": "online",
                 "latency": latency,
@@ -47,23 +52,23 @@ class ErambaService:
             }
 
         except requests.HTTPError as e:
-            logger.warning(f"Eramba Auth Failed: {e}")
+            logger.warning("Eramba Auth Failed: %s", e)
             return {
                 "name": "Eramba",
                 "status": "auth_error",
                 "latency": 0,
                 "error": str(e),
             }
-        except Exception as e:
-            logger.error(f"Eramba Unreachable: {e}")
+        except Exception:
+            logger.exception("Eramba Unreachable")
             return {
                 "name": "Eramba",
                 "status": "offline",
                 "latency": 0,
-                "error": str(e),
+                "error": "Unreachable",
             }
 
-    def get_tickets(self, force_refresh=False):
+    def get_tickets(self, *, force_refresh=False):
         """
         Fetches Security Incidents, Security Operations, and Notifications.
         """
@@ -94,10 +99,10 @@ class ErambaService:
             self._fetch_module("notifications", "Notification", normalized_tickets)
 
             cache.set(cache_key, normalized_tickets, timeout=300)
-            return normalized_tickets
+            return normalized_tickets  # noqa: TRY300
 
-        except Exception as e:
-            logger.error(f"Error fetching Eramba data: {e}")
+        except RequestException:
+            logger.exception("Error fetching Eramba data")
             return []
 
     def _fetch_module(self, module_slug, label, target_list):
@@ -111,7 +116,7 @@ class ErambaService:
             response = requests.get(url, headers=self.headers, timeout=10)
 
             # If module doesn't exist or permissions denied, skip it
-            if response.status_code != 200:
+            if response.status_code != HTTPStatus.OK:
                 return
 
             data = response.json()
@@ -143,7 +148,8 @@ class ErambaService:
                         or item.get("name")
                         or f"{label} #{item.get('id')}",
                         "status": "open",
-                        "priority": "Medium",  # Eramba priority mapping varies widely per module
+                        # Eramba priority mapping varies widely per module
+                        "priority": "Medium",
                         "origin": "Eramba",
                         "customer": "Internal",
                         "group": label,  # 'Incident', 'SecOps', 'Notification'
@@ -151,15 +157,11 @@ class ErambaService:
                         "created_at": self._format_date(item.get("created")),
                         "updated_at": self._format_date(item.get("modified")),
                         "url": f"{self.base_url}/{module_slug}/view/{item.get('id')}",
-                    }
+                    },
                 )
 
-        except Exception as e:
-            logger.warning(f"Failed to fetch Eramba module '{module_slug}': {e}")
-
-        except Exception as e:
-            logger.error(f"Error fetching Eramba incidents: {e}")
-            return []
+        except RequestException as e:
+            logger.warning("Failed to fetch Eramba module '%s': %s", module_slug, e)
 
     def _map_priority(self, classification):
         # Eramba classification is often a string like "High", "Critical", etc.
@@ -177,7 +179,7 @@ class ErambaService:
             return ""
         try:
             # Eramba often uses "YYYY-MM-DD HH:MM:SS"
-            dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+            dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
             return dt.strftime("%Y-%m-%d")
         except ValueError:
             return str(date_str).split(" ")[0]  # Fallback: just take first part

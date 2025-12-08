@@ -1,4 +1,4 @@
-import random
+from http import HTTPStatus
 
 import httpx
 from django.conf import settings
@@ -15,7 +15,8 @@ class Command(BaseCommand):
             "Authorization": f"Token token={token}",
             "Content-Type": "application/json",
         }
-        client = httpx.Client(headers=headers, verify=False, timeout=10)
+        verify_ssl = getattr(settings, "ZAMMAD_VERIFY_SSL", True)
+        client = httpx.Client(headers=headers, verify=verify_ssl, timeout=10)
 
         self.stdout.write("🌱 Seeding Zammad...")
 
@@ -31,11 +32,12 @@ class Command(BaseCommand):
                     f"{base_url}/api/v1/groups",
                     json={"name": group_name, "active": True},
                 )
+                resp.raise_for_status()
                 group_id = resp.json()["id"]
             else:
                 group_id = group["id"]
                 self.stdout.write(f"  - Using Group: {group_name} (ID: {group_id})")
-        except Exception as e:
+        except (httpx.RequestError, httpx.HTTPStatusError) as e:
             self.stdout.write(self.style.ERROR(f"Failed to setup group: {e}"))
             return
 
@@ -69,7 +71,7 @@ class Command(BaseCommand):
 
             if not user:
                 resp = client.post(f"{base_url}/api/v1/users", json=payload)
-                if resp.status_code == 201:
+                if resp.status_code == HTTPStatus.CREATED:
                     return resp.json()["id"]
             else:
                 # Update existing user to ensure they have group permissions
@@ -133,7 +135,7 @@ class Command(BaseCommand):
             }
 
             resp = client.post(f"{base_url}/api/v1/tickets", json=payload)
-            if resp.status_code == 201:
+            if resp.status_code == HTTPStatus.CREATED:
                 self.stdout.write(self.style.SUCCESS(f"  + Created: {t['title']}"))
             else:
                 self.stdout.write(self.style.ERROR(f"  x Failed: {resp.text}"))
