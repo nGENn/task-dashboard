@@ -2,6 +2,10 @@
 
 An internal operational dashboard aggregating tickets, issues, tasks, and risks from Zammad, GitLab, EspoCRM, OpenProject, and Eramba.
 
+## Bump Version
+
+uv versino --bump (major|minor|patch)
+
 ## Architecture
 
 ### Data Strategy
