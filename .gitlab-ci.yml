@@ -48,10 +48,10 @@ check_version_bump:
     - apt update
     - apt install git curl -y
     - curl -LsSf https://astral.sh/uv/install.sh | sh
-    - PR_VERSION=$(uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
+    - PR_VERSION=$(/root/.local/bin/uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
     - git fetch origin main
     - git checkout origin/main -- pyproject.toml
-    - MAIN_VERSION=$(uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
+    - MAIN_VERSION=$(/root/.local/bin/uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
 
     - 'echo "PR version: $PR_VERSION"'
     - 'echo "Main version: $MAIN_VERSION"'
