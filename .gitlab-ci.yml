@@ -56,8 +56,9 @@ check_version_bump:
     - 'echo "Main version: $MAIN_VERSION"'
 
     - |
-      if [ "$PR_VERSION" = "$MAIN_VERSION" ]; then
-        echo "❌ Version not bumped!"
+      # Compare versions
+      if [ "$(printf '%s\n' "$MAIN_VERSION" "$PR_VERSION" | sort -V | head -n1)" != "$MAIN_VERSION" ] || [ "$PR_VERSION" = "$MAIN_VERSION" ]; then
+        echo "❌ Version must be bumped and higher than main!"
         exit 1
       fi
 
