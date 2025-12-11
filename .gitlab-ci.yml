@@ -70,7 +70,7 @@ build-image:
   stage: build
   image: docker:latest
   services:
-    - docker:latest-dind
+    - docker:dind
   script:
     # ----------------------------
     # Login to GitLab container registry
