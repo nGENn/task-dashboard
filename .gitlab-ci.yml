@@ -1,12 +1,16 @@
 stages:
   - lint
   - test
+  - build
 
 variables:
   POSTGRES_USER: 'ticket_dashboard'
   POSTGRES_PASSWORD: ''
   POSTGRES_DB: 'test_ticket_dashboard'
   POSTGRES_HOST_AUTH_METHOD: trust
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""    # Needed for docker:dind + buildx
+  IMAGE: $CI_REGISTRY_IMAGE
 
 precommit:
   stage: lint
@@ -34,3 +38,69 @@ pytest:
     - docker compose -f docker-compose.test.yml run --rm -e DJANGO_SETTINGS_MODULE=config.settings.test django python manage.py migrate
   script:
     - docker compose -f docker-compose.test.yml run --rm django pytest
+
+check_version_bump:
+  stage: test
+  image: debian:latest
+  only:
+    - merge_requests
+  script:
+    - apt update
+    - apt install git curl -y
+    - curl -LsSf https://astral.sh/uv/install.sh | sh
+    - PR_VERSION=$(/root/.local/bin/uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
+    - git fetch origin main
+    - git checkout origin/main -- pyproject.toml
+    - MAIN_VERSION=$(/root/.local/bin/uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
+
+    - 'echo "PR version: $PR_VERSION"'
+    - 'echo "Main version: $MAIN_VERSION"'
+
+    - |
+      # Compare versions
+      if [ "$(printf '%s\n' "$MAIN_VERSION" "$PR_VERSION" | sort -V | head -n1)" != "$MAIN_VERSION" ] || [ "$PR_VERSION" = "$MAIN_VERSION" ]; then
+        echo "❌ Version must be bumped and higher than main!"
+        exit 1
+      fi
+
+  allow_failure: false
+
+
+build-image:
+  stage: build
+  image: docker:latest
+  script:
+    # ----------------------------
+    # Login to GitLab container registry
+    # ----------------------------
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+
+    # ----------------------------
+    # Extract version from pyproject.toml
+    #   Uses pure grep (no extra tools)
+    # ----------------------------
+    - VERSION=$(grep -Po '(?<=version = ")[^"]+' pyproject.toml)
+    - 'echo "Detected version: $VERSION"'
+
+    # ----------------------------
+    # Enable buildx
+    # ----------------------------
+    - docker buildx create --use --name builder
+    - docker buildx inspect --bootstrap
+
+    # ----------------------------
+    # Build and push with registry cache
+    # ----------------------------
+    - docker buildx build \
+        --push \
+        --cache-from type=registry,ref=$IMAGE:buildcache \
+        --cache-to   type=registry,ref=$IMAGE:buildcache,mode=max \
+        --tag $IMAGE:latest \
+        --tag $IMAGE:$VERSION \
+        .
+
+  allow_failure: false
+
+  only:
+    - main
+
