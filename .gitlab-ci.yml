@@ -45,7 +45,8 @@ check_version_bump:
   only:
     - merge_requests
   script:
-    - apt update && apt upgrade
+    - apt update
+    - apt install git -y
     - PR_VERSION=$(grep -Po '(?<=version = ")[^"]+' pyproject.toml)
     - git fetch origin main
     - git checkout origin/main -- pyproject.toml
