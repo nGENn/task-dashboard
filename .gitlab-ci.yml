@@ -41,9 +41,9 @@ pytest:
 
 check_version_bump:
   stage: test
+  image: debian:latest
   only:
     - merge_requests
-
   script:
     - PR_VERSION=$(grep -Po '(?<=version = ")[^"]+' pyproject.toml)
     - git fetch origin main
