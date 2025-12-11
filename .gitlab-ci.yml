@@ -69,6 +69,8 @@ check_version_bump:
 build-image:
   stage: build
   image: docker:latest
+  services:
+    - docker:latest-dind
   script:
     # ----------------------------
     # Login to GitLab container registry
@@ -94,7 +96,7 @@ build-image:
     # ----------------------------
     # Build and push with registry cache
     # ----------------------------
-    - docker buildx build --platform linux/amd64 --push --tag $IMAGE:latest --tag $IMAGE:$VERSION -f ./compose/production/django/Dockerfile .
+    - docker buildx build --tag $IMAGE:latest --tag $IMAGE:$VERSION --push -f ./compose/production/django/Dockerfile .
 
   allow_failure: false
 

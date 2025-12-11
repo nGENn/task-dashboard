@@ -152,7 +152,7 @@ dev = [
 
 [project]
 name = "ticket_dashboard"
-version = "0.1.16"
+version = "0.1.18"
 description = "Awsome Ticket Dashboard"
 readme = "README.md"
 
