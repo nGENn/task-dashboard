@@ -43,11 +43,12 @@ check_version_bump:
   stage: test
   only:
     - merge_requests
+
   script:
-    - PR_VERSION=$(grep -Po '(?<=version\s*=\s*")[^"]+' pyproject.toml)
+    - PR_VERSION=$(grep -Po '(?<=version = ")[^"]+' pyproject.toml)
     - git fetch origin main
     - git checkout origin/main -- pyproject.toml
-    - MAIN_VERSION=$(grep -Po '(?<=version\s*=\s*")[^"]+' pyproject.toml)
+    - MAIN_VERSION=$(grep -Po '(?<=version = ")[^"]+' pyproject.toml)
 
     - 'echo "PR version: $PR_VERSION"'
     - 'echo "Main version: $MAIN_VERSION"'
