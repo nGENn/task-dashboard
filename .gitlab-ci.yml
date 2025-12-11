@@ -80,7 +80,7 @@ build-image:
     #   Uses pure grep (no extra tools)
     # ----------------------------
     - 'echo "Detected version: $VERSION"'
-    - apk get curl
+    - apk add curl
     - curl -LsSf https://astral.sh/uv/install.sh | sh
     - VERSION=$(/root/.local/bin/uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
 
