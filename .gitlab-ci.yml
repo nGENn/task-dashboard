@@ -47,10 +47,11 @@ check_version_bump:
   script:
     - apt update
     - apt install git -y
-    - PR_VERSION=$(grep -Po '(?<=version = ")[^"]+' pyproject.toml)
+    - curl -LsSf https://astral.sh/uv/install.sh | sh
+    - PR_VERSION=$(uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
     - git fetch origin main
     - git checkout origin/main -- pyproject.toml
-    - MAIN_VERSION=$(grep -Po '(?<=version = ")[^"]+' pyproject.toml)
+    - MAIN_VERSION=$(uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
 
     - 'echo "PR version: $PR_VERSION"'
     - 'echo "Main version: $MAIN_VERSION"'
