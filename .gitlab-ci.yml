@@ -46,7 +46,7 @@ check_version_bump:
     - merge_requests
   script:
     - apt update
-    - apt install git -y
+    - apt install git curl -y
     - curl -LsSf https://astral.sh/uv/install.sh | sh
     - PR_VERSION=$(uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
     - git fetch origin main
