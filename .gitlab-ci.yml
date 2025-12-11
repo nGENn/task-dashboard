@@ -75,7 +75,7 @@ build-image:
     #   Uses pure grep (no extra tools)
     # ----------------------------
     - VERSION=$(grep -Po '(?<=version = ")[^"]+' pyproject.toml)
-    - echo "Detected version: $VERSION"
+    - 'echo "Detected version: $VERSION"'
 
     # ----------------------------
     # Enable buildx
