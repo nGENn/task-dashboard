@@ -99,6 +99,8 @@ build-image:
         --tag $IMAGE:$VERSION \
         .
 
+  allow_failure: false
+
   only:
     - main
 
