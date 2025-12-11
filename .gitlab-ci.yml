@@ -93,7 +93,7 @@ build-image:
     # ----------------------------
     # Build and push with registry cache
     # ----------------------------
-    - docker buildx build --push --cache-from type=registry,ref=$IMAGE:buildcache --cache-to type=registry,ref=$IMAGE:buildcache,mode=max --tag $IMAGE:latest --tag $IMAGE:$VERSION ./compose/production/django/Dockerfile
+    - docker buildx build --push --cache-from type=registry,ref=$IMAGE:buildcache --cache-to type=registry,ref=$IMAGE:buildcache,mode=max --tag $IMAGE:latest --tag $IMAGE:$VERSION -f ./compose/production/django/Dockerfile .
 
   allow_failure: false
 
