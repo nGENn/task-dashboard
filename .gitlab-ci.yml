@@ -69,6 +69,8 @@ check_version_bump:
 build-image:
   stage: build
   image: docker:latest
+  services:
+    - docker:latest-dind
   script:
     # ----------------------------
     # Login to GitLab container registry

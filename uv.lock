@@ -1421,7 +1421,7 @@ wheels = [
 
 [[package]]
 name = "ticket-dashboard"
-version = "0.1.17"
+version = "0.1.18"
 source = { virtual = "." }
 dependencies = [
     { name = "argon2-cffi" },
