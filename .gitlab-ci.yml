@@ -89,6 +89,7 @@ build-image:
     # ----------------------------
     - docker buildx create --use --name builder
     - docker buildx inspect --bootstrap
+    - echo building $IMAGE
 
     # ----------------------------
     # Build and push with registry cache
