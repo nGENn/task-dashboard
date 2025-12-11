@@ -49,8 +49,8 @@ check_version_bump:
     - git checkout origin/main -- pyproject.toml
     - MAIN_VERSION=$(grep -Po '(?<=version\s*=\s*")[^"]+' pyproject.toml)
 
-    - echo "PR version: $PR_VERSION"
-    - echo "Main version: $MAIN_VERSION"
+    - 'echo "PR version: $PR_VERSION"'
+    - 'echo "Main version: $MAIN_VERSION"'
 
     - |
       if [ "$PR_VERSION" = "$MAIN_VERSION" ]; then
