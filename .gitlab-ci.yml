@@ -79,8 +79,11 @@ build-image:
     # Extract version from pyproject.toml
     #   Uses pure grep (no extra tools)
     # ----------------------------
-    - VERSION=$(grep -Po '(?<=version = ")[^"]+' pyproject.toml)
     - 'echo "Detected version: $VERSION"'
+    - apt update
+    - apt install git curl -y
+    - curl -LsSf https://astral.sh/uv/install.sh | sh
+    - VERSION=$(/root/.local/bin/uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
 
     # ----------------------------
     # Enable buildx
