@@ -4,6 +4,8 @@ from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.models import Group
 from django.db import models
 from django.db.models import CharField
+
+from .fields import EncryptedCharField
 from django.db.models import EmailField
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -65,7 +67,7 @@ class ServiceConfiguration(models.Model):
         null=True,
         help_text="Base URL for the service API.",
     )
-    api_token = models.CharField(
+    api_token = EncryptedCharField(
         max_length=255,
         blank=True,
         null=True,

@@ -4,7 +4,7 @@ An internal operational dashboard aggregating tickets, issues, tasks, and risks 
 
 ## Bump Version
 
-uv versino --bump (major|minor|patch)
+uv version --bump (major|minor|patch)
 
 ## Architecture
 
@@ -17,27 +17,19 @@ The application uses a **"Fetch All, Filter Locally"** pattern to ensure speed a
 3. **Security Gatekeeper:** Raw data never reaches the template. A Gatekeeper in `views.py` filters the cached list based on the user's **Django Group Permissions**.
       * **Rule:** A user only sees a ticket if their group has explicit access to that Ticket's Origin/Group, OR if the ticket is assigned to their specific email address.
 
-## Development Environment
+### Environment Variables & Security
 
-### Setup
+The application uses a stable `DJANGO_SECRET_KEY` to encrypt and decrypt sensitive information (like API tokens) stored in the database.
 
-This project is configured for **VS Code DevContainers**.
-
-1. Open the project in VS Code.
-2. Run **"Dev Containers: Reopen in Container"**.
-3. The environment (Python, Node, Docker-in-Docker) will auto-configure.
-
-**Note on Resource Usage:**
-The local stack includes a full GitLab instance which is memory intensive. If your local machine struggles, it is recommended to deploy the DevContainer on a remote development server.
-
-### Environment Variables
-
-Ensure your `.envs/.local/.django` file maps API URLs to internal Docker hosts:
-
-* Zammad: `http://zammad-nginx:8080`
-* EspoCRM: `http://espocrm:80`
-* OpenProject: `http://openproject:80` (Requires `OPENPROJECT_HOST_HEADER=localhost:8082`)
-* GitLab: `http://gitlab:8084`
+> [!IMPORTANT]
+> **Encryption Key Requirement:**
+> You **MUST** set a fixed `DJANGO_SECRET_KEY` in `.envs/.local/.django` *before* configuring any services in the Admin panel.
+>
+> ```text
+> DJANGO_SECRET_KEY=your-stable-secret-key-here
+> ```
+>
+> If you change this key later, all existing encrypted API tokens will become unreadable, and you will need to re-enter them in the Admin panel.
 
 ### Database Seeding
 
@@ -69,12 +61,14 @@ cd ticket_dashboard/static/css
 
 ## Configuration & Access Control
 
-### Service Management
+### Service Management (Service Configuration)
 
-Located in **Admin \> Users \> Service Configurations**.
+Services (Zammad, GitLab, etc.) are managed dynamically in the **Admin Panel** under **Users \> Service Configurations**.
 
-* Toggle `is_active` to hide/show a service globally.
-* Disabled services are skipped during the API fetch process to save resources.
+* **Multi-Instance Support:** You can add multiple instances of the same service (e.g., two different GitLab servers).
+* **Dynamic Configuration:** API URLs, tokens, and status (`is_active`) are configured here.
+* **Token Security:** All `API Token` values are **encrypted at rest** in the database using the `DJANGO_SECRET_KEY`.
+* **Resource Optimization:** Disabled services are skipped during the API fetch process.
 
 ### Permissions (RBAC)
 
