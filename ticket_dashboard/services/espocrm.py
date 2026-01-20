@@ -1,10 +1,8 @@
 import logging
-from datetime import UTC
 from datetime import datetime
 from http import HTTPStatus
 
 import requests
-from django.conf import settings
 from django.core.cache import cache
 from requests import RequestException
 
@@ -22,7 +20,7 @@ class EspoService:
         }
 
     def check_health(self):
-        start = datetime.now(tz=UTC)
+        start = datetime.now()
         if not self.api_key:
             return {
                 "name": self.config.name,
@@ -37,7 +35,7 @@ class EspoService:
                 timeout=3,
             )
             response.raise_for_status()
-            latency = int((datetime.now(tz=UTC) - start).total_seconds() * 1000)
+            latency = int((datetime.now() - start).total_seconds() * 1000)
         except requests.HTTPError as e:
             return {
                 "name": self.config.name,
@@ -113,13 +111,14 @@ class EspoService:
         try:
             # 1. Fetch Cases
             # Use minimal params to ensure we get data
-            params = {"maxSize": 50, "orderBy": "createdAt", "order": "desc"}
+            # Use minimal params to ensure we get data
+            base_params = {"orderBy": "createdAt", "order": "desc"}
 
             # Fetch Cases
             self._fetch_entity(
                 f"{self.base_url}/api/v1/Case",
                 "Case",
-                params,
+                base_params,
                 normalized_tickets,
                 user_map,
             )
@@ -128,7 +127,7 @@ class EspoService:
             self._fetch_entity(
                 f"{self.base_url}/api/v1/Task",
                 "Task",
-                params,
+                base_params,
                 normalized_tickets,
                 user_map,
             )
@@ -143,31 +142,73 @@ class EspoService:
 
     def _fetch_entity(self, url, entity_type, params, target_list, user_map):
         try:
-            resp = requests.get(url, headers=self.headers, params=params, timeout=10)
-            resp.raise_for_status()
-            data = resp.json()
-            items = data.get("list", [])
+            offset = 0
+            max_size = 100
+            max_pages = 100
+            page = 1
+            total_fetched = 0
 
-            for item in items:
-                owner_id = item.get("assignedUserId")
-                owner_email = user_map.get(owner_id)
+            while page <= max_pages:
+                request_params = (params or {}).copy()
+                request_params.update({
+                    "offset": offset,
+                    "maxSize": max_size,
+                })
 
-                target_list.append(
-                    {
-                        "id": f"ESPO-{entity_type[0]}-{item.get('number')}",
-                        "title": item.get("name"),
-                        "status": self._map_status(item.get("status")),
-                        "priority": item.get("priority", "Medium"),
-                        "origin": self.config.name,
-                        "customer": item.get("accountName", "Unknown"),
-                        "group": entity_type,
-                        "owner": item.get("assignedUserName", "-"),
-                        "owner_email": owner_email,
-                        "created_at": str(item.get("createdAt", "")).split(" ")[0],
-                        "updated_at": str(item.get("modifiedAt", "")).split(" ")[0],
-                        "url": f"{self.base_url}/#{entity_type}/view/{item.get('id')}",
-                    },
+                resp = requests.get(
+                    url,
+                    headers=self.headers,
+                    params=request_params,
+                    timeout=10,
                 )
+                resp.raise_for_status()
+                data = resp.json()
+                items = data.get("list", [])
+
+                if not items:
+                    break
+
+                for item in items:
+                    owner_id = item.get("assignedUserId")
+                    owner_email = user_map.get(owner_id)
+
+                    target_list.append(
+                        {
+                            "id": f"ESPO-{entity_type[0]}-{item.get('number')}",
+                            "title": item.get("name"),
+                            "status": self._map_status(item.get("status")),
+                            "priority": item.get("priority", "Medium"),
+                            "origin": self.config.name,
+                            "customer": item.get("accountName", "Unknown"),
+                            "group": entity_type,
+                            "owner": item.get("assignedUserName", "-"),
+                            "owner_email": owner_email,
+                            "created_at": str(item.get("createdAt", "")).split(" ")[0],
+                            "updated_at": str(item.get("modifiedAt", "")).split(" ")[0],
+                            "due_date": str(
+                                item.get("dueDate") or item.get("dateEnd") or "",
+                            ).split(" ")[0]
+                            or None,
+                            "url": f"{self.base_url}/#{entity_type}/view/{item.get('id')}",
+                        },
+                    )
+
+                total_fetched += len(items)
+
+                if len(items) < max_size:
+                    break
+
+                offset += max_size
+                page += 1
+
+            if page > max_pages:
+                logger.warning(
+                    "Espo %s fetch limit reached (%d items). "
+                    "Some older items may not be visible.",
+                    entity_type,
+                    total_fetched,
+                )
+
         except RequestException as e:
             logger.warning("Failed to fetch Espo %s: %s", entity_type, e)
 

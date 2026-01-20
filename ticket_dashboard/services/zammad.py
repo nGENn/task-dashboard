@@ -1,9 +1,7 @@
 import logging
-from datetime import UTC
 from datetime import datetime
 
 import requests
-from django.conf import settings
 from django.core.cache import cache
 from requests import RequestException
 
@@ -43,33 +41,64 @@ class ZammadService:
         if not self.base_url or not self.token:
             # Use logger.warning as well, which usually flushes automatically
             logger.warning("Zammad credentials not found.")
-            logger.debug("Credentials missing in settings; returning empty list")
+            logger.debug("Credentials missing; returning empty list")
             return []
 
         try:
-            # 3. Build Query: Fetch active tickets
+            # 3. Build Query: Fetch active tickets with pagination
             url = f"{self.base_url}/api/v1/tickets"
-            params = {
-                "expand": "true",
-                "limit": 50,
-                "order_by": "updated_at",
-                "sort_by": "desc",
-            }
+            raw_tickets = []
+            page = 1
+            per_page = 100
+            # Protection against infinite loops (fetches up to 10,000 tickets)
+            max_pages = 100
 
-            logger.debug("Attempting to fetch Zammad tickets: %s", url)
+            logger.debug("Fetching Zammad tickets (paginated): %s", url)
 
-            response = requests.get(
-                url,
-                headers=self.headers,
-                params=params,
-                timeout=10,
-            )
-            response.raise_for_status()
+            while page <= max_pages:
+                params = {
+                    "expand": "true",
+                    "page": page,
+                    "per_page": per_page,
+                    "order_by": "updated_at",
+                    "sort_by": "desc",
+                }
 
-            data = response.json()
-            raw_tickets = data.get("tickets", []) if isinstance(data, dict) else data
+                response = requests.get(
+                    url,
+                    headers=self.headers,
+                    params=params,
+                    timeout=10,
+                )
+                response.raise_for_status()
 
-            logger.debug("Fetch successful. Found %d tickets.", len(raw_tickets))
+                data = response.json()
+                if isinstance(data, dict):
+                    page_tickets = data.get("tickets", [])
+                else:
+                    page_tickets = data
+
+                if not page_tickets:
+                    break
+
+                raw_tickets.extend(page_tickets)
+                logger.debug("Page %d: Found %d tickets.", page,
+                             len(page_tickets))
+
+                # If we got fewer tickets than requested, we've reached the end
+                if len(page_tickets) < per_page:
+                    break
+
+                page += 1
+
+            if page > max_pages:
+                logger.warning(
+                    "Zammad fetch limit reached (%d tickets). "
+                    "Some older tickets may not be visible.",
+                    len(raw_tickets),
+                )
+
+            logger.debug("Fetch complete. Total: %d", len(raw_tickets))
 
             normalized_tickets = [
                 {
@@ -83,6 +112,7 @@ class ZammadService:
                     "owner": ticket.get("owner", "Unassigned"),
                     "created_at": self._format_date(ticket.get("created_at")),
                     "updated_at": self._format_date(ticket.get("updated_at")),
+                    "due_date": self._format_date(ticket.get("escalation_at")),
                     "url": f"{self.base_url}/#ticket/zoom/{ticket.get('id')}",
                 }
                 for ticket in raw_tickets
@@ -145,7 +175,7 @@ class ZammadService:
             return date_str
 
     def check_health(self):
-        start = datetime.now(tz=UTC)
+        start = datetime.now()
 
         if not self.base_url or not self.token:
             return {
@@ -164,7 +194,7 @@ class ZammadService:
             response.raise_for_status()
 
             latency = int(
-                (datetime.now(tz=UTC) - start).total_seconds() * 1000,
+                (datetime.now() - start).total_seconds() * 1000,
             )
             return {  # noqa: TRY300
                 "name": self.config.name,

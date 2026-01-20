@@ -1,10 +1,8 @@
 import logging
-from datetime import UTC
 from datetime import datetime
 from http import HTTPStatus
 
 import requests
-from django.conf import settings
 from django.core.cache import cache
 from requests import RequestException
 
@@ -24,7 +22,7 @@ class ErambaService:
         }
 
     def check_health(self):
-        start = datetime.now(tz=UTC)
+        start = datetime.now()
 
         if not self.api_key:
             return {
@@ -44,7 +42,7 @@ class ErambaService:
             )
             response.raise_for_status()
 
-            latency = int((datetime.now(tz=UTC) - start).total_seconds() * 1000)
+            latency = int((datetime.now() - start).total_seconds() * 1000)
             return {  # noqa: TRY300
                 "name": self.config.name,
                 "status": "online",
@@ -113,52 +111,88 @@ class ErambaService:
         label: e.g. 'SecOps' (Used for ID and Group)
         """
         try:
-            url = f"{self.base_url}/{module_slug}/index.json"
-            response = requests.get(url, headers=self.headers, timeout=10)
+            page = 1
+            limit = 100
+            max_pages = 100
+            total_fetched = 0
 
-            # If module doesn't exist or permissions denied, skip it
-            if response.status_code != HTTPStatus.OK:
-                return
+            while page <= max_pages:
+                url = f"{self.base_url}/{module_slug}/index.json"
+                params = {
+                    "page": page,
+                    "limit": limit,
+                }
+                response = requests.get(
+                    url,
+                    headers=self.headers,
+                    params=params,
+                    timeout=10,
+                )
 
-            data = response.json()
-            raw_list = data.get("items", []) if isinstance(data, dict) else data
+                # If module doesn't exist or permissions denied, skip it
+                if response.status_code != HTTPStatus.OK:
+                    return
 
-            for entry in raw_list:
-                # Eramba objects are dynamically keyed, e.g. entry['SecurityOperation']
-                # We try to find the first key that looks like a data object
-                keys = list(entry.keys())
-                if not keys:
-                    continue
+                data = response.json()
+                raw_list = data.get("items", []) if isinstance(data, dict) else data
 
-                # Heuristic: Grab the first key (e.g. 'SecurityOperation')
-                item_key = keys[0]
-                item = entry[item_key]
+                if not raw_list:
+                    break
 
-                # Check status (Skip closed)
-                status_raw = str(item.get("status", "")).lower()
-                if "close" in status_raw or "completed" in status_raw:
-                    continue
+                for entry in raw_list:
+                    # Eramba objects are dynamically keyed, e.g. entry['SecurityOperation']
+                    # We try to find the first key that looks like a data object
+                    keys = list(entry.keys())
+                    if not keys:
+                        continue
 
-                # ID formatting: ERA-SEC-123
-                short_label = label[:3].upper()
+                    # Heuristic: Grab the first key (e.g. 'SecurityOperation')
+                    item_key = keys[0]
+                    item = entry[item_key]
 
-                target_list.append(
-                    {
-                        "id": f"ERA-{short_label}-{item.get('id')}",
-                        "title": item.get("title")
-                        or item.get("name")
-                        or f"{label} #{item.get('id')}",
-                        "status": "open",
-                        # Eramba priority mapping varies widely per module
-                        "priority": "Medium",
-                        "origin": self.config.name,
-                        "customer": "Internal",
-                        "group": label,  # 'Incident', 'SecOps', 'Notification'
-                        "owner": "GRC Team",
-                        "created_at": self._format_date(item.get("created")),
-                        "updated_at": self._format_date(item.get("modified")),
-                        "url": f"{self.base_url}/{module_slug}/view/{item.get('id')}",
-                    },
+                    # Check status (Skip closed)
+                    status_raw = str(item.get("status", "")).lower()
+                    if "close" in status_raw or "completed" in status_raw:
+                        continue
+
+                    # ID formatting: ERA-SEC-123
+                    short_label = label[:3].upper()
+
+                    target_list.append(
+                        {
+                            "id": f"ERA-{short_label}-{item.get('id')}",
+                            "title": item.get("title")
+                            or item.get("name")
+                            or f"{label} #{item.get('id')}",
+                            "status": "open",
+                            # Eramba priority mapping varies widely per module
+                            "priority": "Medium",
+                            "origin": self.config.name,
+                            "customer": "Internal",
+                            "group": label,  # 'Incident', 'SecOps', 'Notification'
+                            "owner": "GRC Team",
+                            "created_at": self._format_date(item.get("created")),
+                            "updated_at": self._format_date(item.get("modified")),
+                            "due_date": self._format_date(
+                                item.get("deadline") or item.get("planned_end"),
+                            ),
+                            "url": f"{self.base_url}/{module_slug}/view/{item.get('id')}",
+                        },
+                    )
+
+                total_fetched += len(raw_list)
+
+                if len(raw_list) < limit:
+                    break
+
+                page += 1
+
+            if page > max_pages:
+                logger.warning(
+                    "Eramba %s fetch limit reached (%d items). "
+                    "Some older items may not be visible.",
+                    module_slug,
+                    total_fetched,
                 )
 
         except RequestException as e:
@@ -180,7 +214,7 @@ class ErambaService:
             return ""
         try:
             # Eramba often uses "YYYY-MM-DD HH:MM:SS"
-            dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
+            dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
             return dt.strftime("%Y-%m-%d")
         except ValueError:
             return str(date_str).split(" ")[0]  # Fallback: just take first part

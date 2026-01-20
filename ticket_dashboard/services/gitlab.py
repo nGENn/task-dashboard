@@ -1,10 +1,8 @@
 import logging
-from datetime import UTC
 from datetime import datetime
 from http import HTTPStatus
 
 import requests
-from django.conf import settings
 from django.core.cache import cache
 from requests import RequestException
 
@@ -42,16 +40,33 @@ class GitLabService:
 
         try:
             # 2. FETCH ISSUES
-            issues_url = f"{self.base_url}/api/v4/issues?scope=all&state=opened&per_page=100&order_by=updated_at"  # noqa: E501
-            self._fetch_and_normalize(issues_url, "Issue", normalized_items, user_map)
+            issues_url = f"{self.base_url}/api/v4/issues"
+            issues_params = {
+                "scope": "all",
+                "state": "opened",
+                "order_by": "updated_at",
+            }
+            self._fetch_and_normalize(
+                issues_url,
+                "Issue",
+                normalized_items,
+                user_map,
+                params=issues_params,
+            )
 
             # 3. FETCH MERGE REQUESTS
-            mrs_url = f"{self.base_url}/api/v4/merge_requests?scope=all&state=opened&per_page=100&order_by=updated_at"  # noqa: E501
+            mrs_url = f"{self.base_url}/api/v4/merge_requests"
+            mrs_params = {
+                "scope": "all",
+                "state": "opened",
+                "order_by": "updated_at",
+            }
             self._fetch_and_normalize(
                 mrs_url,
                 "Merge Request",
                 normalized_items,
                 user_map,
+                params=mrs_params,
             )
 
             # Save combined list to cache (5 mins)
@@ -90,50 +105,86 @@ class GitLabService:
 
         return user_map
 
-    def _fetch_and_normalize(self, url, item_type, target_list, user_map):
+    def _fetch_and_normalize(self, url, item_type, target_list, user_map, params=None):
         try:
-            response = requests.get(url, headers=self.headers, timeout=10)
-            response.raise_for_status()
-            data = response.json()
+            page = 1
+            per_page = 100
+            max_pages = 100
+            total_fetched = 0
 
-            for item in data:
-                # Distinguish IDs: GL-I-123 (Issue) vs GL-MR-123 (Merge Request)
-                prefix = "GL-MR" if item_type == "Merge Request" else "GL-I"
-                title_prefix = "[MR] " if item_type == "Merge Request" else ""
+            while page <= max_pages:
+                request_params = (params or {}).copy()
+                request_params.update({
+                    "page": page,
+                    "per_page": per_page,
+                })
 
-                # Determine Owner (Assignee)
-                assignee_data = item.get("assignee")
-                owner_name = "-"
-                owner_email = None
-
-                if assignee_data:
-                    owner_name = assignee_data.get("name")
-                    # LOOKUP EMAIL FROM OUR MAP
-                    user_id = assignee_data.get("id")
-                    owner_email = user_map.get(user_id)
-
-                # Determine Group (Project Namespace)
-                full_ref = item.get("references", {}).get("full", "")
-                group_name = full_ref.split("#")[0] if "#" in full_ref else "GitLab"
-
-                target_list.append(
-                    {
-                        "id": f"{prefix}-{item.get('iid')}",
-                        "title": f"{title_prefix}{item.get('title')}",
-                        "status": "open",
-                        "priority": self._extract_priority(item.get("labels", [])),
-                        "origin": self.config.name,
-                        "customer": group_name.split("/")[0]
-                        if "/" in group_name
-                        else group_name,
-                        "group": group_name,
-                        "owner": owner_name,
-                        "owner_email": owner_email,  # Critical for filtering
-                        "created_at": self._format_date(item.get("created_at")),
-                        "updated_at": self._format_date(item.get("updated_at")),
-                        "url": item.get("web_url"),
-                    },
+                response = requests.get(
+                    url,
+                    headers=self.headers,
+                    params=request_params,
+                    timeout=10,
                 )
+                response.raise_for_status()
+                data = response.json()
+
+                if not data:
+                    break
+
+                for item in data:
+                    # Distinguish IDs: GL-I-123 (Issue) vs GL-MR-123 (Merge Request)
+                    prefix = "GL-MR" if item_type == "Merge Request" else "GL-I"
+                    title_prefix = "[MR] " if item_type == "Merge Request" else ""
+
+                    # Determine Owner (Assignee)
+                    assignee_data = item.get("assignee")
+                    owner_name = "-"
+                    owner_email = None
+
+                    if assignee_data:
+                        owner_name = assignee_data.get("name")
+                        # LOOKUP EMAIL FROM OUR MAP
+                        user_id = assignee_data.get("id")
+                        owner_email = user_map.get(user_id)
+
+                    # Determine Group (Project Namespace)
+                    full_ref = item.get("references", {}).get("full", "")
+                    group_name = full_ref.split("#")[0] if "#" in full_ref else "GitLab"
+
+                    target_list.append(
+                        {
+                            "id": f"{prefix}-{item.get('iid')}",
+                            "title": f"{title_prefix}{item.get('title')}",
+                            "status": "open",
+                            "priority": self._extract_priority(item.get("labels", [])),
+                            "origin": self.config.name,
+                            "customer": group_name.split("/")[0]
+                            if "/" in group_name
+                            else group_name,
+                            "group": group_name,
+                            "owner": owner_name,
+                            "owner_email": owner_email,  # Critical for filtering
+                            "created_at": self._format_date(item.get("created_at")),
+                            "updated_at": self._format_date(item.get("updated_at")),
+                            "due_date": self._format_date(item.get("due_date")),
+                            "url": item.get("web_url"),
+                        },
+                    )
+                total_fetched += len(data)
+
+                if len(data) < per_page:
+                    break
+
+                page += 1
+
+            if page > max_pages:
+                logger.warning(
+                    "GitLab %s fetch limit reached (%d items). "
+                    "Some older items may not be visible.",
+                    item_type,
+                    total_fetched,
+                )
+
         except RequestException as e:
             logger.warning("Failed to fetch GitLab %s: %s", item_type, e)
 
@@ -157,7 +208,7 @@ class GitLabService:
             return date_str
 
     def check_health(self):
-        start = datetime.now(tz=UTC)
+        start = datetime.now()
 
         if not self.token:
             return {
@@ -176,7 +227,7 @@ class GitLabService:
             response.raise_for_status()
 
             latency = int(
-                (datetime.now(tz=UTC) - start).total_seconds() * 1000,
+                (datetime.now() - start).total_seconds() * 1000,
             )
             return {  # noqa: TRY300
                 "name": self.config.name,

@@ -166,6 +166,22 @@
                 </a>
                 <div class="resizer"></div>
               </th>
+              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
+                <a class="flex items-center justify-between w-full h-full px-2"
+                   href="?{% url_replace sort='due_date' direction=current_dir|toggle_direction %}">
+                  <span>Due Date</span>
+                  {% if current_sort == 'due_date' %}
+                    <span class="text-xs">
+                      {% if current_dir == 'asc' %}
+                        ▲
+                      {% else %}
+                        ▼
+                      {% endif %}
+                    </span>
+                  {% endif %}
+                </a>
+                <div class="resizer"></div>
+              </th>
             {% endwith %}
           {% endwith %}
         </tr>
@@ -218,10 +234,11 @@
       </td>
       <td class="text-xs text-base-content/70 whitespace-nowrap">{{ ticket.created_at }}</td>
       <td class="text-xs text-base-content/70 whitespace-nowrap">{{ ticket.updated_at }}</td>
+      <td class="text-xs text-base-content/70 whitespace-nowrap">{{ ticket.due_date|default:"-" }}</td>
     </tr>
   {% empty %}
     <tr>
-      <td colspan="10" class="text-center py-8 text-base-content/50">No tickets found matching your filters.</td>
+      <td colspan="11" class="text-center py-8 text-base-content/50">No tickets found matching your filters.</td>
     </tr>
   {% endfor %}
 </tbody>

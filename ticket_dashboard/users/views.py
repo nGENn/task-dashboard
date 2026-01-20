@@ -256,7 +256,10 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
             def sort_key(t):
                 val = t.get(custom_sort)
-                return str(val).lower() if val is not None else ""
+                if val is None:
+                    # For due_date (or any other sort), None values go to the end
+                    return "zzzzzzzzzz" if not reverse else ""
+                return str(val).lower()
 
             filtered_tickets.sort(key=sort_key, reverse=reverse)
         else:

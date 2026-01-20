@@ -1,5 +1,4 @@
 import logging
-from datetime import UTC
 from datetime import datetime
 from http import HTTPStatus
 
@@ -29,7 +28,7 @@ class OpenProjectService:
         return headers
 
     def check_health(self):
-        start = datetime.now(tz=UTC)
+        start = datetime.now()
         if not self.api_key:
             return {
                 "name": self.config.name,
@@ -44,7 +43,7 @@ class OpenProjectService:
                 headers=self._get_headers(),
                 timeout=5,
             )
-            latency = int((datetime.now(tz=UTC) - start).total_seconds() * 1000)
+            latency = int((datetime.now() - start).total_seconds() * 1000)
         except RequestException as e:
             return {
                 "name": self.config.name,
@@ -110,54 +109,83 @@ class OpenProjectService:
 
         try:
             url = f"{self.base_url}/api/v3/work_packages"
-            params = {"pageSize": 50, "sortBy": '[["updatedAt","desc"]]'}
+            offset = 1
+            page_size = 100
+            max_pages = 100
+            total_fetched = 0
 
-            response = requests.get(
-                url,
-                auth=self.auth,
-                params=params,
-                headers=self._get_headers(),
-                timeout=10,
-            )
-            response.raise_for_status()
+            while offset <= max_pages:
+                params = {
+                    "offset": offset,
+                    "pageSize": page_size,
+                    "sortBy": '[["updatedAt","desc"]]',
+                }
 
-            elements = response.json().get("_embedded", {}).get("elements", [])
+                response = requests.get(
+                    url,
+                    auth=self.auth,
+                    params=params,
+                    headers=self._get_headers(),
+                    timeout=10,
+                )
+                response.raise_for_status()
 
-            for item in elements:
-                links = item.get("_links", {})
+                data = response.json()
+                elements = data.get("_embedded", {}).get("elements", [])
 
-                # Extract Email Logic
-                assignee_link = links.get("assignee", {})
-                assignee_href = assignee_link.get("href", "")
-                assignee_name = assignee_link.get("title", "-")
-                assignee_email = None
+                if not elements:
+                    break
 
-                if assignee_href:
-                    try:
-                        uid = int(assignee_href.split("/")[-1])
-                        assignee_email = user_map.get(uid)
-                    except ValueError:
-                        pass
+                for item in elements:
+                    links = item.get("_links", {})
 
-                # Mapping Status
-                status_title = links.get("status", {}).get("title", "Unknown")
-                mapped_status = self._map_status(status_title)
+                    # Extract Email Logic
+                    assignee_link = links.get("assignee", {})
+                    assignee_href = assignee_link.get("href", "")
+                    assignee_name = assignee_link.get("title", "-")
+                    assignee_email = None
 
-                normalized_tickets.append(
-                    {
-                        "id": f"OP-{item.get('id')}",
-                        "title": item.get("subject"),
-                        "status": mapped_status,
-                        "priority": links.get("priority", {}).get("title", "Medium"),
-                        "origin": self.config.name,
-                        "customer": links.get("project", {}).get("title", "Project"),
-                        "group": "Project",
-                        "owner": assignee_name,
-                        "owner_email": assignee_email,
-                        "created_at": str(item.get("createdAt", "")).split("T")[0],
-                        "updated_at": str(item.get("updatedAt", "")).split("T")[0],
-                        "url": f"{self.base_url}/work_packages/{item.get('id')}",
-                    },
+                    if assignee_href:
+                        try:
+                            uid = int(assignee_href.split("/")[-1])
+                            assignee_email = user_map.get(uid)
+                        except ValueError:
+                            pass
+
+                    # Mapping Status
+                    status_title = links.get("status", {}).get("title", "Unknown")
+                    mapped_status = self._map_status(status_title)
+
+                    normalized_tickets.append(
+                        {
+                            "id": f"OP-{item.get('id')}",
+                            "title": item.get("subject"),
+                            "status": mapped_status,
+                            "priority": links.get("priority", {}).get("title", "Medium"),
+                            "origin": self.config.name,
+                            "customer": links.get("project", {}).get("title", "Project"),
+                            "group": "Project",
+                            "owner": assignee_name,
+                            "owner_email": assignee_email,
+                            "created_at": str(item.get("createdAt", "")).split("T")[0],
+                            "updated_at": str(item.get("updatedAt", "")).split("T")[0],
+                            "due_date": item.get("dueDate"),
+                            "url": f"{self.base_url}/work_packages/{item.get('id')}",
+                        },
+                    )
+
+                total_fetched += len(elements)
+
+                if len(elements) < page_size:
+                    break
+
+                offset += 1
+
+            if offset > max_pages:
+                logger.warning(
+                    "OpenProject fetch limit reached (%d items). "
+                    "Some older items may not be visible.",
+                    total_fetched,
                 )
 
             cache.set(cache_key, normalized_tickets, timeout=300)
