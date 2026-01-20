@@ -166,14 +166,13 @@
                 </a>
                 <div class="resizer"></div>
               </th>
-              <th class="font-semibold text-center w-px whitespace-nowrap px-4">Link</th>
             {% endwith %}
           {% endwith %}
         </tr>
       </thead>
       <tbody>
         {% for ticket in tickets %}
-          <tr class="hover cursor-pointer">
+          <tr class="hover cursor-pointer" onclick="window.open('{{ ticket.url }}', '_blank')">
             <td>
               <span class="badge badge-ghost text-xs">{{ ticket.origin }}</span>
             </td>
@@ -219,24 +218,10 @@
       </td>
       <td class="text-xs text-base-content/70 whitespace-nowrap">{{ ticket.created_at }}</td>
       <td class="text-xs text-base-content/70 whitespace-nowrap">{{ ticket.updated_at }}</td>
-      <td class="text-center">
-        <a href="{{ ticket.url }}"
-           target="_blank"
-           rel="noopener noreferrer"
-           class="btn btn-ghost btn-xs text-primary">
-          <svg xmlns="http://www.w3.org/2000/svg"
-               class="h-4 w-4"
-               fill="none"
-               viewBox="0 0 24 24"
-               stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-          </svg>
-        </a>
-      </td>
     </tr>
   {% empty %}
     <tr>
-      <td colspan="11" class="text-center py-8 text-base-content/50">No tickets found matching your filters.</td>
+      <td colspan="10" class="text-center py-8 text-base-content/50">No tickets found matching your filters.</td>
     </tr>
   {% endfor %}
 </tbody>
