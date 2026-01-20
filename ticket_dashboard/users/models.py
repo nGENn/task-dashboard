@@ -116,6 +116,7 @@ class TicketPermission(models.Model):
     ACCESS_CHOICES = [
         ("FULL", "Full Access (See all tickets)"),
         ("LIMITED", "Limited (Own tickets + Unassigned only)"),
+        ("OWN_ONLY", "Only own tickets"),
     ]
 
     django_group = models.ForeignKey(
@@ -132,7 +133,8 @@ class TicketPermission(models.Model):
         default="FULL",
         help_text=(
             "FULL: View everything. LIMITED: View only unassigned tickets "
-            "or those assigned to the user."
+            "or those assigned to the user. OWN_ONLY: View only tickets "
+            "assigned to the user."
         ),
     )
 

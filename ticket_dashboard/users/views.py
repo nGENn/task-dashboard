@@ -165,6 +165,11 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                             or t.get("owner") is None
                         ):
                             allowed_tickets.append(t)
+                    elif level == "OWN_ONLY":
+                        # OWN_ONLY is handled by the global check above:
+                        # if t.get("owner_email") == user_email: allowed_tickets.append(t)
+                        # So here we don't need to do anything extra.
+                        pass
 
         # =========================================================
         # 6. UI FILTERING & SORTING

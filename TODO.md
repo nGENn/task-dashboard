@@ -7,9 +7,9 @@
 * [ ] add due date
 * [x] whole row as link
 * [x] origin equals subdomain
-* [ ] set groups with openid groups
+* [x] set groups with openid groups
 * [x] rename origins in admin panel
-* [ ] only my ticket option for groups (in addition to all and my + unassigned)
+* [x] only my ticket option for groups (in addition to all and my + unassigned)
 
 ## Eramba
 
