@@ -65,8 +65,30 @@ class UserAdmin(auth_admin.UserAdmin):
 
 @admin.register(ServiceConfiguration)
 class ServiceConfigurationAdmin(admin.ModelAdmin):
-    list_display = ["name", "is_active"]
+    list_display = ["name", "service_type", "api_url", "is_active"]
     list_editable = ["is_active"]
+    list_filter = ["service_type", "is_active"]
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "name",
+                    "service_type",
+                    "is_active",
+                ),
+            },
+        ),
+        (
+            _("API Configuration"),
+            {
+                "fields": (
+                    "api_url",
+                    "api_token",
+                ),
+            },
+        ),
+    )
 
 
 # 1. Allow managing permissions directly inside the Django Group page

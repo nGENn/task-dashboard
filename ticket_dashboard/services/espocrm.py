@@ -12,9 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 class EspoService:
-    def __init__(self):
-        self.base_url = getattr(settings, "ESPO_API_URL", "")
-        self.api_key = getattr(settings, "ESPO_API_KEY", "")
+    def __init__(self, config):
+        self.config = config
+        self.base_url = config.api_url
+        self.api_key = config.api_token
         self.headers = {
             "X-Api-Key": self.api_key,
             "Content-Type": "application/json",
@@ -24,7 +25,7 @@ class EspoService:
         start = datetime.now(tz=UTC)
         if not self.api_key:
             return {
-                "name": "EspoCRM",
+                "name": self.config.name,
                 "status": "auth_missing",
                 "latency": 0,
                 "error": "Missing API Key",
@@ -39,22 +40,22 @@ class EspoService:
             latency = int((datetime.now(tz=UTC) - start).total_seconds() * 1000)
         except requests.HTTPError as e:
             return {
-                "name": "EspoCRM",
+                "name": self.config.name,
                 "status": "auth_error",
                 "latency": 0,
                 "error": str(e),
             }
         except Exception:
-            logger.exception("EspoCRM Unreachable")
+            logger.exception("%s Unreachable", self.config.name)
             return {
-                "name": "EspoCRM",
+                "name": self.config.name,
                 "status": "offline",
                 "latency": 0,
                 "error": "Unreachable",
             }
         else:
             return {
-                "name": "EspoCRM",
+                "name": self.config.name,
                 "status": "online",
                 "latency": latency,
                 "error": None,
@@ -64,7 +65,7 @@ class EspoService:
         """
         Fetch all users to map ID -> EmailAddress.
         """
-        cache_key = "espo_user_map"
+        cache_key = f"espo_{self.config.id}_user_map"
         cached_map = cache.get(cache_key)
         if cached_map:
             return cached_map
@@ -97,7 +98,7 @@ class EspoService:
         return user_map
 
     def get_tickets(self, *, force_refresh=False):
-        cache_key = "espo_active_items_cache"
+        cache_key = f"espo_{self.config.id}_active_items_cache"
         if not force_refresh:
             cached_data = cache.get(cache_key)
             if cached_data:
@@ -157,7 +158,7 @@ class EspoService:
                         "title": item.get("name"),
                         "status": self._map_status(item.get("status")),
                         "priority": item.get("priority", "Medium"),
-                        "origin": "EspoCRM",
+                        "origin": self.config.name,
                         "customer": item.get("accountName", "Unknown"),
                         "group": entity_type,
                         "owner": item.get("assignedUserName", "-"),

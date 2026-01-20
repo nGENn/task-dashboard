@@ -22,13 +22,13 @@ def system_status(request):  # noqa: C901
     # 1. Check for Forced Refresh
     force_refresh = request.GET.get("refresh") == "1"
 
-    # 2. Define Available Services Map (Name -> Class)
+    # 2. Define Available Services Map (Service Type -> Class)
     service_map = {
-        "Eramba": ErambaService,
-        "EspoCRM": EspoService,
-        "GitLab": GitLabService,
-        "OpenProject": OpenProjectService,
-        "Zammad": ZammadService,
+        "eramba": ErambaService,
+        "espocrm": EspoService,
+        "gitlab": GitLabService,
+        "openproject": OpenProjectService,
+        "zammad": ZammadService,
     }
 
     # 3. Get ONLY Active Configs from DB
@@ -36,7 +36,7 @@ def system_status(request):  # noqa: C901
     # It's a tiny table, so the performance cost is negligible.
     active_configs = ServiceConfiguration.objects.filter(
         is_active=True,
-        name__in=service_map.keys(),
+        service_type__in=service_map.keys(),
     ).order_by("name")
 
     results = []
@@ -44,18 +44,18 @@ def system_status(request):  # noqa: C901
 
     for config in active_configs:
         # Get the class
-        service_class = service_map.get(config.name)
+        service_class = service_map.get(config.service_type)
         if service_class is None:
             continue
 
         # 4. Per-Service Caching
-        # We look for a cached result for THIS specific service
-        cache_key = f"health_check_result_{config.name}"
+        # We look for a cached result for THIS specific service instance
+        cache_key = f"health_check_result_{config.pk}"
         health = cache.get(cache_key)
 
         # If refresh is requested OR no cache exists, fetch fresh
         if force_refresh or health is None:
-            service_instance = service_class()
+            service_instance = service_class(config)
             health = service_instance.check_health()
             # Cache this specific result for 5 minutes
             cache.set(cache_key, health, timeout=300)
@@ -81,7 +81,7 @@ def system_status(request):  # noqa: C901
         global_color = "error"
     elif "auth_error" in status_list:
         global_state = "Auth Error"
-        global_color = "warning"  # or "error" if you prefer red for auth issues
+        global_color = "warning"
     elif "auth_missing" in status_list:
         global_state = "Setup Needed"
         global_color = "warning"

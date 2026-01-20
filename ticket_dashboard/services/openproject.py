@@ -13,10 +13,13 @@ logger = logging.getLogger(__name__)
 
 
 class OpenProjectService:
-    def __init__(self):
-        self.base_url = getattr(settings, "OPENPROJECT_API_URL", "")
-        self.api_key = getattr(settings, "OPENPROJECT_API_KEY", "")
+    def __init__(self, config):
+        self.config = config
+        self.base_url = config.api_url
+        self.api_key = config.api_token
         self.auth = HTTPBasicAuth("apikey", self.api_key)
+        # Host header not yet in model, keeping as settings for now if needed,
+        # but the model is the priority.
         self.host_header = getattr(settings, "OPENPROJECT_HOST_HEADER", None)
 
     def _get_headers(self):
@@ -29,7 +32,7 @@ class OpenProjectService:
         start = datetime.now(tz=UTC)
         if not self.api_key:
             return {
-                "name": "OpenProject",
+                "name": self.config.name,
                 "status": "auth_missing",
                 "latency": 0,
                 "error": "Missing API Key",
@@ -44,14 +47,14 @@ class OpenProjectService:
             latency = int((datetime.now(tz=UTC) - start).total_seconds() * 1000)
         except RequestException as e:
             return {
-                "name": "OpenProject",
+                "name": self.config.name,
                 "status": "offline",
                 "latency": 0,
                 "error": str(e),
             }
         else:
             return {
-                "name": "OpenProject",
+                "name": self.config.name,
                 "status": "online",
                 "latency": latency,
                 "error": None,
@@ -59,7 +62,7 @@ class OpenProjectService:
 
     def _get_user_map(self):
         """Map OpenProject User ID -> Email"""
-        cache_key = "op_user_map"
+        cache_key = f"op_{self.config.id}_user_map"
         cached_map = cache.get(cache_key)
         if cached_map:
             return cached_map
@@ -93,7 +96,7 @@ class OpenProjectService:
         return user_map
 
     def get_tickets(self, *, force_refresh=False):
-        cache_key = "openproject_active_packages_cache"
+        cache_key = f"openproject_{self.config.id}_active_packages_cache"
         if not force_refresh:
             cached_data = cache.get(cache_key)
             if cached_data:
@@ -146,7 +149,7 @@ class OpenProjectService:
                         "title": item.get("subject"),
                         "status": mapped_status,
                         "priority": links.get("priority", {}).get("title", "Medium"),
-                        "origin": "OpenProject",
+                        "origin": self.config.name,
                         "customer": links.get("project", {}).get("title", "Project"),
                         "group": "Project",
                         "owner": assignee_name,

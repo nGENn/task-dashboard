@@ -76,53 +76,26 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         all_tickets = []
         force_refresh = request.GET.get("refresh") == "1"
 
-        # 2. CONFIGS
-        zammad_conf, _ = ServiceConfiguration.objects.get_or_create(name="Zammad")
-        gitlab_conf, _ = ServiceConfiguration.objects.get_or_create(name="GitLab")
-        espo_conf, _ = ServiceConfiguration.objects.get_or_create(name="EspoCRM")
-        op_conf, _ = ServiceConfiguration.objects.get_or_create(name="OpenProject")
-        eramba_conf, _ = ServiceConfiguration.objects.get_or_create(name="Eramba")
+        # 2. FETCH SERVICES DYNAMICALLY
+        service_map = {
+            "zammad": ZammadService,
+            "gitlab": GitLabService,
+            "espocrm": EspoService,
+            "openproject": OpenProjectService,
+            "eramba": ErambaService,
+        }
 
-        # 3. FETCH SERVICES
-        if zammad_conf.is_active:
-            try:
-                all_tickets.extend(
-                    ZammadService().get_tickets(force_refresh=force_refresh),
-                )
-            except requests.RequestException:
-                logger.exception("Zammad fetch failed")
-
-        if gitlab_conf.is_active:
-            try:
-                all_tickets.extend(
-                    GitLabService().get_tickets(force_refresh=force_refresh),
-                )
-            except requests.RequestException:
-                logger.exception("GitLab fetch failed")
-
-        if espo_conf.is_active:
-            try:
-                all_tickets.extend(
-                    EspoService().get_tickets(force_refresh=force_refresh),
-                )
-            except requests.RequestException:
-                logger.exception("EspoCRM fetch failed")
-
-        if op_conf.is_active:
-            try:
-                all_tickets.extend(
-                    OpenProjectService().get_tickets(force_refresh=force_refresh),
-                )
-            except requests.RequestException:
-                logger.exception("OpenProject fetch failed")
-
-        if eramba_conf.is_active:
-            try:
-                all_tickets.extend(
-                    ErambaService().get_tickets(force_refresh=force_refresh),
-                )
-            except requests.RequestException:
-                logger.exception("Eramba fetch failed")
+        configs = ServiceConfiguration.objects.filter(is_active=True)
+        for config in configs:
+            service_class = service_map.get(config.service_type)
+            if service_class:
+                try:
+                    service_instance = service_class(config)
+                    all_tickets.extend(
+                        service_instance.get_tickets(force_refresh=force_refresh),
+                    )
+                except Exception:
+                    logger.exception("Fetch failed for service: %s", config.name)
 
         # 4. INITIAL SORT
         all_tickets.sort(key=lambda x: x.get("updated_at", ""), reverse=True)

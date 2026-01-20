@@ -12,9 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 class ErambaService:
-    def __init__(self):
-        self.base_url = getattr(settings, "ERAMBA_API_URL", "")
-        self.api_key = getattr(settings, "ERAMBA_API_KEY", "")
+    def __init__(self, config):
+        self.config = config
+        self.base_url = config.api_url
+        self.api_key = config.api_token
         # Eramba typically uses an 'ApiKey' header
         self.headers = {
             "ApiKey": self.api_key,
@@ -27,7 +28,7 @@ class ErambaService:
 
         if not self.api_key:
             return {
-                "name": "Eramba",
+                "name": self.config.name,
                 "status": "auth_missing",
                 "latency": 0,
                 "error": "Missing API Key",
@@ -45,24 +46,24 @@ class ErambaService:
 
             latency = int((datetime.now(tz=UTC) - start).total_seconds() * 1000)
             return {  # noqa: TRY300
-                "name": "Eramba",
+                "name": self.config.name,
                 "status": "online",
                 "latency": latency,
                 "error": None,
             }
 
         except requests.HTTPError as e:
-            logger.warning("Eramba Auth Failed: %s", e)
+            logger.warning("%s Auth Failed: %s", self.config.name, e)
             return {
-                "name": "Eramba",
+                "name": self.config.name,
                 "status": "auth_error",
                 "latency": 0,
                 "error": str(e),
             }
         except Exception:
-            logger.exception("Eramba Unreachable")
+            logger.exception("%s Unreachable", self.config.name)
             return {
-                "name": "Eramba",
+                "name": self.config.name,
                 "status": "offline",
                 "latency": 0,
                 "error": "Unreachable",
@@ -72,7 +73,7 @@ class ErambaService:
         """
         Fetches Security Incidents, Security Operations, and Notifications.
         """
-        cache_key = "eramba_active_items_cache"
+        cache_key = f"eramba_{self.config.id}_active_items_cache"
 
         if not force_refresh:
             cached_data = cache.get(cache_key)
@@ -150,7 +151,7 @@ class ErambaService:
                         "status": "open",
                         # Eramba priority mapping varies widely per module
                         "priority": "Medium",
-                        "origin": "Eramba",
+                        "origin": self.config.name,
                         "customer": "Internal",
                         "group": label,  # 'Incident', 'SecOps', 'Notification'
                         "owner": "GRC Team",

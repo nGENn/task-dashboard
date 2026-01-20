@@ -12,9 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 class GitLabService:
-    def __init__(self):
-        self.base_url = getattr(settings, "GITLAB_API_URL", "https://gitlab.com")
-        self.token = getattr(settings, "GITLAB_API_TOKEN", "")
+    def __init__(self, config):
+        self.config = config
+        self.base_url = config.api_url or "https://gitlab.com"
+        self.token = config.api_token
         self.headers = {"Private-Token": self.token}
 
     def get_tickets(self, *, force_refresh=False):
@@ -22,7 +23,7 @@ class GitLabService:
         Fetches ALL open Issues and Merge Requests.
         Enriches them with real Emails for security filtering.
         """
-        cache_key = "gitlab_active_items_cache"
+        cache_key = f"gitlab_{self.config.id}_active_items_cache"
 
         if not force_refresh:
             cached_data = cache.get(cache_key)
@@ -66,7 +67,7 @@ class GitLabService:
         Fetches all users to create a {gitlab_id: 'email@company.com'} lookup dict.
         Cached for longer (1 hour) because user emails rarely change.
         """
-        map_cache_key = "gitlab_user_email_map"
+        map_cache_key = f"gitlab_{self.config.id}_user_email_map"
         cached_map = cache.get(map_cache_key)
         if cached_map:
             return cached_map
@@ -121,7 +122,7 @@ class GitLabService:
                         "title": f"{title_prefix}{item.get('title')}",
                         "status": "open",
                         "priority": self._extract_priority(item.get("labels", [])),
-                        "origin": "GitLab",
+                        "origin": self.config.name,
                         "customer": group_name.split("/")[0]
                         if "/" in group_name
                         else group_name,
@@ -160,10 +161,10 @@ class GitLabService:
 
         if not self.token:
             return {
-                "name": "GitLab",
+                "name": self.config.name,
                 "status": "auth_missing",
                 "latency": 0,
-                "error": "Missing Token in settings",
+                "error": "Missing Token in configuration",
             }
 
         try:
@@ -178,24 +179,24 @@ class GitLabService:
                 (datetime.now(tz=UTC) - start).total_seconds() * 1000,
             )
             return {  # noqa: TRY300
-                "name": "GitLab",
+                "name": self.config.name,
                 "status": "online",
                 "latency": latency,
                 "error": None,
             }
 
         except requests.HTTPError as e:
-            logger.warning("GitLab Auth Failed: %s", e)
+            logger.warning("%s Auth Failed: %s", self.config.name, e)
             return {
-                "name": "GitLab",
+                "name": self.config.name,
                 "status": "auth_error",
                 "latency": 0,
                 "error": str(e),
             }
         except Exception:
-            logger.exception("GitLab Unreachable")
+            logger.exception("%s Unreachable", self.config.name)
             return {
-                "name": "GitLab",
+                "name": self.config.name,
                 "status": "offline",
                 "latency": 0,
                 "error": "Unreachable",

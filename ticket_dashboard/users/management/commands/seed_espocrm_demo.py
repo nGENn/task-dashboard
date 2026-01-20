@@ -2,13 +2,25 @@ import httpx
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
+from ticket_dashboard.users.models import ServiceConfiguration
+
 
 class Command(BaseCommand):
     help = "Simple EspoCRM Seeder"
 
     def handle(self, *args, **options):
-        base_url = settings.ESPO_API_URL.rstrip("/")
-        api_key = settings.ESPO_API_KEY
+        # Ensure configuration exists
+        config, _ = ServiceConfiguration.objects.get_or_create(
+            service_type="espocrm",
+            defaults={
+                "name": "EspoCRM",
+                "api_url": getattr(settings, "ESPO_API_URL", ""),
+                "api_token": getattr(settings, "ESPO_API_KEY", ""),
+                "is_active": True,
+            },
+        )
+        base_url = config.api_url.rstrip("/")
+        api_key = config.api_token
         headers = {"X-Api-Key": api_key, "Content-Type": "application/json"}
         verify_ssl = getattr(settings, "ESPO_VERIFY_SSL", True)
         client = httpx.Client(headers=headers, verify=verify_ssl, timeout=10)
@@ -95,3 +107,4 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"  + Task: {t['name']}"))
 
         self.stdout.write("✅ EspoCRM seeding complete.")
+

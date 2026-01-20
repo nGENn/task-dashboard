@@ -11,9 +11,10 @@ logger = logging.getLogger(__name__)
 
 
 class ZammadService:
-    def __init__(self):
-        self.base_url = getattr(settings, "ZAMMAD_API_URL", "")
-        self.token = getattr(settings, "ZAMMAD_API_TOKEN", "")
+    def __init__(self, config):
+        self.config = config
+        self.base_url = config.api_url
+        self.token = config.api_token
 
         self.headers = {
             "Authorization": f"Token token={self.token}",
@@ -22,7 +23,7 @@ class ZammadService:
 
     def get_tickets(self, *, force_refresh=False):
         # 1. Define Cache Key
-        cache_key = "zammad_active_tickets_cache"
+        cache_key = f"zammad_{self.config.id}_active_tickets_cache"
 
         # 2. Return Cache if available
         if not force_refresh:
@@ -76,7 +77,7 @@ class ZammadService:
                     "title": ticket.get("title"),
                     "status": self._map_status(ticket.get("state")),
                     "priority": self._map_priority(ticket.get("priority")),
-                    "origin": "Zammad",
+                    "origin": self.config.name,
                     "customer": ticket.get("customer", "Unknown"),
                     "group": ticket.get("group", "Support"),
                     "owner": ticket.get("owner", "Unassigned"),
@@ -148,10 +149,10 @@ class ZammadService:
 
         if not self.base_url or not self.token:
             return {
-                "name": "Zammad",
+                "name": self.config.name,
                 "status": "auth_missing",
                 "latency": 0,
-                "error": "Missing URL or Token in settings",
+                "error": "Missing URL or Token in configuration",
             }
 
         try:
@@ -166,23 +167,23 @@ class ZammadService:
                 (datetime.now(tz=UTC) - start).total_seconds() * 1000,
             )
             return {  # noqa: TRY300
-                "name": "Zammad",
+                "name": self.config.name,
                 "status": "online",
                 "latency": latency,
                 "error": None,
             }
         except requests.HTTPError as e:
-            logger.warning("Zammad Auth Failed: %s", e)
+            logger.warning("%s Auth Failed: %s", self.config.name, e)
             return {
-                "name": "Zammad",
+                "name": self.config.name,
                 "status": "auth_error",
                 "latency": 0,
                 "error": str(e),
             }
         except Exception:
-            logger.exception("Zammad Unreachable")
+            logger.exception("%s Unreachable", self.config.name)
             return {
-                "name": "Zammad",
+                "name": self.config.name,
                 "status": "offline",
                 "latency": 0,
                 "error": "Unreachable",

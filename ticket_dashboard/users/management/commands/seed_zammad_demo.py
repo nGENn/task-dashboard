@@ -4,13 +4,25 @@ import httpx
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
+from ticket_dashboard.users.models import ServiceConfiguration
+
 
 class Command(BaseCommand):
     help = "Robust Zammad Seeder (No Elasticsearch required)"
 
     def handle(self, *args, **options):
-        base_url = settings.ZAMMAD_API_URL.rstrip("/")
-        token = settings.ZAMMAD_API_TOKEN
+        # Ensure configuration exists
+        config, _ = ServiceConfiguration.objects.get_or_create(
+            service_type="zammad",
+            defaults={
+                "name": "Zammad",
+                "api_url": getattr(settings, "ZAMMAD_API_URL", ""),
+                "api_token": getattr(settings, "ZAMMAD_API_TOKEN", ""),
+                "is_active": True,
+            },
+        )
+        base_url = config.api_url.rstrip("/")
+        token = config.api_token
         headers = {
             "Authorization": f"Token token={token}",
             "Content-Type": "application/json",

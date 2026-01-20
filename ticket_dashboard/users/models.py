@@ -41,10 +41,35 @@ class User(AbstractUser):
 
 
 class ServiceConfiguration(models.Model):
+    SERVICE_TYPES = [
+        ("zammad", "Zammad"),
+        ("gitlab", "GitLab"),
+        ("espocrm", "EspoCRM"),
+        ("eramba", "Eramba"),
+        ("openproject", "OpenProject"),
+    ]
+
     name = models.CharField(
         max_length=50,
         unique=True,
-        help_text="Service Name (e.g. Zammad, GitLab)",
+        help_text="Display Name (e.g. Internal Helpdesk)",
+    )
+    service_type = models.CharField(
+        max_length=20,
+        choices=SERVICE_TYPES,
+        help_text="Type of service to connect to.",
+        default="zammad",
+    )
+    api_url = models.URLField(
+        blank=True,
+        null=True,
+        help_text="Base URL for the service API.",
+    )
+    api_token = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="API Token or Secret for authentication.",
     )
     is_active = models.BooleanField(
         default=True,
@@ -57,7 +82,7 @@ class ServiceConfiguration(models.Model):
         ordering = ["name"]
 
     def __str__(self):
-        return f"{self.name} ({'Active' if self.is_active else 'Disabled'})"
+        return f"{self.name} ({self.get_service_type_display()})"
 
 
 class ExternalGroup(models.Model):

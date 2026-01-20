@@ -4,13 +4,25 @@ import httpx
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
+from ticket_dashboard.users.models import ServiceConfiguration
+
 
 class Command(BaseCommand):
     help = "Simple GitLab Seeder"
 
     def handle(self, *args, **options):
-        base_url = settings.GITLAB_API_URL.rstrip("/")
-        token = settings.GITLAB_API_TOKEN
+        # Ensure configuration exists
+        config, _ = ServiceConfiguration.objects.get_or_create(
+            service_type="gitlab",
+            defaults={
+                "name": "GitLab",
+                "api_url": getattr(settings, "GITLAB_API_URL", "https://gitlab.com"),
+                "api_token": getattr(settings, "GITLAB_API_TOKEN", ""),
+                "is_active": True,
+            },
+        )
+        base_url = (config.api_url or "https://gitlab.com").rstrip("/")
+        token = config.api_token
         headers = {"Private-Token": token}
         verify_ssl = getattr(settings, "GITLAB_VERIFY_SSL", True)
         client = httpx.Client(headers=headers, verify=verify_ssl, timeout=10)
