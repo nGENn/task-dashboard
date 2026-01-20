@@ -1,0 +1,245 @@
+{% load dashboard_extras %}
+<div class="bg-base-100 rounded-box shadow-sm border border-base-300 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="table table-zebra w-full">
+      <thead class="bg-base-200 text-base-content/70">
+        <tr>
+          {% with request.GET.sort as current_sort %}
+            {% with request.GET.direction as current_dir %}
+              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
+                <a class="flex items-center justify-between w-full h-full px-2"
+                   href="?{% url_replace sort='origin' direction=current_dir|toggle_direction %}">
+                  <span>Origin</span>
+                  {% if current_sort == 'origin' %}
+                    <span class="text-xs">
+                      {% if current_dir == 'asc' %}
+                        ▲
+                      {% else %}
+                        ▼
+                      {% endif %}
+                    </span>
+                  {% endif %}
+                </a>
+                <div class="resizer"></div>
+              </th>
+              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
+                <a class="flex items-center justify-between w-full h-full px-2"
+                   href="?{% url_replace sort='id' direction=current_dir|toggle_direction %}">
+                  <span>ID</span>
+                  {% if current_sort == 'id' %}
+                    <span class="text-xs">
+                      {% if current_dir == 'asc' %}
+                        ▲
+                      {% else %}
+                        ▼
+                      {% endif %}
+                    </span>
+                  {% endif %}
+                </a>
+                <div class="resizer"></div>
+              </th>
+              <th class="font-semibold relative group min-w-[200px] cursor-pointer hover:bg-base-300 transition-colors">
+                <a class="flex items-center justify-between w-full h-full px-2"
+                   href="?{% url_replace sort='title' direction=current_dir|toggle_direction %}">
+                  <span>Title</span>
+                  {% if current_sort == 'title' %}
+                    <span class="text-xs">
+                      {% if current_dir == 'asc' %}
+                        ▲
+                      {% else %}
+                        ▼
+                      {% endif %}
+                    </span>
+                  {% endif %}
+                </a>
+                <div class="resizer"></div>
+              </th>
+              <th class="font-semibold relative group min-w-[150px] cursor-pointer hover:bg-base-300 transition-colors">
+                <a class="flex items-center justify-between w-full h-full px-2"
+                   href="?{% url_replace sort='customer' direction=current_dir|toggle_direction %}">
+                  <span>Customer</span>
+                  {% if current_sort == 'customer' %}
+                    <span class="text-xs">
+                      {% if current_dir == 'asc' %}
+                        ▲
+                      {% else %}
+                        ▼
+                      {% endif %}
+                    </span>
+                  {% endif %}
+                </a>
+                <div class="resizer"></div>
+              </th>
+              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
+                <a class="flex items-center justify-between w-full h-full px-2"
+                   href="?{% url_replace sort='group' direction=current_dir|toggle_direction %}">
+                  <span>Group</span>
+                  {% if current_sort == 'group' %}
+                    <span class="text-xs">
+                      {% if current_dir == 'asc' %}
+                        ▲
+                      {% else %}
+                        ▼
+                      {% endif %}
+                    </span>
+                  {% endif %}
+                </a>
+                <div class="resizer"></div>
+              </th>
+              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
+                <a class="flex items-center justify-between w-full h-full px-2"
+                   href="?{% url_replace sort='owner' direction=current_dir|toggle_direction %}">
+                  <span>Owner</span>
+                  {% if current_sort == 'owner' %}
+                    <span class="text-xs">
+                      {% if current_dir == 'asc' %}
+                        ▲
+                      {% else %}
+                        ▼
+                      {% endif %}
+                    </span>
+                  {% endif %}
+                </a>
+                <div class="resizer"></div>
+              </th>
+              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
+                <a class="flex items-center justify-between w-full h-full px-2"
+                   href="?{% url_replace sort='status' direction=current_dir|toggle_direction %}">
+                  <span>State</span>
+                  {% if current_sort == 'status' %}
+                    <span class="text-xs">
+                      {% if current_dir == 'asc' %}
+                        ▲
+                      {% else %}
+                        ▼
+                      {% endif %}
+                    </span>
+                  {% endif %}
+                </a>
+                <div class="resizer"></div>
+              </th>
+              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
+                <a class="flex items-center justify-between w-full h-full px-2"
+                   href="?{% url_replace sort='priority' direction=current_dir|toggle_direction %}">
+                  <span>Priority</span>
+                  {% if current_sort == 'priority' %}
+                    <span class="text-xs">
+                      {% if current_dir == 'asc' %}
+                        ▲
+                      {% else %}
+                        ▼
+                      {% endif %}
+                    </span>
+                  {% endif %}
+                </a>
+                <div class="resizer"></div>
+              </th>
+              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
+                <a class="flex items-center justify-between w-full h-full px-2"
+                   href="?{% url_replace sort='created_at' direction=current_dir|toggle_direction %}">
+                  <span>Created</span>
+                  {% if current_sort == 'created_at' %}
+                    <span class="text-xs">
+                      {% if current_dir == 'asc' %}
+                        ▲
+                      {% else %}
+                        ▼
+                      {% endif %}
+                    </span>
+                  {% endif %}
+                </a>
+                <div class="resizer"></div>
+              </th>
+              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
+                <a class="flex items-center justify-between w-full h-full px-2"
+                   href="?{% url_replace sort='updated_at' direction=current_dir|toggle_direction %}">
+                  <span>Updated</span>
+                  {% if current_sort == 'updated_at' %}
+                    <span class="text-xs">
+                      {% if current_dir == 'asc' %}
+                        ▲
+                      {% else %}
+                        ▼
+                      {% endif %}
+                    </span>
+                  {% endif %}
+                </a>
+                <div class="resizer"></div>
+              </th>
+              <th class="font-semibold text-center w-px whitespace-nowrap px-4">Link</th>
+            {% endwith %}
+          {% endwith %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for ticket in tickets %}
+          <tr class="hover cursor-pointer">
+            <td>
+              <span class="badge badge-ghost text-xs">{{ ticket.origin }}</span>
+            </td>
+            <td class="font-mono text-sm font-bold whitespace-nowrap">{{ ticket.id }}</td>
+            <td class="min-w-[200px] max-w-[400px]">
+              <span class="truncate block font-medium" title="{{ ticket.title }}">{{ ticket.title }}</span>
+            </td>
+            <td class="text-sm min-w-[150px] max-w-[250px] whitespace-normal break-all">{{ ticket.customer }}</td>
+            <td class="text-sm whitespace-nowrap">{{ ticket.group }}</td>
+            <td class="text-sm font-medium whitespace-nowrap">
+              {% if ticket.owner_email %}
+                <span class="text-primary">{{ ticket.owner_email }}</span>
+              {% else %}
+                <span class="text-base-content/50 italic">{{ ticket.owner }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if ticket.status == 'open' %}
+                <span class="badge badge-warning gap-1 text-xs whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full bg-warning-content/60"></span>
+              Open</span>
+            {% elif ticket.status == 'resolved' %}
+              <span class="badge badge-success gap-1 text-xs whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full bg-success-content/60"></span>
+            Resolved</span>
+          {% else %}
+            <span class="badge badge-info gap-1 text-xs whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full bg-info-content/60"></span>
+          {{ ticket.status|title }}</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if ticket.priority == 'Critical' %}
+          <span class="text-error flex items-center gap-1 font-semibold text-xs whitespace-nowrap">
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 class="h-3 w-3"
+                 viewBox="0 0 20 20"
+                 fill="currentColor">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+            Critical
+          </span>
+        {% else %}
+          <span class="text-base-content/70 text-xs whitespace-nowrap">{{ ticket.priority }}</span>
+        {% endif %}
+      </td>
+      <td class="text-xs text-base-content/70 whitespace-nowrap">{{ ticket.created_at }}</td>
+      <td class="text-xs text-base-content/70 whitespace-nowrap">{{ ticket.updated_at }}</td>
+      <td class="text-center">
+        <a href="{{ ticket.url }}"
+           target="_blank"
+           rel="noopener noreferrer"
+           class="btn btn-ghost btn-xs text-primary">
+          <svg xmlns="http://www.w3.org/2000/svg"
+               class="h-4 w-4"
+               fill="none"
+               viewBox="0 0 24 24"
+               stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+        </a>
+      </td>
+    </tr>
+  {% empty %}
+    <tr>
+      <td colspan="11" class="text-center py-8 text-base-content/50">No tickets found matching your filters.</td>
+    </tr>
+  {% endfor %}
+</tbody>
+</table>
+</div>
+</div>
