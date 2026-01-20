@@ -6,7 +6,7 @@ import typing
 from allauth.account.adapter import DefaultAccountAdapter
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.conf import settings
-from django.contrib.auth.models import Group  # <--- Added Import
+from django.contrib.auth.models import Group
 
 if typing.TYPE_CHECKING:
     from allauth.socialaccount.models import SocialLogin
@@ -71,3 +71,82 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
                 if last_name := data.get("last_name"):
                     user.name += f" {last_name}"
         return user
+
+    def pre_social_login(
+        self,
+        request: HttpRequest,
+        sociallogin: SocialLogin,
+    ) -> None:
+        """
+        Triggered before a social login is completed.
+        Used to sync Keycloak groups to Django groups.
+        """
+        super().pre_social_login(request, sociallogin)
+
+        # Sync groups if user already exists
+        if sociallogin.user.pk:
+            self._sync_groups(sociallogin, sociallogin.user)
+
+    def save_user(
+        self,
+        request: HttpRequest,
+        sociallogin: SocialLogin,
+        form: typing.Any = None,
+    ) -> User:
+        """
+        Called when a social user is created for the first time.
+        """
+        user = super().save_user(request, sociallogin, form)
+        self._sync_groups(sociallogin, user)
+        return user
+
+    def _extract_groups(self, data: typing.Any) -> set[str]:
+        """
+        Helper to extract group names from a dictionary.
+        Looks for 'groups', 'policy', and 'roles' keys.
+        """
+        if not isinstance(data, dict):
+            return set()
+
+        extracted = set()
+        for key in ["groups", "policy", "roles"]:
+            val = data.get(key)
+            if isinstance(val, list):
+                extracted.update(str(item) for item in val)
+            elif isinstance(val, str):
+                extracted.add(val)
+        return extracted
+
+    def _sync_groups(self, sociallogin: SocialLogin, user: User) -> None:
+        """
+        Syncs Keycloak groups from social account data to Django groups.
+        """
+        # 1. Check provider
+        provider = sociallogin.account.provider
+        if provider not in ["keycloak", "openid_connect"]:
+            return
+
+        # 2. Get groups from extra_data (including nested locations)
+        extra_data = sociallogin.account.extra_data
+
+        # We look into top-level, userinfo, and id_token as requested
+        all_groups = self._extract_groups(extra_data)
+        all_groups.update(self._extract_groups(extra_data.get("userinfo")))
+        all_groups.update(self._extract_groups(extra_data.get("id_token")))
+
+        # 3. Filter out technical scopes and handle ignored groups
+        ignored_groups = {"offline_access", "uma_authorization"}
+        groups_names = [g for g in all_groups if g not in ignored_groups]
+
+        # 4. Sync groups
+        # Ensure groups exist and collect them
+        django_groups = []
+        for name in groups_names:
+            group, _ = Group.objects.get_or_create(name=name)
+            django_groups.append(group)
+
+        # 5. Assign groups to user
+        # Clear existing groups and set to the ones from Keycloak
+        # as per the requirement for strict sync.
+        if user.pk:
+            user.groups.set(django_groups)

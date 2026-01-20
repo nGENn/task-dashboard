@@ -295,6 +295,7 @@ INSTALLED_APPS.append("allauth.socialaccount.providers.openid_connect")
 # 2. Keycloak / OIDC Configuration
 SOCIALACCOUNT_PROVIDERS = {
     "openid_connect": {
+        "SCOPE": ["openid", "profile", "email"],
         "APPS": [
             {
                 "provider_id": "keycloak",
