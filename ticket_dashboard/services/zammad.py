@@ -44,8 +44,7 @@ class ZammadService:
                     uid = u.get("id")
                     email = u.get("email")
                     name = (
-                        f"{u.get('firstname', '')} "
-                        f"{u.get('lastname', '')}"
+                        f"{u.get('firstname', '')} {u.get('lastname', '')}"
                     ).strip() or u.get("login")
                     if uid:
                         user_map[uid] = {"email": email, "name": name}
@@ -103,14 +102,15 @@ class ZammadService:
             }
 
             response = requests.get(
-                url, headers=self.headers, params=params, timeout=10,
+                url,
+                headers=self.headers,
+                params=params,
+                timeout=10,
             )
             response.raise_for_status()
 
             data = response.json()
-            page_tickets = (
-                data.get("tickets", []) if isinstance(data, dict) else data
-            )
+            page_tickets = data.get("tickets", []) if isinstance(data, dict) else data
 
             if not page_tickets:
                 break
@@ -125,7 +125,8 @@ class ZammadService:
 
         if page > max_pages:
             logger.warning(
-                "Zammad fetch limit reached (%d tickets).", len(raw_tickets),
+                "Zammad fetch limit reached (%d tickets).",
+                len(raw_tickets),
             )
         return raw_tickets
 

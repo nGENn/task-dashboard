@@ -73,9 +73,13 @@ def dynamic_date(value):
     if isinstance(value, str):
         try:
             # Try to parse yyyy-mm-dd (date only)
-            dt = datetime.datetime.strptime(value, "%Y-%m-%d").replace(
-                tzinfo=datetime.UTC,
-            ).date()
+            dt = (
+                datetime.datetime.strptime(value, "%Y-%m-%d")
+                .replace(
+                    tzinfo=datetime.UTC,
+                )
+                .date()
+            )
             has_time = False
         except ValueError:
             try:

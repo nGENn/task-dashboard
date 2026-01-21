@@ -212,16 +212,17 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
                 # Check specific targets (Names or Emails)
                 if specific_targets:
-                    if (str(owner) in specific_targets or
-                            str(email) in specific_targets):
+                    if str(owner) in specific_targets or str(email) in specific_targets:
                         is_match = True
 
                 # Check unassigned (Only match if BOTH owner/email empty)
                 if want_unassigned and not is_match:
-                    owner_empty = (owner in unassigned_markers or
-                                   str(owner) in unassigned_markers)
-                    email_empty = (email in unassigned_markers or
-                                   str(email) in unassigned_markers)
+                    owner_empty = (
+                        owner in unassigned_markers or str(owner) in unassigned_markers
+                    )
+                    email_empty = (
+                        email in unassigned_markers or str(email) in unassigned_markers
+                    )
                     if owner_empty and email_empty:
                         is_match = True
 

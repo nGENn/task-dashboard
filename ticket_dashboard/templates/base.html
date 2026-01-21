@@ -403,25 +403,54 @@
             });
           }
 
-          {% if messages %}
-            {% for message in messages %}
-              // Map Django tags to our toast types
-              // Django: debug, info, success, warning, error
-              // Toast: success, error
-              var type = "{{ message.tags }}";
-              if (type === 'warning' || type === 'error') type = 'error';
-              else type = 'success';
-
-              // Call the function with a slight delay for multiple messages
-              setTimeout(() => {
-                showToast("{{ message|escapejs }}", type);
-              }, {{ forloop.counter0 }} * 500); // Stagger by 500ms
-            {% endfor %}
-          {% endif %}
-
         });
       </script>
     {% endblock inline_javascript %}
-    <div id="toast-container" class="toast toast-top toast-end mt-16 z-[9999]"></div>
+    {% if messages %}
+      <script id="django-messages" type="application/json">
+        [{
+          %
+          for message in messages %
+        } {
+          "message": "{{ message|escapejs }}",
+          "tags": "{{ message.tags|escapejs }}"
+        } {
+          %
+          if not forloop.last %
+        }, {
+          %
+          endif %
+        } {
+          %
+          endfor %
+        }]
+      </script>
+      <script>
+        document.addEventListener("DOMContentLoaded", function() {
+          const messagesData = document.getElementById('django-messages');
+          if (messagesData) {
+            const messages = JSON.parse(messagesData.textContent);
+            messages.forEach((msg, index) => {
+              // Map Django tags to our toast types
+              // Django: debug, info, success, warning, error
+              // Toast: success, error
+              let type = msg.tags;
+              if (type === 'warning' || type === 'error') {
+                type = 'error';
+              } else {
+                type = 'success';
+              }
+
+              // Call the function with a slight delay for multiple messages
+              setTimeout(() => {
+                if (typeof showToast === 'function') {
+                  showToast(msg.message, type);
+                }
+              }, index * 500); // Stagger by 500ms
+            });
+          }
+        });
+      </script>
+    {% endif %}
   </body>
 </html>

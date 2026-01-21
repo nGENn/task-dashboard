@@ -90,13 +90,17 @@ class ErambaService:
         try:
             # 1. Security Incidents (Existing)
             self._fetch_module(
-                "security_incidents", "Incident", normalized_tickets,
+                "security_incidents",
+                "Incident",
+                normalized_tickets,
             )
 
             # 2. Security Operations Projects (Manager Request)
             # Endpoint: /security_operations/index.json
             self._fetch_module(
-                "security_operations", "SecOps", normalized_tickets,
+                "security_operations",
+                "SecOps",
+                normalized_tickets,
             )
 
             # 3. Notifications (Manager Request)
@@ -106,7 +110,9 @@ class ErambaService:
             # If this endpoint fails (404), the helper will safely log it
             # and continue.
             self._fetch_module(
-                "notifications", "Notification", normalized_tickets,
+                "notifications",
+                "Notification",
+                normalized_tickets,
             )
 
             cache.set(cache_key, normalized_tickets, timeout=300)
@@ -146,9 +152,7 @@ class ErambaService:
                     return
 
                 data = response.json()
-                raw_list = (
-                    data.get("items", []) if isinstance(data, dict) else data
-                )
+                raw_list = data.get("items", []) if isinstance(data, dict) else data
 
                 if not raw_list:
                     break
@@ -192,12 +196,10 @@ class ErambaService:
                                 item.get("modified"),
                             ),
                             "due_date": self._format_date(
-                                item.get("deadline")
-                                or item.get("planned_end"),
+                                item.get("deadline") or item.get("planned_end"),
                             ),
                             "url": (
-                                f"{self.base_url}/{module_slug}/view/"
-                                f"{item.get('id')}"
+                                f"{self.base_url}/{module_slug}/view/{item.get('id')}"
                             ),
                         },
                     )
@@ -219,7 +221,9 @@ class ErambaService:
 
         except RequestException as e:
             logger.warning(
-                "Failed to fetch Eramba module '%s': %s", module_slug, e,
+                "Failed to fetch Eramba module '%s': %s",
+                module_slug,
+                e,
             )
 
     def _map_priority(self, classification):

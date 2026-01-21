@@ -88,9 +88,7 @@ class OpenProjectService:
 
                     if uid:
                         # Fallback to login if email hidden
-                        final_email = (
-                            email if email else f"{login}@placeholder"
-                        )
+                        final_email = email if email else f"{login}@placeholder"
                         user_map[uid] = final_email
 
             cache.set(cache_key, user_map, timeout=3600)

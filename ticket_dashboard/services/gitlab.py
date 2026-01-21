@@ -109,7 +109,12 @@ class GitLabService:
         return user_map
 
     def _fetch_and_normalize(
-        self, url, item_type, target_list, user_map, params=None,
+        self,
+        url,
+        item_type,
+        target_list,
+        user_map,
+        params=None,
     ):
         try:
             page = 1
@@ -119,10 +124,12 @@ class GitLabService:
 
             while page <= max_pages:
                 request_params = (params or {}).copy()
-                request_params.update({
-                    "page": page,
-                    "per_page": per_page,
-                })
+                request_params.update(
+                    {
+                        "page": page,
+                        "per_page": per_page,
+                    },
+                )
 
                 response = requests.get(
                     url,
@@ -139,12 +146,8 @@ class GitLabService:
                 for item in data:
                     # Distinguish IDs: GL-I-123 (Issue) vs
                     # GL-MR-123 (Merge Request)
-                    prefix = (
-                        "GL-MR" if item_type == "Merge Request" else "GL-I"
-                    )
-                    title_prefix = (
-                        "[MR] " if item_type == "Merge Request" else ""
-                    )
+                    prefix = "GL-MR" if item_type == "Merge Request" else "GL-I"
+                    title_prefix = "[MR] " if item_type == "Merge Request" else ""
 
                     # Determine Owner (Assignee)
                     assignee_data = item.get("assignee")
@@ -159,11 +162,7 @@ class GitLabService:
 
                     # Determine Group (Project Namespace)
                     full_ref = item.get("references", {}).get("full", "")
-                    group_name = (
-                        full_ref.split("#")[0]
-                        if "#" in full_ref
-                        else "GitLab"
-                    )
+                    group_name = full_ref.split("#")[0] if "#" in full_ref else "GitLab"
 
                     target_list.append(
                         {

@@ -77,7 +77,10 @@ class EspoService:
             params = {"maxSize": 200, "select": "id,emailAddress,userName"}
 
             resp = requests.get(
-                url, headers=self.headers, params=params, timeout=5,
+                url,
+                headers=self.headers,
+                params=params,
+                timeout=5,
             )
 
             if resp.status_code == HTTPStatus.OK:
@@ -91,9 +94,7 @@ class EspoService:
                         # Fallback to username if email is missing
                         # (better than nothing)
                         user_map[uid] = (
-                            email
-                            if email
-                            else f"{u.get('userName')}@placeholder"
+                            email if email else f"{u.get('userName')}@placeholder"
                         )
 
             cache.set(cache_key, user_map, timeout=3600)
@@ -157,10 +158,12 @@ class EspoService:
 
             while page <= max_pages:
                 request_params = (params or {}).copy()
-                request_params.update({
-                    "offset": offset,
-                    "maxSize": max_size,
-                })
+                request_params.update(
+                    {
+                        "offset": offset,
+                        "maxSize": max_size,
+                    },
+                )
 
                 resp = requests.get(
                     url,
@@ -181,10 +184,7 @@ class EspoService:
 
                     target_list.append(
                         {
-                            "id": (
-                                f"ESPO-{entity_type[0]}-"
-                                f"{item.get('number')}"
-                            ),
+                            "id": (f"ESPO-{entity_type[0]}-{item.get('number')}"),
                             "title": item.get("name"),
                             "status": self._map_status(item.get("status")),
                             "priority": self._map_priority(
@@ -197,12 +197,9 @@ class EspoService:
                             "owner_email": owner_email,
                             "created_at": item.get("createdAt"),
                             "updated_at": item.get("modifiedAt"),
-                            "due_date": (
-                                item.get("dueDate") or item.get("dateEnd")
-                            ),
+                            "due_date": (item.get("dueDate") or item.get("dateEnd")),
                             "url": (
-                                f"{self.base_url}/#{entity_type}/view/"
-                                f"{item.get('id')}"
+                                f"{self.base_url}/#{entity_type}/view/{item.get('id')}"
                             ),
                         },
                     )

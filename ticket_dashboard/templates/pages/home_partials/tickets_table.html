@@ -1,4 +1,5 @@
 {% load dashboard_extras %}
+
 <div class="w-full bg-base-100 rounded-box shadow-sm border border-base-300 overflow-hidden mb-4">
   <div class="overflow-x-auto">
     <table class="table table-zebra w-full">
@@ -188,7 +189,8 @@
       </thead>
       <tbody>
         {% for ticket in tickets %}
-          <tr class="hover cursor-pointer" onclick="window.open('{{ ticket.url }}', '_blank')">
+          <tr class="hover cursor-pointer"
+              onclick="window.open('{{ ticket.url }}', '_blank')">
             <td>
               <span class="badge badge-ghost text-xs">{{ ticket.origin }}</span>
             </td>
