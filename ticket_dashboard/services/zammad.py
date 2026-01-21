@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from http import HTTPStatus
 
 import requests
@@ -102,15 +103,14 @@ class ZammadService:
             }
 
             response = requests.get(
-                url, headers=self.headers, params=params, timeout=10
+                url, headers=self.headers, params=params, timeout=10,
             )
             response.raise_for_status()
 
             data = response.json()
-            if isinstance(data, dict):
-                page_tickets = data.get("tickets", [])
-            else:
-                page_tickets = data
+            page_tickets = (
+                data.get("tickets", []) if isinstance(data, dict) else data
+            )
 
             if not page_tickets:
                 break
@@ -125,7 +125,7 @@ class ZammadService:
 
         if page > max_pages:
             logger.warning(
-                "Zammad fetch limit reached (%d tickets).", len(raw_tickets)
+                "Zammad fetch limit reached (%d tickets).", len(raw_tickets),
             )
         return raw_tickets
 
@@ -194,10 +194,11 @@ class ZammadService:
             # Zammad returns ISO 8601, ensure it has offset for fromisoformat
             dt_str = date_str.replace("Z", "+00:00")
             # Validate it's a valid ISO string
-            from datetime import datetime
             datetime.fromisoformat(dt_str)
-            return dt_str
         except (ValueError, TypeError):
+            return date_str
+        else:
+            return dt_str
             return date_str
 
     def check_health(self):

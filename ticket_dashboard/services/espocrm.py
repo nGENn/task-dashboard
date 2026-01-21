@@ -36,7 +36,7 @@ class EspoService:
             )
             response.raise_for_status()
             latency = int(
-                (django_timezone.now() - start).total_seconds() * 1000
+                (django_timezone.now() - start).total_seconds() * 1000,
             )
         except requests.HTTPError as e:
             return {
@@ -77,7 +77,7 @@ class EspoService:
             params = {"maxSize": 200, "select": "id,emailAddress,userName"}
 
             resp = requests.get(
-                url, headers=self.headers, params=params, timeout=5
+                url, headers=self.headers, params=params, timeout=5,
             )
 
             if resp.status_code == HTTPStatus.OK:

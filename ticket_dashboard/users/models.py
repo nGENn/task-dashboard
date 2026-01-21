@@ -5,14 +5,12 @@ from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.models import Group
 from django.db import models
 from django.db.models import CharField
-
 from django.db.models import EmailField
 from django.http import QueryDict
 from django.urls import reverse
-
-from .fields import EncryptedCharField
 from django.utils.translation import gettext_lazy as _
 
+from .fields import EncryptedCharField
 from .managers import UserManager
 
 

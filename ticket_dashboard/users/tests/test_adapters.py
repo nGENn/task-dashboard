@@ -1,7 +1,9 @@
 import pytest
-from allauth.socialaccount.models import SocialAccount, SocialLogin
+from allauth.socialaccount.models import SocialAccount
+from allauth.socialaccount.models import SocialLogin
 from django.contrib.auth.models import Group
 from django.test import RequestFactory
+
 from ticket_dashboard.users.adapters import SocialAccountAdapter
 from ticket_dashboard.users.models import User
 
@@ -14,20 +16,20 @@ def test_pre_social_login_keycloak_group_sync(rf: RequestFactory, db):
     """
     adapter = SocialAccountAdapter()
     request = rf.get("/")
-    
+
     # Create a user
     user = User.objects.create(email="test@example.com")
-    
+
     # Create a SocialAccount with extra_data containing groups
     social_account = SocialAccount(
         user=user,
         provider="keycloak",
         uid="12345",
-        extra_data={"groups": ["admin", "editor"]}
+        extra_data={"groups": ["admin", "editor"]},
     )
-    
+
     social_login = SocialLogin(user=user, account=social_account)
-    
+
     # Pre-existing group that should NOT be removed if we are just adding
     # OR it SHOULD be removed if we are doing strict sync.
     # The requirement says "Update the user's groups: Clear existing groups
@@ -36,10 +38,10 @@ def test_pre_social_login_keycloak_group_sync(rf: RequestFactory, db):
     # So let's test strict sync.
     other_group = Group.objects.create(name="other")
     user.groups.add(other_group)
-    
+
     # Run the method
     adapter.pre_social_login(request, social_login)
-    
+
     # Verify groups were created and assigned
     assert Group.objects.filter(name="admin").exists()
     assert Group.objects.filter(name="editor").exists()
@@ -57,18 +59,18 @@ def test_pre_social_login_non_keycloak_no_sync(rf: RequestFactory, db):
     """
     adapter = SocialAccountAdapter()
     request = rf.get("/")
-    
+
     user = User.objects.create(email="other@example.com")
     social_account = SocialAccount(
         user=user,
         provider="google",
         uid="67890",
-        extra_data={"groups": ["ignored"]}
+        extra_data={"groups": ["ignored"]},
     )
     social_login = SocialLogin(user=user, account=social_account)
-    
+
     adapter.pre_social_login(request, social_login)
-    
+
     assert not Group.objects.filter(name="ignored").exists()
     assert user.groups.count() == 0
 
@@ -84,12 +86,12 @@ def test_pre_social_login_fallback_policy_sync(rf: RequestFactory, db):
         user=user,
         provider="keycloak",
         uid="54321",
-        extra_data={"policy": ["policy-admin", "policy-user"]}
+        extra_data={"policy": ["policy-admin", "policy-user"]},
     )
     social_login = SocialLogin(user=user, account=social_account)
-    
+
     adapter.pre_social_login(request, social_login)
-    
+
     user_groups = list(user.groups.values_list("name", flat=True))
     assert "policy-admin" in user_groups
     assert "policy-user" in user_groups
@@ -106,11 +108,11 @@ def test_pre_social_login_fallback_roles_sync(rf: RequestFactory, db):
         user=user,
         provider="keycloak",
         uid="98765",
-        extra_data={"roles": ["role-admin"]}
+        extra_data={"roles": ["role-admin"]},
     )
     social_login = SocialLogin(user=user, account=social_account)
-    
+
     adapter.pre_social_login(request, social_login)
-    
+
     user_groups = list(user.groups.values_list("name", flat=True))
     assert "role-admin" in user_groups

@@ -109,7 +109,7 @@ class GitLabService:
         return user_map
 
     def _fetch_and_normalize(
-        self, url, item_type, target_list, user_map, params=None
+        self, url, item_type, target_list, user_map, params=None,
     ):
         try:
             page = 1
@@ -171,7 +171,7 @@ class GitLabService:
                             "title": f"{title_prefix}{item.get('title')}",
                             "status": "open",
                             "priority": self._extract_priority(
-                                item.get("labels", [])
+                                item.get("labels", []),
                             ),
                             "origin": self.config.name,
                             "customer": group_name.split("/")[0]
@@ -227,8 +227,10 @@ class GitLabService:
             # Ensure it has offset for fromisoformat
             dt_str = date_str.replace("Z", "+00:00")
             datetime.fromisoformat(dt_str)
-            return dt_str
         except (ValueError, TypeError):
+            return date_str
+        else:
+            return dt_str
             return date_str
 
     def check_health(self):

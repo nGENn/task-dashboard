@@ -1,14 +1,17 @@
-import logging
-
 import json
+import logging
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.paginator import Paginator
 from django.db.models import QuerySet
+from django.http import HttpResponseRedirect
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
+from django.views.decorators.http import require_POST
 from django.views.generic import DetailView
 from django.views.generic import RedirectView
 from django.views.generic import TemplateView
@@ -21,11 +24,6 @@ from ticket_dashboard.services.openproject import OpenProjectService
 
 # Services
 from ticket_dashboard.services.zammad import ZammadService
-from django.http import HttpResponseRedirect
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
-from django.views.decorators.http import require_POST
-
 from ticket_dashboard.users.models import ExternalGroup
 from ticket_dashboard.users.models import SavedView
 from ticket_dashboard.users.models import ServiceConfiguration

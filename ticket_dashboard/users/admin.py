@@ -1,8 +1,8 @@
 from allauth.account.decorators import secure_admin_login
 from allauth.socialaccount.models import SocialApp
 from allauth.socialaccount.models import SocialToken
-from django.conf import settings
 from django import forms
+from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import admin as auth_admin
 from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin

@@ -5,6 +5,7 @@ import pytest
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.models import AnonymousUser
+from django.contrib.auth.models import Group
 from django.contrib.messages.middleware import MessageMiddleware
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.http import HttpRequest
@@ -14,13 +15,13 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from ticket_dashboard.users.forms import UserAdminChangeForm
-from django.contrib.auth.models import Group
 from ticket_dashboard.users.models import ExternalGroup
 from ticket_dashboard.users.models import ServiceConfiguration
 from ticket_dashboard.users.models import TicketPermission
 from ticket_dashboard.users.models import User
 from ticket_dashboard.users.tests.factories import UserFactory
-from ticket_dashboard.users.views import DashboardView, UserRedirectView
+from ticket_dashboard.users.views import DashboardView
+from ticket_dashboard.users.views import UserRedirectView
 from ticket_dashboard.users.views import UserUpdateView
 from ticket_dashboard.users.views import user_detail_view
 

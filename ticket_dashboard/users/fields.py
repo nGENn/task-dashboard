@@ -2,11 +2,12 @@ import base64
 import hashlib
 import logging
 
+from cryptography.fernet import Fernet
+from cryptography.fernet import InvalidToken
 from django.conf import settings
 from django.db import models
-from django.utils.encoding import force_bytes, force_str
-from cryptography.fernet import Fernet, InvalidToken
-
+from django.utils.encoding import force_bytes
+from django.utils.encoding import force_str
 
 logger = logging.getLogger(__name__)
 

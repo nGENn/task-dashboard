@@ -44,7 +44,7 @@ class OpenProjectService:
                 timeout=5,
             )
             latency = int(
-                (django_timezone.now() - start).total_seconds() * 1000
+                (django_timezone.now() - start).total_seconds() * 1000,
             )
         except RequestException as e:
             return {
@@ -112,53 +112,7 @@ class OpenProjectService:
         normalized_tickets = []
 
         try:
-            url = f"{self.base_url}/api/v3/work_packages"
-            offset = 1
-            page_size = 100
-            max_pages = 100
-            total_fetched = 0
-
-            while offset <= max_pages:
-                params = {
-                    "offset": offset,
-                    "pageSize": page_size,
-                    "sortBy": '[["updatedAt","desc"]]',
-                }
-
-                response = requests.get(
-                    url,
-                    auth=self.auth,
-                    params=params,
-                    headers=self._get_headers(),
-                    timeout=10,
-                )
-                response.raise_for_status()
-
-                data = response.json()
-                elements = data.get("_embedded", {}).get("elements", [])
-
-                if not elements:
-                    break
-
-                for item in elements:
-                    self._process_work_package(
-                        item, normalized_tickets, user_map
-                    )
-
-                total_fetched += len(elements)
-
-                if len(elements) < page_size:
-                    break
-
-                offset += 1
-
-            if offset > max_pages:
-                logger.warning(
-                    "OpenProject fetch limit reached (%d items). "
-                    "Some older items may not be visible.",
-                    total_fetched,
-                )
-
+            self._fetch_work_packages(normalized_tickets, user_map)
             cache.set(cache_key, normalized_tickets, timeout=300)
 
         except RequestException:
@@ -166,6 +120,52 @@ class OpenProjectService:
             return []
         else:
             return normalized_tickets
+
+    def _fetch_work_packages(self, normalized_tickets, user_map):
+        url = f"{self.base_url}/api/v3/work_packages"
+        offset = 1
+        page_size = 100
+        max_pages = 100
+        total_fetched = 0
+
+        while offset <= max_pages:
+            params = {
+                "offset": offset,
+                "pageSize": page_size,
+                "sortBy": '[["updatedAt","desc"]]',
+            }
+
+            response = requests.get(
+                url,
+                auth=self.auth,
+                params=params,
+                headers=self._get_headers(),
+                timeout=10,
+            )
+            response.raise_for_status()
+
+            data = response.json()
+            elements = data.get("_embedded", {}).get("elements", [])
+
+            if not elements:
+                break
+
+            for item in elements:
+                self._process_work_package(item, normalized_tickets, user_map)
+
+            total_fetched += len(elements)
+
+            if len(elements) < page_size:
+                break
+
+            offset += 1
+
+        if offset > max_pages:
+            logger.warning(
+                "OpenProject fetch limit reached (%d items). "
+                "Some older items may not be visible.",
+                total_fetched,
+            )
 
     def _process_work_package(self, item, normalized_tickets, user_map):
         links = item.get("_links", {})
