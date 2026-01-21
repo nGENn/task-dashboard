@@ -4,6 +4,7 @@ from http import HTTPStatus
 
 import requests
 from django.core.cache import cache
+from django.utils import timezone as django_timezone
 from requests import RequestException
 
 logger = logging.getLogger(__name__)
@@ -33,7 +34,8 @@ class GitLabService:
             return []
 
         # 1. FETCH USER MAP (ID -> Email)
-        # We need this because MR lists don't include emails, but we need email for filtering.  # noqa: E501
+        # We need this because MR lists don't include emails,
+        # but we need email for filtering.
         user_map = self._get_user_map()
 
         normalized_items = []
@@ -79,8 +81,9 @@ class GitLabService:
 
     def _get_user_map(self):
         """
-        Fetches all users to create a {gitlab_id: 'email@company.com'} lookup dict.
-        Cached for longer (1 hour) because user emails rarely change.
+        Fetches all users to create a {gitlab_id: 'email@company.com'}
+        lookup dict. Cached for longer (1 hour) because user emails
+        rarely change.
         """
         map_cache_key = f"gitlab_{self.config.id}_user_email_map"
         cached_map = cache.get(map_cache_key)
@@ -99,13 +102,15 @@ class GitLabService:
                     if email:
                         user_map[u["id"]] = email
 
-            cache.set(map_cache_key, user_map, timeout=3600)  # Cache for 1 hour
+            cache.set(map_cache_key, user_map, timeout=3600)
         except RequestException as e:
             logger.warning("Failed to build GitLab user map: %s", e)
 
         return user_map
 
-    def _fetch_and_normalize(self, url, item_type, target_list, user_map, params=None):
+    def _fetch_and_normalize(
+        self, url, item_type, target_list, user_map, params=None
+    ):
         try:
             page = 1
             per_page = 100
@@ -132,9 +137,14 @@ class GitLabService:
                     break
 
                 for item in data:
-                    # Distinguish IDs: GL-I-123 (Issue) vs GL-MR-123 (Merge Request)
-                    prefix = "GL-MR" if item_type == "Merge Request" else "GL-I"
-                    title_prefix = "[MR] " if item_type == "Merge Request" else ""
+                    # Distinguish IDs: GL-I-123 (Issue) vs
+                    # GL-MR-123 (Merge Request)
+                    prefix = (
+                        "GL-MR" if item_type == "Merge Request" else "GL-I"
+                    )
+                    title_prefix = (
+                        "[MR] " if item_type == "Merge Request" else ""
+                    )
 
                     # Determine Owner (Assignee)
                     assignee_data = item.get("assignee")
@@ -149,14 +159,20 @@ class GitLabService:
 
                     # Determine Group (Project Namespace)
                     full_ref = item.get("references", {}).get("full", "")
-                    group_name = full_ref.split("#")[0] if "#" in full_ref else "GitLab"
+                    group_name = (
+                        full_ref.split("#")[0]
+                        if "#" in full_ref
+                        else "GitLab"
+                    )
 
                     target_list.append(
                         {
                             "id": f"{prefix}-{item.get('iid')}",
                             "title": f"{title_prefix}{item.get('title')}",
                             "status": "open",
-                            "priority": self._extract_priority(item.get("labels", [])),
+                            "priority": self._extract_priority(
+                                item.get("labels", [])
+                            ),
                             "origin": self.config.name,
                             "customer": group_name.split("/")[0]
                             if "/" in group_name
@@ -216,7 +232,7 @@ class GitLabService:
             return date_str
 
     def check_health(self):
-        start = datetime.now()
+        start = django_timezone.now()
 
         if not self.token:
             return {
@@ -235,7 +251,7 @@ class GitLabService:
             response.raise_for_status()
 
             latency = int(
-                (datetime.now() - start).total_seconds() * 1000,
+                (django_timezone.now() - start).total_seconds() * 1000,
             )
             return {  # noqa: TRY300
                 "name": self.config.name,

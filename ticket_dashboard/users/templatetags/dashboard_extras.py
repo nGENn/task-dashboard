@@ -39,7 +39,7 @@ def is_active_view(request_get, view_params):
     # Normalize request_get to a dict of sorted lists
     # request_get is usually request.GET which is a QueryDict
     req_dict = {}
-    for key in request_get.keys():
+    for key in request_get:
         req_dict[key] = sorted(request_get.getlist(key))
 
     # Normalize view_params to a dict of sorted lists

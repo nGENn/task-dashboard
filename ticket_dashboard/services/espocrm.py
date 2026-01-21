@@ -1,9 +1,9 @@
 import logging
-from datetime import datetime
 from http import HTTPStatus
 
 import requests
 from django.core.cache import cache
+from django.utils import timezone as django_timezone
 from requests import RequestException
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ class EspoService:
         }
 
     def check_health(self):
-        start = datetime.now()
+        start = django_timezone.now()
         if not self.api_key:
             return {
                 "name": self.config.name,
@@ -35,7 +35,9 @@ class EspoService:
                 timeout=3,
             )
             response.raise_for_status()
-            latency = int((datetime.now() - start).total_seconds() * 1000)
+            latency = int(
+                (django_timezone.now() - start).total_seconds() * 1000
+            )
         except requests.HTTPError as e:
             return {
                 "name": self.config.name,
@@ -74,7 +76,9 @@ class EspoService:
             url = f"{self.base_url}/api/v1/User"
             params = {"maxSize": 200, "select": "id,emailAddress,userName"}
 
-            resp = requests.get(url, headers=self.headers, params=params, timeout=5)
+            resp = requests.get(
+                url, headers=self.headers, params=params, timeout=5
+            )
 
             if resp.status_code == HTTPStatus.OK:
                 users = resp.json().get("list", [])
@@ -84,9 +88,12 @@ class EspoService:
                     email = u.get("emailAddress")
 
                     if uid:
-                        # Fallback to username if email is missing (better than nothing)
+                        # Fallback to username if email is missing
+                        # (better than nothing)
                         user_map[uid] = (
-                            email if email else f"{u.get('userName')}@placeholder"
+                            email
+                            if email
+                            else f"{u.get('userName')}@placeholder"
                         )
 
             cache.set(cache_key, user_map, timeout=3600)
@@ -174,7 +181,10 @@ class EspoService:
 
                     target_list.append(
                         {
-                            "id": f"ESPO-{entity_type[0]}-{item.get('number')}",
+                            "id": (
+                                f"ESPO-{entity_type[0]}-"
+                                f"{item.get('number')}"
+                            ),
                             "title": item.get("name"),
                             "status": self._map_status(item.get("status")),
                             "priority": self._map_priority(

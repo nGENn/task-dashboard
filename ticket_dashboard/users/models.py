@@ -6,9 +6,11 @@ from django.contrib.auth.models import Group
 from django.db import models
 from django.db.models import CharField
 
-from .fields import EncryptedCharField
 from django.db.models import EmailField
+from django.http import QueryDict
 from django.urls import reverse
+
+from .fields import EncryptedCharField
 from django.utils.translation import gettext_lazy as _
 
 from .managers import UserManager
@@ -65,7 +67,7 @@ class ServiceConfiguration(models.Model):
     )
     api_url = models.URLField(
         blank=True,
-        null=True,
+        default="",
         help_text="Base URL for the service API.",
     )
     api_token = EncryptedCharField(
@@ -174,8 +176,6 @@ class SavedView(models.Model):
 
     def get_query_string(self) -> str:
         """Returns the query parameters as a URL-encoded string."""
-        from django.http import QueryDict
-
         qd = QueryDict(mutable=True)
         for key, value in self.query_params.items():
             if isinstance(value, list):

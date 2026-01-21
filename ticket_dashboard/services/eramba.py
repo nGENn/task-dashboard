@@ -1,9 +1,10 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from http import HTTPStatus
 
 import requests
 from django.core.cache import cache
+from django.utils import timezone as django_timezone
 from requests import RequestException
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ class ErambaService:
         }
 
     def check_health(self):
-        start = datetime.now()
+        start = django_timezone.now()
 
         if not self.api_key:
             return {
@@ -42,7 +43,9 @@ class ErambaService:
             )
             response.raise_for_status()
 
-            latency = int((datetime.now() - start).total_seconds() * 1000)
+            latency = int(
+                (django_timezone.now() - start).total_seconds() * 1000
+            )
             return {  # noqa: TRY300
                 "name": self.config.name,
                 "status": "online",
@@ -85,17 +88,25 @@ class ErambaService:
 
         try:
             # 1. Security Incidents (Existing)
-            self._fetch_module("security_incidents", "Incident", normalized_tickets)
+            self._fetch_module(
+                "security_incidents", "Incident", normalized_tickets
+            )
 
             # 2. Security Operations Projects (Manager Request)
             # Endpoint: /security_operations/index.json
-            self._fetch_module("security_operations", "SecOps", normalized_tickets)
+            self._fetch_module(
+                "security_operations", "SecOps", normalized_tickets
+            )
 
             # 3. Notifications (Manager Request)
             # "Notifications" in Eramba are often specific warnings.
-            # We assume a 'notifications' endpoint exists or map 'warning' items.
-            # If this endpoint fails (404), the helper will safely log it and continue.
-            self._fetch_module("notifications", "Notification", normalized_tickets)
+            # We assume a 'notifications' endpoint exists or
+            # map 'warning' items.
+            # If this endpoint fails (404), the helper will safely log it
+            # and continue.
+            self._fetch_module(
+                "notifications", "Notification", normalized_tickets
+            )
 
             cache.set(cache_key, normalized_tickets, timeout=300)
             return normalized_tickets  # noqa: TRY300
@@ -134,14 +145,18 @@ class ErambaService:
                     return
 
                 data = response.json()
-                raw_list = data.get("items", []) if isinstance(data, dict) else data
+                raw_list = (
+                    data.get("items", []) if isinstance(data, dict) else data
+                )
 
                 if not raw_list:
                     break
 
                 for entry in raw_list:
-                    # Eramba objects are dynamically keyed, e.g. entry['SecurityOperation']
-                    # We try to find the first key that looks like a data object
+                    # Eramba objects are dynamically keyed,
+                    # e.g. entry['SecurityOperation']
+                    # We try to find the first key that looks like a
+                    # data object
                     keys = list(entry.keys())
                     if not keys:
                         continue
@@ -169,14 +184,22 @@ class ErambaService:
                             "priority": "Medium",
                             "origin": self.config.name,
                             "customer": "Internal",
-                            "group": label,  # 'Incident', 'SecOps', 'Notification'
+                            "group": label,
                             "owner": "GRC Team",
-                            "created_at": self._format_date(item.get("created")),
-                            "updated_at": self._format_date(item.get("modified")),
-                            "due_date": self._format_date(
-                                item.get("deadline") or item.get("planned_end"),
+                            "created_at": self._format_date(
+                                item.get("created")
                             ),
-                            "url": f"{self.base_url}/{module_slug}/view/{item.get('id')}",
+                            "updated_at": self._format_date(
+                                item.get("modified")
+                            ),
+                            "due_date": self._format_date(
+                                item.get("deadline")
+                                or item.get("planned_end"),
+                            ),
+                            "url": (
+                                f"{self.base_url}/{module_slug}/view/"
+                                f"{item.get('id')}"
+                            ),
                         },
                     )
 
@@ -196,7 +219,9 @@ class ErambaService:
                 )
 
         except RequestException as e:
-            logger.warning("Failed to fetch Eramba module '%s': %s", module_slug, e)
+            logger.warning(
+                "Failed to fetch Eramba module '%s': %s", module_slug, e
+            )
 
     def _map_priority(self, classification):
         # Eramba classification is often a string like "High", "Critical", etc.
@@ -214,7 +239,9 @@ class ErambaService:
             return ""
         try:
             # Eramba often uses "YYYY-MM-DD HH:MM:SS"
-            dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+            dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S").replace(
+                tzinfo=timezone.utc
+            )
             # Convert to ISO format for the dashboard
             return dt.isoformat()
         except ValueError:

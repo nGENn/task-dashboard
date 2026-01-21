@@ -1,10 +1,10 @@
 import logging
-from datetime import datetime
 from http import HTTPStatus
 
 import requests
 from django.conf import settings
 from django.core.cache import cache
+from django.utils import timezone as django_timezone
 from requests import RequestException
 from requests.auth import HTTPBasicAuth
 
@@ -28,7 +28,7 @@ class OpenProjectService:
         return headers
 
     def check_health(self):
-        start = datetime.now()
+        start = django_timezone.now()
         if not self.api_key:
             return {
                 "name": self.config.name,
@@ -43,7 +43,9 @@ class OpenProjectService:
                 headers=self._get_headers(),
                 timeout=5,
             )
-            latency = int((datetime.now() - start).total_seconds() * 1000)
+            latency = int(
+                (django_timezone.now() - start).total_seconds() * 1000
+            )
         except RequestException as e:
             return {
                 "name": self.config.name,
@@ -86,7 +88,9 @@ class OpenProjectService:
 
                     if uid:
                         # Fallback to login if email hidden
-                        final_email = email if email else f"{login}@placeholder"
+                        final_email = (
+                            email if email else f"{login}@placeholder"
+                        )
                         user_map[uid] = final_email
 
             cache.set(cache_key, user_map, timeout=3600)
@@ -137,46 +141,8 @@ class OpenProjectService:
                     break
 
                 for item in elements:
-                    links = item.get("_links", {})
-
-                    # Extract Email Logic
-                    assignee_link = links.get("assignee", {})
-                    assignee_href = assignee_link.get("href", "")
-                    assignee_name = assignee_link.get("title", "-")
-                    assignee_email = None
-
-                    if assignee_href:
-                        try:
-                            uid = int(assignee_href.split("/")[-1])
-                            assignee_email = user_map.get(uid)
-                        except ValueError:
-                            pass
-
-                    # Mapping Status
-                    status_title = links.get("status", {}).get("title", "Unknown")
-                    mapped_status = self._map_status(status_title)
-
-                    normalized_tickets.append(
-                        {
-                            "id": f"OP-{item.get('id')}",
-                            "title": item.get("subject"),
-                            "status": mapped_status,
-                            "priority": self._map_priority(
-                                links.get("priority", {}).get("title", "Medium"),
-                            ),
-                            "origin": self.config.name,
-                            "customer": links.get("project", {}).get("title", "Project"),
-                            "group": "Project",
-                            "owner": assignee_name,
-                            "owner_email": assignee_email,
-                            "created_at": item.get("createdAt"),
-                            "updated_at": item.get("updatedAt"),
-                            "due_date": item.get("dueDate"),
-                            "url": (
-                                f"{self.base_url}/work_packages/"
-                                f"{item.get('id')}"
-                            ),
-                        },
+                    self._process_work_package(
+                        item, normalized_tickets, user_map
                     )
 
                 total_fetched += len(elements)
@@ -201,9 +167,50 @@ class OpenProjectService:
         else:
             return normalized_tickets
 
+    def _process_work_package(self, item, normalized_tickets, user_map):
+        links = item.get("_links", {})
+
+        # Extract Email Logic
+        assignee_link = links.get("assignee", {})
+        assignee_href = assignee_link.get("href", "")
+        assignee_name = assignee_link.get("title", "-")
+        assignee_email = None
+
+        if assignee_href:
+            try:
+                uid = int(assignee_href.split("/")[-1])
+                assignee_email = user_map.get(uid)
+            except ValueError:
+                pass
+
+        # Mapping Status
+        status_title = links.get("status", {}).get("title", "Unknown")
+        mapped_status = self._map_status(status_title)
+
+        normalized_tickets.append(
+            {
+                "id": f"OP-{item.get('id')}",
+                "title": item.get("subject"),
+                "status": mapped_status,
+                "priority": self._map_priority(
+                    links.get("priority", {}).get("title", "Medium"),
+                ),
+                "origin": self.config.name,
+                "customer": links.get("project", {}).get("title", "Project"),
+                "group": "Project",
+                "owner": assignee_name,
+                "owner_email": assignee_email,
+                "created_at": item.get("createdAt"),
+                "updated_at": item.get("updatedAt"),
+                "due_date": item.get("dueDate"),
+                "url": f"{self.base_url}/work_packages/{item.get('id')}",
+            },
+        )
+
     def _map_status(self, status_text):
         s = str(status_text).lower()
-        if any(x in s for x in ["new", "open", "to do", "progress", "schedule"]):
+        open_keywords = ["new", "open", "to do", "progress", "schedule"]
+        if any(x in s for x in open_keywords):
             return "open"
         if any(x in s for x in ["closed", "done", "resolved", "reject"]):
             return "resolved"

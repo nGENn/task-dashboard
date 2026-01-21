@@ -1,10 +1,14 @@
 import base64
 import hashlib
+import logging
 
 from django.conf import settings
 from django.db import models
 from django.utils.encoding import force_bytes, force_str
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
+
+
+logger = logging.getLogger(__name__)
 
 
 class EncryptedCharField(models.CharField):
@@ -48,8 +52,12 @@ class EncryptedCharField(models.CharField):
             # Fernet.decrypt handles bytes or str (if str, it encodes to bytes)
             decrypted = self.fernet.decrypt(force_bytes(value))
             return force_str(decrypted)
-        except Exception:
+        except InvalidToken:
             # If decryption fails, return the original value
             # This handles cases where data might already be decrypted
             # or invalid.
+            return value
+        except Exception:
+            # Log unexpected exceptions and return the original value for safety
+            logger.exception("Unexpected error during decryption")
             return value

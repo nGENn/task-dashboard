@@ -7,6 +7,7 @@ from ticket_dashboard.users.models import User
 
 pytestmark = pytest.mark.django_db
 
+
 def test_pre_social_login_keycloak_group_sync(rf: RequestFactory, db):
     """
     Test that Keycloak groups are synced to the Django user.
@@ -29,7 +30,9 @@ def test_pre_social_login_keycloak_group_sync(rf: RequestFactory, db):
     
     # Pre-existing group that should NOT be removed if we are just adding
     # OR it SHOULD be removed if we are doing strict sync.
-    # The requirement says "Update the user's groups: Clear existing groups (or smarter diffing) and set the user's groups to the list from Keycloak."
+    # The requirement says "Update the user's groups: Clear existing groups
+    # (or smarter diffing) and set the user's groups to the list from
+    # Keycloak."
     # So let's test strict sync.
     other_group = Group.objects.create(name="other")
     user.groups.add(other_group)
@@ -46,6 +49,7 @@ def test_pre_social_login_keycloak_group_sync(rf: RequestFactory, db):
     assert "editor" in user_groups
     # Strict sync check: "other" should be removed
     assert "other" not in user_groups
+
 
 def test_pre_social_login_non_keycloak_no_sync(rf: RequestFactory, db):
     """
@@ -68,6 +72,7 @@ def test_pre_social_login_non_keycloak_no_sync(rf: RequestFactory, db):
     assert not Group.objects.filter(name="ignored").exists()
     assert user.groups.count() == 0
 
+
 def test_pre_social_login_fallback_policy_sync(rf: RequestFactory, db):
     """
     Test that 'policy' field is used if 'groups' is missing.
@@ -88,6 +93,7 @@ def test_pre_social_login_fallback_policy_sync(rf: RequestFactory, db):
     user_groups = list(user.groups.values_list("name", flat=True))
     assert "policy-admin" in user_groups
     assert "policy-user" in user_groups
+
 
 def test_pre_social_login_fallback_roles_sync(rf: RequestFactory, db):
     """

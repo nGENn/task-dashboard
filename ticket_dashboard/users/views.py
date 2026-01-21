@@ -174,9 +174,6 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                         ):
                             allowed_tickets.append(t)
                     elif level == "OWN_ONLY":
-                        # OWN_ONLY is handled by the global check above:
-                        # if t.get("owner_email") == user_email: allowed_tickets.append(t)
-                        # So here we don't need to do anything extra.
                         pass
 
         # =========================================================
@@ -343,7 +340,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context["filter_options"] = {
             "customers": get_options("customer"),
             "groups": get_options("group"),
-            "owners": owners,  # Sorted list of Emails/Names with Unassigned first if present
+            "owners": owners,
             "origins": get_options("origin"),
             "states": get_options("status"),
             "priorities": get_options("priority"),
@@ -431,8 +428,9 @@ def save_view(request):
         )
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+    except Exception:
+        logger.exception("Error saving view")
+        return JsonResponse({"error": "Internal server error"}, status=500)
 
 
 @login_required

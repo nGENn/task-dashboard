@@ -67,7 +67,13 @@ class UserAdmin(auth_admin.UserAdmin):
 class ServiceConfigurationForm(forms.ModelForm):
     class Meta:
         model = ServiceConfiguration
-        fields = "__all__"
+        fields = [
+            "name",
+            "service_type",
+            "api_url",
+            "api_token",
+            "is_active",
+        ]
         widgets = {
             "api_token": forms.PasswordInput(render_value=True),
         }
