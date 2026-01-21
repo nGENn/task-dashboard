@@ -215,6 +215,7 @@ class ErambaService:
         try:
             # Eramba often uses "YYYY-MM-DD HH:MM:SS"
             dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
-            return dt.strftime("%Y-%m-%d")
+            # Convert to ISO format for the dashboard
+            return dt.isoformat()
         except ValueError:
-            return str(date_str).split(" ")[0]  # Fallback: just take first part
+            return date_str

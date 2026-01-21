@@ -274,7 +274,8 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 filtered_tickets = [
                     t
                     for t in filtered_tickets
-                    if t.get("created_at") and start <= t.get("created_at") <= end
+                    if t.get("created_at")
+                    and start <= str(t.get("created_at"))[:10] <= end
                 ]
             except ValueError:
                 pass

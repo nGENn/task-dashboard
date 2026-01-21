@@ -185,13 +185,15 @@ class EspoService:
                             "group": entity_type,
                             "owner": item.get("assignedUserName", "-"),
                             "owner_email": owner_email,
-                            "created_at": str(item.get("createdAt", "")).split(" ")[0],
-                            "updated_at": str(item.get("modifiedAt", "")).split(" ")[0],
-                            "due_date": str(
-                                item.get("dueDate") or item.get("dateEnd") or "",
-                            ).split(" ")[0]
-                            or None,
-                            "url": f"{self.base_url}/#{entity_type}/view/{item.get('id')}",
+                            "created_at": item.get("createdAt"),
+                            "updated_at": item.get("modifiedAt"),
+                            "due_date": (
+                                item.get("dueDate") or item.get("dateEnd")
+                            ),
+                            "url": (
+                                f"{self.base_url}/#{entity_type}/view/"
+                                f"{item.get('id')}"
+                            ),
                         },
                     )
 

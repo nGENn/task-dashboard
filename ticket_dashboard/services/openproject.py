@@ -169,10 +169,13 @@ class OpenProjectService:
                             "group": "Project",
                             "owner": assignee_name,
                             "owner_email": assignee_email,
-                            "created_at": str(item.get("createdAt", "")).split("T")[0],
-                            "updated_at": str(item.get("updatedAt", "")).split("T")[0],
+                            "created_at": item.get("createdAt"),
+                            "updated_at": item.get("updatedAt"),
                             "due_date": item.get("dueDate"),
-                            "url": f"{self.base_url}/work_packages/{item.get('id')}",
+                            "url": (
+                                f"{self.base_url}/work_packages/"
+                                f"{item.get('id')}"
+                            ),
                         },
                     )
 

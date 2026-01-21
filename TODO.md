@@ -10,7 +10,7 @@
 * [x] set groups with openid groups
 * [x] rename origins in admin panel
 * [x] only my ticket option for groups (in addition to all and my + unassigned)
-* [ ] change date formatting
+* [x] change date formatting
 * [ ] fix/implement pipeline
 * [ ] move away from docs/local/prod architecture, also for .env
 * [ ] change README

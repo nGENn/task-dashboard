@@ -141,10 +141,18 @@ class ZammadService:
                         "group": ticket.get("group", "Support"),
                         "owner": owner_name,
                         "owner_email": owner_email,
-                        "created_at": self._format_date(ticket.get("created_at")),
-                        "updated_at": self._format_date(ticket.get("updated_at")),
-                        "due_date": self._format_date(ticket.get("escalation_at")),
-                        "url": f"{self.base_url}/#ticket/zoom/{ticket.get('id')}",
+                        "created_at": self._format_date(
+                            ticket.get("created_at"),
+                        ),
+                        "updated_at": self._format_date(
+                            ticket.get("updated_at"),
+                        ),
+                        "due_date": self._format_date(
+                            ticket.get("escalation_at"),
+                        ),
+                        "url": (
+                            f"{self.base_url}/#ticket/zoom/{ticket.get('id')}"
+                        ),
                     },
                 )
 
@@ -194,14 +202,16 @@ class ZammadService:
         return "Medium"
 
     def _format_date(self, date_str):
-        """Convert ISO string to YYYY-MM-DD for proper sorting/filtering"""
+        """Returns the full ISO string for proper duration calculation."""
         if not date_str:
             return ""
         try:
-            # Zammad returns ISO 8601
-            dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-            return dt.strftime("%Y-%m-%d")  # Changed from "%b %d, %Y"
-        except ValueError:
+            # Zammad returns ISO 8601, ensure it has offset for fromisoformat
+            dt_str = date_str.replace("Z", "+00:00")
+            # Validate it's a valid ISO string
+            datetime.fromisoformat(dt_str)
+            return dt_str
+        except (ValueError, TypeError):
             return date_str
 
     def check_health(self):

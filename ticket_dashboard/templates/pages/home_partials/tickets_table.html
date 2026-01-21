@@ -232,9 +232,9 @@
           <span class="text-base-content/70 text-xs whitespace-nowrap">{{ ticket.priority }}</span>
         {% endif %}
       </td>
-      <td class="text-xs text-base-content/70 whitespace-nowrap">{{ ticket.created_at }}</td>
-      <td class="text-xs text-base-content/70 whitespace-nowrap">{{ ticket.updated_at }}</td>
-      <td class="text-xs text-base-content/70 whitespace-nowrap">{{ ticket.due_date|default:"-" }}</td>
+      <td class="text-xs text-base-content/70 whitespace-nowrap">{{ ticket.created_at|dynamic_date }}</td>
+      <td class="text-xs text-base-content/70 whitespace-nowrap">{{ ticket.updated_at|dynamic_date }}</td>
+      <td class="text-xs text-base-content/70 whitespace-nowrap">{{ ticket.due_date|dynamic_date }}</td>
     </tr>
   {% empty %}
     <tr>
