@@ -403,35 +403,21 @@
             });
           }
 
-          {
-            %
-            if messages %
-          } {
-            %
-            for message in messages %
-          }
-          // Map Django tags to our toast types
-          // Django: debug, info, success, warning, error
-          // Toast: success, error
-          var type = "{{ message.tags }}";
-          if (type === 'warning' || type === 'error') type = 'error';
-          else type = 'success';
+          {% if messages %}
+            {% for message in messages %}
+              // Map Django tags to our toast types
+              // Django: debug, info, success, warning, error
+              // Toast: success, error
+              var type = "{{ message.tags }}";
+              if (type === 'warning' || type === 'error') type = 'error';
+              else type = 'success';
 
-          // Call the function with a slight delay for multiple messages
-          setTimeout(() => {
-            showToast("{{ message|escapejs }}", type);
-          }, {
-            {
-              forloop.counter0
-            }
-          }* 500); // Stagger by 500ms
-          {
-            %
-            endfor %
-          } {
-            %
-            endif %
-          }
+              // Call the function with a slight delay for multiple messages
+              setTimeout(() => {
+                showToast("{{ message|escapejs }}", type);
+              }, {{ forloop.counter0 }} * 500); // Stagger by 500ms
+            {% endfor %}
+          {% endif %}
 
         });
       </script>

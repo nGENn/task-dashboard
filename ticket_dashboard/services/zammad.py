@@ -19,6 +19,37 @@ class ZammadService:
             "Content-Type": "application/json",
         }
 
+    def _get_user_map(self):
+        """Map Zammad User ID -> Email"""
+        cache_key = f"zammad_{self.config.id}_user_map"
+        cached_map = cache.get(cache_key)
+        if cached_map:
+            return cached_map
+
+        user_map = {}
+        try:
+            url = f"{self.base_url}/api/v1/users"
+            # Zammad users API is paginated, but for now we'll fetch first 250
+            # which usually covers the agents/owners.
+            resp = requests.get(
+                url,
+                headers=self.headers,
+                params={"per_page": 250},
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                for u in resp.json():
+                    uid = u.get("id")
+                    email = u.get("email")
+                    name = f"{u.get('firstname', '')} {u.get('lastname', '')}".strip() or u.get("login")  # noqa: E501
+                    if uid:
+                        user_map[uid] = {"email": email, "name": name}
+
+            cache.set(cache_key, user_map, timeout=3600)
+        except RequestException as e:
+            logger.warning("Zammad User Map failed: %s", e)
+        return user_map
+
     def get_tickets(self, *, force_refresh=False):
         # 1. Define Cache Key
         cache_key = f"zammad_{self.config.id}_active_tickets_cache"
@@ -30,19 +61,11 @@ class ZammadService:
                 logger.debug("Returning cached Zammad data")
                 return cached_data
 
-        # --- DEBUGGING START (Added flush=True) ---
-        logger.debug("Checking Zammad credentials")
-        logger.debug("URL: %s", self.base_url)
-        # Check if token exists (don't print the whole thing)
-        has_token = "YES" if self.token else "NO"
-        logger.debug("Has Token: %s", has_token)
-        # --- DEBUGGING END ---
-
         if not self.base_url or not self.token:
-            # Use logger.warning as well, which usually flushes automatically
             logger.warning("Zammad credentials not found.")
-            logger.debug("Credentials missing; returning empty list")
             return []
+
+        user_map = self._get_user_map()
 
         try:
             # 3. Build Query: Fetch active tickets with pagination
@@ -100,23 +123,30 @@ class ZammadService:
 
             logger.debug("Fetch complete. Total: %d", len(raw_tickets))
 
-            normalized_tickets = [
-                {
-                    "id": f"ZAM-{ticket.get('number')}",
-                    "title": ticket.get("title"),
-                    "status": self._map_status(ticket.get("state")),
-                    "priority": self._map_priority(ticket.get("priority")),
-                    "origin": self.config.name,
-                    "customer": ticket.get("customer", "Unknown"),
-                    "group": ticket.get("group", "Support"),
-                    "owner": ticket.get("owner", "Unassigned"),
-                    "created_at": self._format_date(ticket.get("created_at")),
-                    "updated_at": self._format_date(ticket.get("updated_at")),
-                    "due_date": self._format_date(ticket.get("escalation_at")),
-                    "url": f"{self.base_url}/#ticket/zoom/{ticket.get('id')}",
-                }
-                for ticket in raw_tickets
-            ]
+            normalized_tickets = []
+            for ticket in raw_tickets:
+                owner_id = ticket.get("owner_id")
+                user_info = user_map.get(owner_id, {})
+                owner_name = user_info.get("name", "Unassigned")
+                owner_email = user_info.get("email")
+
+                normalized_tickets.append(
+                    {
+                        "id": f"ZAM-{ticket.get('number')}",
+                        "title": ticket.get("title"),
+                        "status": self._map_status(ticket.get("state")),
+                        "priority": self._map_priority(ticket.get("priority")),
+                        "origin": self.config.name,
+                        "customer": ticket.get("customer", "Unknown"),
+                        "group": ticket.get("group", "Support"),
+                        "owner": owner_name,
+                        "owner_email": owner_email,
+                        "created_at": self._format_date(ticket.get("created_at")),
+                        "updated_at": self._format_date(ticket.get("updated_at")),
+                        "due_date": self._format_date(ticket.get("escalation_at")),
+                        "url": f"{self.base_url}/#ticket/zoom/{ticket.get('id')}",
+                    },
+                )
 
             # 4. Save to Cache (5 Minutes = 300 seconds)
             cache.set(cache_key, normalized_tickets, timeout=300)

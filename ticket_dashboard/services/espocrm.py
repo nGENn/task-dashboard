@@ -177,7 +177,9 @@ class EspoService:
                             "id": f"ESPO-{entity_type[0]}-{item.get('number')}",
                             "title": item.get("name"),
                             "status": self._map_status(item.get("status")),
-                            "priority": item.get("priority", "Medium"),
+                            "priority": self._map_priority(
+                                item.get("priority", "Medium"),
+                            ),
                             "origin": self.config.name,
                             "customer": item.get("accountName", "Unknown"),
                             "group": entity_type,
@@ -219,3 +221,13 @@ class EspoService:
         if s in ["closed", "rejected", "merged", "completed"]:
             return "resolved"
         return "pending"
+
+    def _map_priority(self, priority_text):
+        p = str(priority_text).lower()
+        if any(x in p for x in ["urgent", "critical"]):
+            return "Critical"
+        if any(x in p for x in ["high"]):
+            return "High"
+        if any(x in p for x in ["low"]):
+            return "Low"
+        return "Medium"

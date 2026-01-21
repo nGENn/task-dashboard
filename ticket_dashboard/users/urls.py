@@ -1,6 +1,8 @@
 from django.urls import path
 
 from .views import DashboardView
+from .views import delete_saved_view
+from .views import save_view
 from .views import user_detail_view
 from .views import user_redirect_view
 from .views import user_update_view
@@ -10,5 +12,12 @@ urlpatterns = [
     path("~redirect/", view=user_redirect_view, name="redirect"),
     path("~update/", view=user_update_view, name="update"),
     path("<int:pk>/", view=user_detail_view, name="detail"),
+    path("dashboard/", DashboardView.as_view(), name="dashboard"),
+    path("saved-views/save/", save_view, name="save_view"),
+    path(
+        "saved-views/<int:pk>/delete/",
+        delete_saved_view,
+        name="delete_saved_view",
+    ),
     path("", DashboardView.as_view(), name="home"),
 ]

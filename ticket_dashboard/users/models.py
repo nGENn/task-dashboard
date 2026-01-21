@@ -1,5 +1,6 @@
 from typing import ClassVar
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.models import Group
 from django.db import models
@@ -148,3 +149,38 @@ class TicketPermission(models.Model):
             f"{self.django_group} -> {self.allowed_external_group} "
             f"({self.get_access_level_display()})"
         )
+
+
+class SavedView(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="saved_views",
+    )
+    name = models.CharField(max_length=100)
+    query_params = models.JSONField(
+        default=dict,
+        help_text="JSON dictionary of query parameters",
+    )
+    is_default = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+        unique_together = ("user", "name")
+
+    def __str__(self):
+        return f"{self.user.email} - {self.name}"
+
+    def get_query_string(self) -> str:
+        """Returns the query parameters as a URL-encoded string."""
+        from django.http import QueryDict
+
+        qd = QueryDict(mutable=True)
+        for key, value in self.query_params.items():
+            if isinstance(value, list):
+                for v in value:
+                    qd.appendlist(key, v)
+            else:
+                qd[key] = value
+        return qd.urlencode()

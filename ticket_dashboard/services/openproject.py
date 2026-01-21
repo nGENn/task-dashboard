@@ -161,7 +161,9 @@ class OpenProjectService:
                             "id": f"OP-{item.get('id')}",
                             "title": item.get("subject"),
                             "status": mapped_status,
-                            "priority": links.get("priority", {}).get("title", "Medium"),
+                            "priority": self._map_priority(
+                                links.get("priority", {}).get("title", "Medium"),
+                            ),
                             "origin": self.config.name,
                             "customer": links.get("project", {}).get("title", "Project"),
                             "group": "Project",
@@ -203,3 +205,13 @@ class OpenProjectService:
         if any(x in s for x in ["closed", "done", "resolved", "reject"]):
             return "resolved"
         return "pending"
+
+    def _map_priority(self, priority_text):
+        p = str(priority_text).lower()
+        if any(x in p for x in ["immediate", "critical"]):
+            return "Critical"
+        if any(x in p for x in ["high", "urgent"]):
+            return "High"
+        if any(x in p for x in ["low"]):
+            return "Low"
+        return "Medium"

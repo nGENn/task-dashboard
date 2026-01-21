@@ -1,6 +1,8 @@
 import logging
 
-import requests
+import json
+
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.paginator import Paginator
@@ -19,7 +21,13 @@ from ticket_dashboard.services.openproject import OpenProjectService
 
 # Services
 from ticket_dashboard.services.zammad import ZammadService
+from django.http import HttpResponseRedirect
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from django.views.decorators.http import require_POST
+
 from ticket_dashboard.users.models import ExternalGroup
+from ticket_dashboard.users.models import SavedView
 from ticket_dashboard.users.models import ServiceConfiguration
 from ticket_dashboard.users.models import TicketPermission
 
@@ -194,13 +202,37 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             ]
 
         if selected_owners:
-            # FIXED LOGIC: Check BOTH email and name against selected values
-            filtered_tickets = [
-                t
-                for t in filtered_tickets
-                if str(t.get("owner")) in selected_owners
-                or str(t.get("owner_email")) in selected_owners
-            ]
+            want_unassigned = "Unassigned" in selected_owners
+            specific_targets = set(selected_owners)
+            if want_unassigned:
+                specific_targets.discard("Unassigned")
+
+            unassigned_markers = {None, "", "-", "None", "Unassigned"}
+
+            new_filtered = []
+            for t in filtered_tickets:
+                is_match = False
+                owner = t.get("owner")
+                email = t.get("owner_email")
+
+                # Check specific targets (Names or Emails)
+                if specific_targets:
+                    if (str(owner) in specific_targets or
+                            str(email) in specific_targets):
+                        is_match = True
+
+                # Check unassigned (Only match if BOTH owner/email empty)
+                if want_unassigned and not is_match:
+                    owner_empty = (owner in unassigned_markers or
+                                   str(owner) in unassigned_markers)
+                    email_empty = (email in unassigned_markers or
+                                   str(email) in unassigned_markers)
+                    if owner_empty and email_empty:
+                        is_match = True
+
+                if is_match:
+                    new_filtered.append(t)
+            filtered_tickets = new_filtered
         elif is_default_view:
             filtered_tickets = [
                 t
@@ -283,15 +315,34 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         # Custom Logic for Owner Options: Prefer Email
         owner_options = set()
+        has_unassigned = False
+        unassigned_vals = ["Unassigned", "-", "None", ""]
+
         for t in allowed_tickets:
-            val = t.get("owner_email") if t.get("owner_email") else t.get("owner")
-            if val and str(val) not in ["Unassigned", "-", "None", ""]:
+            owner = t.get("owner")
+            owner_email = t.get("owner_email")
+
+            # Check if this ticket is considered unassigned
+            if (
+                owner is None
+                or owner_email is None
+                or str(owner) in unassigned_vals
+                or str(owner_email) in unassigned_vals
+            ):
+                has_unassigned = True
+
+            val = owner_email if owner_email else owner
+            if val and str(val) not in unassigned_vals:
                 owner_options.add(str(val))
+
+        owners = sorted(owner_options)
+        if has_unassigned:
+            owners.insert(0, "Unassigned")
 
         context["filter_options"] = {
             "customers": get_options("customer"),
             "groups": get_options("group"),
-            "owners": sorted(owner_options),  # Sorted list of Emails/Names
+            "owners": owners,  # Sorted list of Emails/Names with Unassigned first if present
             "origins": get_options("origin"),
             "states": get_options("status"),
             "priorities": get_options("priority"),
@@ -299,7 +350,12 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         # 8. STATS
         total = len(allowed_tickets)
-        my_count = sum(1 for t in allowed_tickets if t.get("owner_email") == user_email)
+        my_count = sum(
+            1
+            for t in allowed_tickets
+            if t.get("owner_email") == user_email
+            and t.get("status") in ["open", "pending", "new"]
+        )
 
         context["stats"] = {
             "total": total,
@@ -323,4 +379,64 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             on_ends=1,
         )
 
+        # 10. SAVED VIEWS
+        saved_views = SavedView.objects.filter(user=self.request.user)
+        context["saved_views"] = [
+            {
+                "id": v.id,
+                "name": v.name,
+                "params": v.query_params,
+                "url": f"?{v.get_query_string()}",
+            }
+            for v in saved_views
+        ]
+        active_states = ["open", "pending", "new"]
+        context["default_views"] = [
+            {
+                "name": "My Tickets",
+                "params": {"owner": [user_email], "state": active_states},
+                "url": f"?owner={user_email}&state=open&state=pending&state=new",
+            },
+            {
+                "name": "Unassigned",
+                "params": {"owner": ["Unassigned"], "state": active_states},
+                "url": "?owner=Unassigned&state=open&state=pending&state=new",
+            },
+        ]
+
         return context
+
+
+@login_required
+@require_POST
+def save_view(request):
+    try:
+        data = json.loads(request.body)
+        name = data.get("name")
+        query_params = data.get("query_params", {})
+
+        if not name:
+            return JsonResponse({"error": "Name is required"}, status=400)
+
+        # Update or create the saved view
+        view, created = SavedView.objects.update_or_create(
+            user=request.user,
+            name=name,
+            defaults={"query_params": query_params},
+        )
+
+        return JsonResponse(
+            {"status": "success", "id": view.id, "created": created},
+        )
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def delete_saved_view(request, pk):
+    view = get_object_or_404(SavedView, pk=pk, user=request.user)
+    view.delete()
+    return HttpResponseRedirect(reverse("users:dashboard"))
