@@ -1,0 +1,74 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Django Project\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-05-23 12:00+0000\n"
+"PO-Revision-Date: 2024-05-23 12:00+0000\n"
+"Last-Translator: \n"
+"Language-Team: German\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "English"
+msgstr "Englisch"
+
+msgid "German"
+msgstr "Deutsch"
+
+msgid "Sign In"
+msgstr "Anmelden"
+
+msgid "Forgot Password?"
+msgstr "Passwort vergessen?"
+
+msgid "Sign Out"
+msgstr "Abmelden"
+
+msgid "Are you sure you want to sign out?"
+msgstr "Sind Sie sicher, dass Sie sich abmelden möchten?"
+
+msgid "Password Reset"
+msgstr "Passwort zurücksetzen"
+
+msgid "Reset Password"
+msgstr "Passwort zurücksetzen"
+
+msgid ""
+"Forgotten your password? Enter your email address below, and we'll send you "
+"an email allowing you to reset it."
+msgstr ""
+"Haben Sie Ihr Passwort vergessen? Geben Sie unten Ihre E-Mail-Adresse ein, "
+"und wir senden Ihnen eine E-Mail, mit der Sie es zurücksetzen können."
+
+msgid "Reset My Password"
+msgstr "Mein Passwort zurücksetzen"
+
+msgid "Personal info"
+msgstr "Persönliche Informationen"
+
+msgid "Permissions"
+msgstr "Berechtigungen"
+
+msgid "Important dates"
+msgstr "Wichtige Daten"
+
+msgid "API Configuration"
+msgstr "API-Konfiguration"
+
+msgid "Users"
+msgstr "Benutzer"
+
+msgid "This email has already been taken."
+msgstr "Diese E-Mail-Adresse ist bereits vergeben."
+
+msgid "Name of User"
+msgstr "Name des Benutzers"
+
+msgid "email address"
+msgstr "E-Mail-Adresse"
+
+msgid "Information successfully updated"
+msgstr "Informationen erfolgreich aktualisiert"
