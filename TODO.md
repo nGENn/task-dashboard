@@ -11,12 +11,11 @@
 * [x] rename origins in admin panel
 * [x] only my ticket option for groups (in addition to all and my + unassigned)
 * [x] change date formatting
-* [ ] fix/implement pipeline
-* [ ] move away from docs/local/prod architecture, also for .env
+* [x] fix/implement pipeline
+* [x] move away from docs/local/prod architecture, also for .env
 * [ ] change README
 * [ ] clean up/refactor
-* [ ] maybe move from memory to a db for better load times
-  * [ ] and or async fetching, to have it run in the background insted of on load
+* [x] async fetching, to have it run in the background insted of on load
 
 ## Eramba
 

@@ -11,6 +11,17 @@ services:
       - production_media:/app/ticket_dashboard/media
     ports:
       - "8000:8000"
+  qcluster:
+    build:
+      context: .
+      dockerfile: docker/django/Dockerfile
+    image: ticket_dashboard:latest
+    command: python manage.py qcluster
+    env_file: .env
+    depends_on:
+      - postgres
+    volumes:
+      - production_media:/app/ticket_dashboard/media
 
   postgres:
     build:

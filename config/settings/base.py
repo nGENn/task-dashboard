@@ -79,6 +79,7 @@ THIRD_PARTY_APPS = [
     "allauth.account",
     "allauth.mfa",
     "allauth.socialaccount",
+    "django_q",
 ]
 
 LOCAL_APPS = [
@@ -340,3 +341,19 @@ GITLAB_API_TOKEN = env("GITLAB_API_TOKEN", default="")
 # Zammad Integration
 ZAMMAD_API_URL = env("ZAMMAD_API_URL", default="")
 ZAMMAD_API_TOKEN = env("ZAMMAD_API_TOKEN", default="")
+
+# django-q2
+# ------------------------------------------------------------------------------
+# https://django-q2.readthedocs.io/en/master/configure.html
+Q_CLUSTER = {
+    "name": "ticket_dashboard_cluster",
+    "workers": 4,
+    "recycle": 500,
+    "timeout": 60,
+    "compress": True,
+    "save_limit": 250,
+    "queue_limit": 500,
+    "cpu_affinity": 1,
+    "label": "Django Q",
+    "orm": "default",  # Use Django ORM
+}

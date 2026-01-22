@@ -182,3 +182,30 @@ class SavedView(models.Model):
             else:
                 qd[key] = value
         return qd.urlencode()
+
+
+class Ticket(models.Model):
+    external_id = models.CharField(max_length=255)
+    service = models.ForeignKey(
+        ServiceConfiguration,
+        on_delete=models.CASCADE,
+        related_name="tickets",
+    )
+    title = models.CharField(max_length=255)
+    status = models.CharField(max_length=50)
+    priority = models.CharField(max_length=50)
+    customer = models.CharField(max_length=255, blank=True)
+    group = models.CharField(max_length=255, blank=True)
+    owner = models.CharField(max_length=255, blank=True)
+    owner_email = models.EmailField(blank=True)
+    created_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(null=True, blank=True)
+    due_date = models.DateTimeField(null=True, blank=True)
+    url = models.URLField(max_length=500, blank=True)
+
+    class Meta:
+        unique_together = ("service", "external_id")
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return self.title

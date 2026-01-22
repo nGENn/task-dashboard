@@ -10,7 +10,7 @@ services:
       - ~/.ssh:/home/dev-user/.ssh:ro
     env_file: ../.env
     # Keep container running for VS Code to attach
-    command: /bin/sh -c "while sleep 1000; do :; done"
+    # command: /bin/sh -c "while sleep 1000; do :; done"
     depends_on:
       - postgres
     # Forward ports for local browser access
@@ -26,6 +26,17 @@ services:
     volumes:
       - dev_postgres_data:/var/lib/postgresql
 
+  qcluster:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - ../:/app:z
+      - /app/.venv
+    env_file: ../.env
+    command: uv run manage.py qcluster
+    depends_on:
+      - postgres
 
 volumes:
   dev_postgres_data:
