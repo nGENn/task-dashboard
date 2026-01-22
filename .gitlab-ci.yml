@@ -43,9 +43,11 @@ pytest:
   services:
     - name: docker:dind
       alias: docker
+      command: ["--tls=false"]
   variables:
     DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay2
   before_script:
     - |
       if [ "$GCL" = "true" ]; then
@@ -109,9 +111,11 @@ build-image:
   services:
     - name: docker:dind
       alias: docker
+      command: ["--tls=false"]
   variables:
     DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay2
   script:
     - |
       echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
