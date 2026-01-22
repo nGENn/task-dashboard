@@ -1,0 +1,114 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build",
+            "type": "shell",
+            "command": "docker compose -f compose.yml build",
+            "group": "build",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Up",
+            "type": "shell",
+            "command": "docker compose -f .devcontainer/compose.yml up -d --remove-orphans",
+            "group": "none",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Down",
+            "type": "shell",
+            "command": "docker compose -f .devcontainer/compose.yml down",
+            "group": "none",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Down -v",
+            "type": "shell",
+            "command": "docker compose -f .devcontainer/compose.yml down -v",
+            "group": "none",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Logs",
+            "type": "shell",
+            "command": "docker compose -f .devcontainer/compose.yml logs -f",
+            "group": "none",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Manage",
+            "type": "shell",
+            "command": "docker compose -f .devcontainer/compose.yml exec django uv run ./manage.py ${input:manageArgs}",
+            "group": "none",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "Pre-commit (Staged)",
+            "type": "shell",
+            "command": "docker compose -f .devcontainer/compose.yml exec django uv run pre-commit run --show-diff-on-failure --color=always",
+            "group": "test",
+            "presentation": {
+                "reveal": "silent",
+                "panel": "new",
+                "clear": true
+            }
+        },
+        {
+            "label": "Pre-commit (All Files)",
+            "type": "shell",
+            "command": "docker compose -f .devcontainer/compose.yml exec django uv run pre-commit run --all-files --show-diff-on-failure --color=always",
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "clear": true
+            }
+        },
+        {
+            "label": "Run Tests",
+            "type": "shell",
+            "command": "docker compose -f .devcontainer/compose.yml exec django uv run pytest",
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "clear": true,
+                "showReuseMessage": false
+            },
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "manageArgs",
+            "type": "promptString",
+            "description": "Enter django management command (e.g. migrate)",
+            "default": "migrate"
+        }
+    ]
+}
