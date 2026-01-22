@@ -33,6 +33,7 @@ precommit:
     paths:
       - ${PRE_COMMIT_HOME}
   script:
+    - apt-get update && apt-get install -y git
     - uvx --with pre-commit-uv pre-commit run --show-diff-on-failure --color=always --all-files
 
 # --- Test Stage (Refactored) ---
@@ -40,8 +41,17 @@ pytest:
   stage: test
   image: docker:25.0
   services:
-    - docker:dind
+    - name: docker:dind
+      alias: docker
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
   before_script:
+    - |
+      if [ "$GCL" = "true" ]; then
+        echo "Detected gitlab-ci-local, falling back to host Docker socket"
+        export DOCKER_HOST=unix:///var/run/docker.sock
+      fi
     # 1. Create a temporary .env file for the root docker-compose.yml
     #    (Compose will fail if 'env_file: .env' is missing)
     - echo "POSTGRES_DB=$POSTGRES_DB" >> .env
@@ -62,7 +72,6 @@ pytest:
     - docker compose run --rm django python manage.py migrate
 
   script:
-    # 5. Run Pytest
     - docker compose run --rm django pytest
 
 check_version_bump:
@@ -71,22 +80,22 @@ check_version_bump:
   only:
     - merge_requests
   script:
-    - apt update && apt install git curl -y
-    - curl -LsSf https://astral.sh/uv/install.sh | sh
-    - export PATH="/root/.local/bin:$PATH"
-
-    # Get version from PR branch
-    - PR_VERSION=$(uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
-
-    # Get version from Main branch
-    - git fetch origin main
-    - git checkout origin/main -- pyproject.toml
-    - MAIN_VERSION=$(uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
-
-    - echo "PR version: $PR_VERSION"
-    - echo "Main version: $MAIN_VERSION"
-
     - |
+      apt update && apt install git curl -y
+      curl -LsSf https://astral.sh/uv/install.sh | sh
+      export PATH="/root/.local/bin:$PATH"
+
+      # Get version from PR branch
+      PR_VERSION=$(uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
+
+      # Get version from Main branch
+      git fetch origin main
+      git checkout origin/main -- pyproject.toml
+      MAIN_VERSION=$(uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
+
+      echo "PR version: $PR_VERSION"
+      echo "Main version: $MAIN_VERSION"
+
       if [ "$(printf '%s\n' "$MAIN_VERSION" "$PR_VERSION" | sort -V | head -n1)" != "$MAIN_VERSION" ] || [ "$PR_VERSION" = "$MAIN_VERSION" ]; then
         echo "❌ Version must be bumped and higher than main!"
         exit 1
@@ -98,29 +107,34 @@ build-image:
   stage: build
   image: docker:latest
   services:
-    - docker:dind
+    - name: docker:dind
+      alias: docker
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
   script:
-    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+    - |
+      echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
 
-    # Version Extraction
-    - apk add curl
-    - curl -LsSf https://astral.sh/uv/install.sh | sh
-    - export PATH="/root/.local/bin:$PATH"
-    - VERSION=$(uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
-    - echo "Detected version: $VERSION"
+      # Version Extraction
+      apk add curl
+      curl -LsSf https://astral.sh/uv/install.sh | sh
+      export PATH="/root/.local/bin:$PATH"
+      VERSION=$(uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
+      echo "Detected version: $VERSION"
 
-    # Buildx Setup
-    - docker buildx create --use --name builder
-    - docker buildx inspect --bootstrap
+      # Buildx Setup
+      docker buildx create --use --name builder
+      docker buildx inspect --bootstrap
 
-    # Build and Push
-    # Note: Explicitly pointing to docker/django/Dockerfile while keeping context as '.'
-    - docker buildx build \
-        --tag $IMAGE:latest \
-        --tag $IMAGE:$VERSION \
-        --push \
-        --file ./docker/django/Dockerfile \
-        .
+      # Build and Push
+      # Note: Explicitly pointing to docker/django/Dockerfile while keeping context as '.'
+      docker buildx build \
+          --tag $IMAGE:latest \
+          --tag $IMAGE:$VERSION \
+          --push \
+          --file ./docker/django/Dockerfile \
+          .
 
   allow_failure: false
   only:

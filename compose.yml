@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: docker/django/Dockerfile
+      args:
+        - INSTALL_DEV=true
     image: ticket_dashboard:latest
     env_file: .env
     depends_on:
@@ -15,6 +17,8 @@ services:
     build:
       context: .
       dockerfile: docker/django/Dockerfile
+      args:
+        - INSTALL_DEV=true
     image: ticket_dashboard:latest
     command: python manage.py qcluster
     env_file: .env
@@ -30,7 +34,7 @@ services:
     image: ticket_dashboard_postgres
     env_file: .env
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
       - postgres_backups:/backups
 
 volumes:

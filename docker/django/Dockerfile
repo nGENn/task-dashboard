@@ -1,5 +1,6 @@
 # Stage 1: Builder
 FROM ghcr.io/astral-sh/uv:python3.14-trixie-slim AS builder
+ARG INSTALL_DEV=false
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
 WORKDIR /app
@@ -13,7 +14,11 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --frozen --no-install-project --no-dev
+    if [ "$INSTALL_DEV" = "true" ] ; then \
+        uv sync --frozen --no-install-project ; \
+    else \
+        uv sync --frozen --no-install-project --no-dev ; \
+    fi
 
 # Stage 2: Runner (Production)
 FROM python:3.14-slim-trixie AS runner
@@ -40,6 +45,10 @@ COPY --chown=django:django . .
 COPY --chown=django:django ./docker/django/entrypoint.sh /entrypoint.sh
 COPY --chown=django:django ./docker/django/start.sh /start.sh
 RUN chmod +x /entrypoint.sh /start.sh
+
+# Create static and media directories and set permissions
+RUN mkdir -p /app/staticfiles /app/ticket_dashboard/media && \
+    chown -R django:django /app/staticfiles /app/ticket_dashboard/media
 
 ENV PATH="/app/.venv/bin:$PATH"
 USER django
