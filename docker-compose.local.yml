@@ -37,13 +37,29 @@ services:
       dockerfile: ./compose/local/django/Dockerfile
     image: ticket_dashboard_local_django
     container_name: ticket_dashboard_django
+    environment:
+      USE_DOCKER: ${USE_DOCKER:-yes}
+      IPYTHONDIR: ${IPYTHONDIR:-/app/.ipython}
+      DJANGO_READ_DOT_ENV_FILE: ${DJANGO_READ_DOT_ENV_FILE:-True}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-default-key-change-me}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0}
+      DJANGO_ADMIN_URL: ${DJANGO_ADMIN_URL:-admin/}
+      DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-config.settings.local}
+      POSTGRES_USER: ${POSTGRES_USER:-debug}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-debug}
+      POSTGRES_DB: ${POSTGRES_DB:-ticket_dashboard}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      DATABASE_URL: postgres://${POSTGRES_USER:-debug}:${POSTGRES_PASSWORD:-debug}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-ticket_dashboard}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      KEYCLOAK_SERVER_URL: ${KEYCLOAK_SERVER_URL}
     depends_on:
       - postgres
     volumes:
       - /app/.venv
       - .:/app:z
-    env_file:
-      - .env
     ports:
       - '8000:8000'
     command: /start
@@ -54,11 +70,15 @@ services:
       dockerfile: ./compose/production/postgres/Dockerfile
     image: ticket_dashboard_production_postgres
     container_name: ticket_dashboard_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-debug}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-debug}
+      POSTGRES_DB: ${POSTGRES_DB:-ticket_dashboard}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
     volumes:
       - ticket_dashboard_local_postgres_data:/var/lib/postgresql/18/docker
       - ticket_dashboard_local_postgres_data_backups:/backups
-    env_file:
-      - .env
 
   qcluster:
     build:
@@ -67,10 +87,27 @@ services:
     volumes:
       - .:/app:z
       - /app/.venv
-    env_file: .env
     command: uv run manage.py qcluster
     depends_on:
       - postgres
+    environment:
+      USE_DOCKER: ${USE_DOCKER:-yes}
+      IPYTHONDIR: ${IPYTHONDIR:-/app/.ipython}
+      DJANGO_READ_DOT_ENV_FILE: ${DJANGO_READ_DOT_ENV_FILE:-True}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-default-key-change-me}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0}
+      DJANGO_ADMIN_URL: ${DJANGO_ADMIN_URL:-admin/}
+      DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-config.settings.local}
+      POSTGRES_USER: ${POSTGRES_USER:-debug}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-debug}
+      POSTGRES_DB: ${POSTGRES_DB:-ticket_dashboard}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      DATABASE_URL: postgres://${POSTGRES_USER:-debug}:${POSTGRES_PASSWORD:-debug}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-ticket_dashboard}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      KEYCLOAK_SERVER_URL: ${KEYCLOAK_SERVER_URL}
 
   # --- 2. EspoCRM (Port 8001) ---
   # espocrm-db:
