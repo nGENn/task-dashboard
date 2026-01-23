@@ -2,20 +2,8 @@
 
 ## Features
 
-* [x] implement views toolbar
-* [x] rename "Task Dashboard"
-* [x] add due date
-* [x] whole row as link
-* [x] origin equals subdomain
-* [x] set groups with openid groups
-* [x] rename origins in admin panel
-* [x] only my task option for groups (in addition to all and my + unassigned)
-* [x] change date formatting
 * [ ] fix/implement pipeline
-* [x] move away from docs/local/prod architecture, also for .env
-* [ ] change README
-* [ ] clean up/refactor
-* [x] async fetching, to have it run in the background insted of on load
+* [ ] move away from docs/local/prod architecture
 
 ## Eramba
 
