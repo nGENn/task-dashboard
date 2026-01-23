@@ -57,9 +57,9 @@ services:
       KEYCLOAK_SERVER_URL: ${KEYCLOAK_SERVER_URL}
     depends_on:
       - postgres
-    volumes:
-      - /app/.venv
-      - .:/app:z
+    # volumes:
+    #   - /app/.venv
+    #   - .:/app:z
     ports:
       - '8000:8000'
     command: /start
