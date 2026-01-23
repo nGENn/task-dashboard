@@ -1,7 +1,0 @@
-# PostgreSQL (CI)
-POSTGRES_HOST=postgres
-POSTGRES_PORT=5432
-POSTGRES_DB=test_ticket_dashboard
-POSTGRES_USER=ticket_dashboard
-POSTGRES_PASSWORD=
-POSTGRES_HOST_AUTH_METHOD=trust

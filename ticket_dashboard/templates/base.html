@@ -8,11 +8,11 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge" />
     <title>
       {% block title %}
-        Ticket Dashboard
+        Task Dashboard
       {% endblock title %}
     </title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Awsome Ticket Dashboard" />
+    <meta name="description" content="Awsome Task Dashboard" />
     <meta name="author" content="Justus Jäger" />
     <link rel="icon"
           type="image/svg+xml"
@@ -68,8 +68,8 @@
                 </svg>
               </div>
               <div class="hidden sm:block">
-                <h1 class="text-xl font-bold text-base-content">Ticket Dashboard</h1>
-                <p class="text-xs text-base-content/60">Track tickets across all platforms</p>
+                <h1 class="text-xl font-bold text-base-content">Task Dashboard</h1>
+                <p class="text-xs text-base-content/60">Track tasks across all platforms</p>
               </div>
             </a>
           </div>
@@ -403,39 +403,54 @@
             });
           }
 
-          {
-            %
-            if messages %
-          } {
-            %
-            for message in messages %
-          }
-          // Map Django tags to our toast types
-          // Django: debug, info, success, warning, error
-          // Toast: success, error
-          var type = "{{ message.tags }}";
-          if (type === 'warning' || type === 'error') type = 'error';
-          else type = 'success';
-
-          // Call the function with a slight delay for multiple messages
-          setTimeout(() => {
-            showToast("{{ message|escapejs }}", type);
-          }, {
-            {
-              forloop.counter0
-            }
-          }* 500); // Stagger by 500ms
-          {
-            %
-            endfor %
-          } {
-            %
-            endif %
-          }
-
         });
       </script>
     {% endblock inline_javascript %}
-    <div id="toast-container" class="toast toast-top toast-end mt-16 z-[9999]"></div>
+    {% if messages %}
+      <script id="django-messages" type="application/json">
+        [{
+          %
+          for message in messages %
+        } {
+          "message": "{{ message|escapejs }}",
+          "tags": "{{ message.tags|escapejs }}"
+        } {
+          %
+          if not forloop.last %
+        }, {
+          %
+          endif %
+        } {
+          %
+          endfor %
+        }]
+      </script>
+      <script>
+        document.addEventListener("DOMContentLoaded", function() {
+          const messagesData = document.getElementById('django-messages');
+          if (messagesData) {
+            const messages = JSON.parse(messagesData.textContent);
+            messages.forEach((msg, index) => {
+              // Map Django tags to our toast types
+              // Django: debug, info, success, warning, error
+              // Toast: success, error
+              let type = msg.tags;
+              if (type === 'warning' || type === 'error') {
+                type = 'error';
+              } else {
+                type = 'success';
+              }
+
+              // Call the function with a slight delay for multiple messages
+              setTimeout(() => {
+                if (typeof showToast === 'function') {
+                  showToast(msg.message, type);
+                }
+              }, index * 500); // Stagger by 500ms
+            });
+          }
+        });
+      </script>
+    {% endif %}
   </body>
 </html>

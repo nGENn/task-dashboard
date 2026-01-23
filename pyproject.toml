@@ -117,6 +117,7 @@ select = [
     "RUF",
 ]
 ignore = [
+    "COM812", # Missing trailing comma (conflicts with formatter)
     "S101", # Use of assert detected https://docs.astral.sh/ruff/rules/assert/
     "RUF012", # Mutable class attributes should be annotated with `typing.ClassVar`
     "SIM102", # sometimes it's better to nest
@@ -152,8 +153,8 @@ dev = [
 
 [project]
 name = "ticket_dashboard"
-version = "0.1.19"
-description = "Awsome Ticket Dashboard"
+version = "0.1.20"
+description = "Awsome Task Dashboard"
 readme = "README.md"
 
 license = { text = "MIT" }
@@ -169,15 +170,13 @@ dependencies = [
     "django-anymail==13.1",
     "django-crispy-forms==2.5",
     "django-environ==0.12.0",
-    "django-model-utils==5.0.0",
     "django-redis==6.0.0",
     "gunicorn==23.0.0",
     "hiredis==3.3.0",
     "httpx>=0.28.1",
-    "pillow==12.0.0",
     "psycopg[c]==3.2.13",
-    "python-slugify==8.0.4",
-    "redis==7.1.0",
     "sentry-sdk==2.46.0",
     "whitenoise==6.11.0",
+    "django-q2==1.9.0",
+    "django-debug-toolbar>=6.1.0",
 ]

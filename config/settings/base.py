@@ -4,6 +4,7 @@
 from pathlib import Path
 
 import environ
+from django.utils.translation import gettext_lazy as _
 
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
 # ticket_dashboard/
@@ -27,12 +28,13 @@ TIME_ZONE = "Europe/Berlin"
 # https://docs.djangoproject.com/en/dev/ref/settings/#language-code
 LANGUAGE_CODE = "en-us"
 # https://docs.djangoproject.com/en/dev/ref/settings/#languages
-# from django.utils.translation import gettext_lazy as _
-# LANGUAGES = [
-#     ('en', _('English')),
-#     ('fr-fr', _('French')),
-#     ('pt-br', _('Portuguese')),
-# ]
+
+LANGUAGES = [
+    ("en", _("English")),
+    ("de", _("German")),
+    #     ('fr-fr', _('French')),
+    #     ('pt-br', _('Portuguese')),
+]
 # https://docs.djangoproject.com/en/dev/ref/settings/#site-id
 SITE_ID = 1
 # https://docs.djangoproject.com/en/dev/ref/settings/#use-i18n
@@ -77,6 +79,7 @@ THIRD_PARTY_APPS = [
     "allauth.account",
     "allauth.mfa",
     "allauth.socialaccount",
+    "django_q",
 ]
 
 LOCAL_APPS = [
@@ -295,6 +298,7 @@ INSTALLED_APPS.append("allauth.socialaccount.providers.openid_connect")
 # 2. Keycloak / OIDC Configuration
 SOCIALACCOUNT_PROVIDERS = {
     "openid_connect": {
+        "SCOPE": ["openid", "profile", "email"],
         "APPS": [
             {
                 "provider_id": "keycloak",
@@ -337,3 +341,19 @@ GITLAB_API_TOKEN = env("GITLAB_API_TOKEN", default="")
 # Zammad Integration
 ZAMMAD_API_URL = env("ZAMMAD_API_URL", default="")
 ZAMMAD_API_TOKEN = env("ZAMMAD_API_TOKEN", default="")
+
+# django-q2
+# ------------------------------------------------------------------------------
+# https://django-q2.readthedocs.io/en/master/configure.html
+Q_CLUSTER = {
+    "name": "ticket_dashboard_cluster",
+    "workers": 4,
+    "recycle": 500,
+    "timeout": 60,
+    "compress": True,
+    "save_limit": 250,
+    "queue_limit": 500,
+    "cpu_affinity": 1,
+    "label": "Django Q",
+    "orm": "default",  # Use Django ORM
+}

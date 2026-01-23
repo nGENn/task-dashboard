@@ -70,3 +70,6 @@ INSTALLED_APPS += ["django_extensions"]
 
 # Your stuff...
 # ------------------------------------------------------------------------------
+
+# Force runserver_plus to always bind to 0.0.0.0:8000 by default
+RUNSERVERPLUS_SERVER_ADDRESS_PORT = "0.0.0.0:8000"

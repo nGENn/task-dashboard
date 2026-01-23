@@ -1,11 +1,10 @@
 import logging
-from datetime import UTC
-from datetime import datetime
 from http import HTTPStatus
 
 import requests
 from django.conf import settings
 from django.core.cache import cache
+from django.utils import timezone as django_timezone
 from requests import RequestException
 from requests.auth import HTTPBasicAuth
 
@@ -13,10 +12,13 @@ logger = logging.getLogger(__name__)
 
 
 class OpenProjectService:
-    def __init__(self):
-        self.base_url = getattr(settings, "OPENPROJECT_API_URL", "")
-        self.api_key = getattr(settings, "OPENPROJECT_API_KEY", "")
+    def __init__(self, config):
+        self.config = config
+        self.base_url = config.api_url
+        self.api_key = config.api_token
         self.auth = HTTPBasicAuth("apikey", self.api_key)
+        # Host header not yet in model, keeping as settings for now if needed,
+        # but the model is the priority.
         self.host_header = getattr(settings, "OPENPROJECT_HOST_HEADER", None)
 
     def _get_headers(self):
@@ -26,10 +28,10 @@ class OpenProjectService:
         return headers
 
     def check_health(self):
-        start = datetime.now(tz=UTC)
+        start = django_timezone.now()
         if not self.api_key:
             return {
-                "name": "OpenProject",
+                "name": self.config.name,
                 "status": "auth_missing",
                 "latency": 0,
                 "error": "Missing API Key",
@@ -41,17 +43,19 @@ class OpenProjectService:
                 headers=self._get_headers(),
                 timeout=5,
             )
-            latency = int((datetime.now(tz=UTC) - start).total_seconds() * 1000)
+            latency = int(
+                (django_timezone.now() - start).total_seconds() * 1000,
+            )
         except RequestException as e:
             return {
-                "name": "OpenProject",
+                "name": self.config.name,
                 "status": "offline",
                 "latency": 0,
                 "error": str(e),
             }
         else:
             return {
-                "name": "OpenProject",
+                "name": self.config.name,
                 "status": "online",
                 "latency": latency,
                 "error": None,
@@ -59,7 +63,7 @@ class OpenProjectService:
 
     def _get_user_map(self):
         """Map OpenProject User ID -> Email"""
-        cache_key = "op_user_map"
+        cache_key = f"op_{self.config.id}_user_map"
         cached_map = cache.get(cache_key)
         if cached_map:
             return cached_map
@@ -93,7 +97,7 @@ class OpenProjectService:
         return user_map
 
     def get_tickets(self, *, force_refresh=False):
-        cache_key = "openproject_active_packages_cache"
+        cache_key = f"openproject_{self.config.id}_active_packages_cache"
         if not force_refresh:
             cached_data = cache.get(cache_key)
             if cached_data:
@@ -106,8 +110,28 @@ class OpenProjectService:
         normalized_tickets = []
 
         try:
-            url = f"{self.base_url}/api/v3/work_packages"
-            params = {"pageSize": 50, "sortBy": '[["updatedAt","desc"]]'}
+            self._fetch_work_packages(normalized_tickets, user_map)
+            cache.set(cache_key, normalized_tickets, timeout=300)
+
+        except RequestException:
+            logger.exception("Error fetching OpenProject packages")
+            return []
+        else:
+            return normalized_tickets
+
+    def _fetch_work_packages(self, normalized_tickets, user_map):
+        url = f"{self.base_url}/api/v3/work_packages"
+        offset = 1
+        page_size = 100
+        max_pages = 100
+        total_fetched = 0
+
+        while offset <= max_pages:
+            params = {
+                "offset": offset,
+                "pageSize": page_size,
+                "sortBy": '[["updatedAt","desc"]]',
+            }
 
             response = requests.get(
                 url,
@@ -118,57 +142,84 @@ class OpenProjectService:
             )
             response.raise_for_status()
 
-            elements = response.json().get("_embedded", {}).get("elements", [])
+            data = response.json()
+            elements = data.get("_embedded", {}).get("elements", [])
+
+            if not elements:
+                break
 
             for item in elements:
-                links = item.get("_links", {})
+                self._process_work_package(item, normalized_tickets, user_map)
 
-                # Extract Email Logic
-                assignee_link = links.get("assignee", {})
-                assignee_href = assignee_link.get("href", "")
-                assignee_name = assignee_link.get("title", "-")
-                assignee_email = None
+            total_fetched += len(elements)
 
-                if assignee_href:
-                    try:
-                        uid = int(assignee_href.split("/")[-1])
-                        assignee_email = user_map.get(uid)
-                    except ValueError:
-                        pass
+            if len(elements) < page_size:
+                break
 
-                # Mapping Status
-                status_title = links.get("status", {}).get("title", "Unknown")
-                mapped_status = self._map_status(status_title)
+            offset += 1
 
-                normalized_tickets.append(
-                    {
-                        "id": f"OP-{item.get('id')}",
-                        "title": item.get("subject"),
-                        "status": mapped_status,
-                        "priority": links.get("priority", {}).get("title", "Medium"),
-                        "origin": "OpenProject",
-                        "customer": links.get("project", {}).get("title", "Project"),
-                        "group": "Project",
-                        "owner": assignee_name,
-                        "owner_email": assignee_email,
-                        "created_at": str(item.get("createdAt", "")).split("T")[0],
-                        "updated_at": str(item.get("updatedAt", "")).split("T")[0],
-                        "url": f"{self.base_url}/work_packages/{item.get('id')}",
-                    },
-                )
+        if offset > max_pages:
+            logger.warning(
+                "OpenProject fetch limit reached (%d items). "
+                "Some older items may not be visible.",
+                total_fetched,
+            )
 
-            cache.set(cache_key, normalized_tickets, timeout=300)
+    def _process_work_package(self, item, normalized_tickets, user_map):
+        links = item.get("_links", {})
 
-        except RequestException:
-            logger.exception("Error fetching OpenProject packages")
-            return []
-        else:
-            return normalized_tickets
+        # Extract Email Logic
+        assignee_link = links.get("assignee", {})
+        assignee_href = assignee_link.get("href", "")
+        assignee_name = assignee_link.get("title", "-")
+        assignee_email = None
+
+        if assignee_href:
+            try:
+                uid = int(assignee_href.split("/")[-1])
+                assignee_email = user_map.get(uid)
+            except ValueError:
+                pass
+
+        # Mapping Status
+        status_title = links.get("status", {}).get("title", "Unknown")
+        mapped_status = self._map_status(status_title)
+
+        normalized_tickets.append(
+            {
+                "id": f"OP-{item.get('id')}",
+                "title": item.get("subject"),
+                "status": mapped_status,
+                "priority": self._map_priority(
+                    links.get("priority", {}).get("title", "Medium"),
+                ),
+                "origin": self.config.name,
+                "customer": links.get("project", {}).get("title", "Project"),
+                "group": "Project",
+                "owner": assignee_name,
+                "owner_email": assignee_email,
+                "created_at": item.get("createdAt"),
+                "updated_at": item.get("updatedAt"),
+                "due_date": item.get("dueDate"),
+                "url": f"{self.base_url}/work_packages/{item.get('id')}",
+            },
+        )
 
     def _map_status(self, status_text):
         s = str(status_text).lower()
-        if any(x in s for x in ["new", "open", "to do", "progress", "schedule"]):
+        open_keywords = ["new", "open", "to do", "progress", "schedule"]
+        if any(x in s for x in open_keywords):
             return "open"
         if any(x in s for x in ["closed", "done", "resolved", "reject"]):
             return "resolved"
         return "pending"
+
+    def _map_priority(self, priority_text):
+        p = str(priority_text).lower()
+        if any(x in p for x in ["immediate", "critical"]):
+            return "Critical"
+        if any(x in p for x in ["high", "urgent"]):
+            return "High"
+        if any(x in p for x in ["low"]):
+            return "Low"
+        return "Medium"

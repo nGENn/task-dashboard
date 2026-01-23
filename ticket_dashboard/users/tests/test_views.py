@@ -4,17 +4,24 @@ import pytest
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.models import AnonymousUser
+from django.contrib.auth.models import Group
 from django.contrib.messages.middleware import MessageMiddleware
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.http import HttpRequest
 from django.http import HttpResponseRedirect
 from django.test import RequestFactory
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from ticket_dashboard.users.forms import UserAdminChangeForm
+from ticket_dashboard.users.models import ExternalGroup
+from ticket_dashboard.users.models import ServiceConfiguration
+from ticket_dashboard.users.models import Ticket
+from ticket_dashboard.users.models import TicketPermission
 from ticket_dashboard.users.models import User
 from ticket_dashboard.users.tests.factories import UserFactory
+from ticket_dashboard.users.views import DashboardView
 from ticket_dashboard.users.views import UserRedirectView
 from ticket_dashboard.users.views import UserUpdateView
 from ticket_dashboard.users.views import user_detail_view
@@ -99,3 +106,80 @@ class TestUserDetailView:
         assert isinstance(response, HttpResponseRedirect)
         assert response.status_code == HTTPStatus.FOUND
         assert response.url == f"{login_url}?next=/fake-url/"
+
+
+class TestDashboardView:
+    def test_own_only_permission(self, user: User, rf: RequestFactory):
+        # 1. Setup Data
+        group = Group.objects.create(name="Support Group")
+        user.groups.add(group)
+
+        ext_group = ExternalGroup.objects.create(
+            origin="Zammad",
+            name="Support",
+        )
+        TicketPermission.objects.create(
+            django_group=group,
+            allowed_external_group=ext_group,
+            access_level="OWN_ONLY",
+        )
+
+        service_config = ServiceConfiguration.objects.create(
+            name="Zammad",
+            service_type="zammad",
+            is_active=True,
+        )
+
+        # 2. Create Tasks in Database
+        test_datetime = timezone.now()
+        Ticket.objects.create(
+            external_id="ZAM-1",
+            title="My Task",
+            status="open",
+            service=service_config,
+            group="Support",
+            owner_email=user.email,
+            owner=user.name,
+            priority="medium",
+            updated_at=test_datetime,
+        )
+        Ticket.objects.create(
+            external_id="ZAM-2",
+            title="Other Task",
+            status="open",
+            service=service_config,
+            group="Support",
+            owner_email="other@example.com",
+            owner="Other User",
+            priority="medium",
+            updated_at=test_datetime,
+        )
+        Ticket.objects.create(
+            external_id="ZAM-3",
+            title="Unassigned Task",
+            status="open",
+            service=service_config,
+            group="Support",
+            owner_email="",
+            owner="Unassigned",
+            priority="medium",
+            updated_at=test_datetime,
+        )
+
+        # 3. Request
+        request = rf.get("/")
+        request.user = user
+
+        # 4. Execute View
+        view = DashboardView()
+        view.request = request
+        context = view.get_context_data()
+
+        # 5. Verify Results
+        tickets = context["tickets"].object_list
+        ticket_ids = [t.external_id for t in tickets]
+
+        assert "ZAM-1" in ticket_ids
+        assert "ZAM-2" not in ticket_ids
+        assert "ZAM-3" not in ticket_ids
+        assert len(tickets) == 1

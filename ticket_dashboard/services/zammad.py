@@ -1,61 +1,105 @@
 import logging
-from datetime import UTC
 from datetime import datetime
+from http import HTTPStatus
 
 import requests
-from django.conf import settings
 from django.core.cache import cache
+from django.utils import timezone as django_timezone
 from requests import RequestException
 
 logger = logging.getLogger(__name__)
 
 
 class ZammadService:
-    def __init__(self):
-        self.base_url = getattr(settings, "ZAMMAD_API_URL", "")
-        self.token = getattr(settings, "ZAMMAD_API_TOKEN", "")
+    def __init__(self, config):
+        self.config = config
+        self.base_url = config.api_url
+        self.token = config.api_token
 
         self.headers = {
             "Authorization": f"Token token={self.token}",
             "Content-Type": "application/json",
         }
 
-    def get_tickets(self, *, force_refresh=False):
-        # 1. Define Cache Key
-        cache_key = "zammad_active_tickets_cache"
+    def _get_user_map(self):
+        """Map Zammad User ID -> Email"""
+        cache_key = f"zammad_{self.config.id}_user_map"
+        cached_map = cache.get(cache_key)
+        if cached_map:
+            return cached_map
 
-        # 2. Return Cache if available
+        user_map = {}
+        try:
+            url = f"{self.base_url}/api/v1/users"
+            # Zammad users API is paginated, but for now we'll fetch first 250
+            # which usually covers the agents/owners.
+            resp = requests.get(
+                url,
+                headers=self.headers,
+                params={"per_page": 250},
+                timeout=10,
+            )
+            if resp.status_code == HTTPStatus.OK:
+                for u in resp.json():
+                    uid = u.get("id")
+                    email = u.get("email")
+                    name = (
+                        f"{u.get('firstname', '')} {u.get('lastname', '')}"
+                    ).strip() or u.get("login")
+                    if uid:
+                        user_map[uid] = {"email": email, "name": name}
+
+            cache.set(cache_key, user_map, timeout=3600)
+        except RequestException as e:
+            logger.warning("Zammad User Map failed: %s", e)
+        return user_map
+
+    def get_tickets(self, *, force_refresh=False):
+        cache_key = f"zammad_{self.config.id}_active_tickets_cache"
+
         if not force_refresh:
             cached_data = cache.get(cache_key)
             if cached_data:
                 logger.debug("Returning cached Zammad data")
                 return cached_data
 
-        # --- DEBUGGING START (Added flush=True) ---
-        logger.debug("Checking Zammad credentials")
-        logger.debug("URL: %s", self.base_url)
-        # Check if token exists (don't print the whole thing)
-        has_token = "YES" if self.token else "NO"
-        logger.debug("Has Token: %s", has_token)
-        # --- DEBUGGING END ---
-
         if not self.base_url or not self.token:
-            # Use logger.warning as well, which usually flushes automatically
             logger.warning("Zammad credentials not found.")
-            logger.debug("Credentials missing in settings; returning empty list")
             return []
 
+        user_map = self._get_user_map()
+
         try:
-            # 3. Build Query: Fetch active tickets
-            url = f"{self.base_url}/api/v1/tickets"
+            raw_tickets = self._fetch_all_tickets()
+            normalized_tickets = self._normalize_tickets(raw_tickets, user_map)
+
+            cache.set(cache_key, normalized_tickets, timeout=300)
+            return normalized_tickets  # noqa: TRY300
+
+        except RequestException:
+            logger.exception("Error fetching Zammad tasks")
+            return []
+        except Exception:
+            logger.exception("Unexpected error fetching Zammad tasks")
+            raise
+
+    def _fetch_all_tickets(self):
+        url = f"{self.base_url}/api/v1/tickets"
+        raw_tickets = []
+        page = 1
+        per_page = 100
+        max_pages = 100
+
+        logger.debug("Fetching Zammad tasks (paginated): %s", url)
+
+        while page <= max_pages:
             params = {
                 "expand": "true",
-                "limit": 50,
+                "page": page,
+                "per_page": per_page,
                 "order_by": "updated_at",
                 "sort_by": "desc",
             }
-
-            logger.debug("Attempting to fetch Zammad tickets: %s", url)
 
             response = requests.get(
                 url,
@@ -66,47 +110,58 @@ class ZammadService:
             response.raise_for_status()
 
             data = response.json()
-            raw_tickets = data.get("tickets", []) if isinstance(data, dict) else data
+            page_tickets = data.get("tickets", []) if isinstance(data, dict) else data
 
-            logger.debug("Fetch successful. Found %d tickets.", len(raw_tickets))
+            if not page_tickets:
+                break
 
-            normalized_tickets = [
+            raw_tickets.extend(page_tickets)
+            logger.debug("Page %d: Found %d tasks.", page, len(page_tickets))
+
+            if len(page_tickets) < per_page:
+                break
+
+            page += 1
+
+        if page > max_pages:
+            logger.warning(
+                "Zammad fetch limit reached (%d tasks).",
+                len(raw_tickets),
+            )
+        return raw_tickets
+
+    def _normalize_tickets(self, raw_tickets, user_map):
+        normalized_tickets = []
+        for ticket in raw_tickets:
+            owner_id = ticket.get("owner_id")
+            user_info = user_map.get(owner_id, {})
+            owner_name = user_info.get("name", "Unassigned")
+            owner_email = user_info.get("email")
+
+            normalized_tickets.append(
                 {
                     "id": f"ZAM-{ticket.get('number')}",
                     "title": ticket.get("title"),
                     "status": self._map_status(ticket.get("state")),
                     "priority": self._map_priority(ticket.get("priority")),
-                    "origin": "Zammad",
+                    "origin": self.config.name,
                     "customer": ticket.get("customer", "Unknown"),
                     "group": ticket.get("group", "Support"),
-                    "owner": ticket.get("owner", "Unassigned"),
+                    "owner": owner_name,
+                    "owner_email": owner_email,
                     "created_at": self._format_date(ticket.get("created_at")),
                     "updated_at": self._format_date(ticket.get("updated_at")),
+                    "due_date": self._format_date(ticket.get("escalation_at")),
                     "url": f"{self.base_url}/#ticket/zoom/{ticket.get('id')}",
-                }
-                for ticket in raw_tickets
-            ]
-
-            # 4. Save to Cache (5 Minutes = 300 seconds)
-            cache.set(cache_key, normalized_tickets, timeout=300)
-
-            return normalized_tickets  # noqa: TRY300
-
-        except RequestException:
-            # Log request errors and return empty list
-            logger.exception("Error fetching Zammad tickets")
-            return []
-
-        except Exception:
-            # Unexpected errors: log full traceback and re-raise
-            logger.exception("Unexpected error fetching Zammad tickets")
-            raise
+                },
+            )
+        return normalized_tickets
 
     def _map_status(self, zammad_state):
         """Map Zammad specific states to our Dashboard states
         (open, pending, resolved)"""
-        # Note: Depending on your Zammad setup, 'state' might be an ID or a Dict if expanded  # noqa: E501
-        # This handles the text representation
+        # Note: Depending on your Zammad setup, 'state' might be an ID or a
+        # Dict if expanded. This handles the text representation.
         if isinstance(zammad_state, dict):
             state_name = zammad_state.get("name", "").lower()
         else:
@@ -133,25 +188,29 @@ class ZammadService:
         return "Medium"
 
     def _format_date(self, date_str):
-        """Convert ISO string to YYYY-MM-DD for proper sorting/filtering"""
+        """Returns the full ISO string for proper duration calculation."""
         if not date_str:
             return ""
         try:
-            # Zammad returns ISO 8601
-            dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-            return dt.strftime("%Y-%m-%d")  # Changed from "%b %d, %Y"
-        except ValueError:
+            # Zammad returns ISO 8601, ensure it has offset for fromisoformat
+            dt_str = date_str.replace("Z", "+00:00")
+            # Validate it's a valid ISO string
+            datetime.fromisoformat(dt_str)
+        except (ValueError, TypeError):
+            return date_str
+        else:
+            return dt_str
             return date_str
 
     def check_health(self):
-        start = datetime.now(tz=UTC)
+        start = django_timezone.now()
 
         if not self.base_url or not self.token:
             return {
-                "name": "Zammad",
+                "name": self.config.name,
                 "status": "auth_missing",
                 "latency": 0,
-                "error": "Missing URL or Token in settings",
+                "error": "Missing URL or Token in configuration",
             }
 
         try:
@@ -163,26 +222,26 @@ class ZammadService:
             response.raise_for_status()
 
             latency = int(
-                (datetime.now(tz=UTC) - start).total_seconds() * 1000,
+                (django_timezone.now() - start).total_seconds() * 1000,
             )
             return {  # noqa: TRY300
-                "name": "Zammad",
+                "name": self.config.name,
                 "status": "online",
                 "latency": latency,
                 "error": None,
             }
         except requests.HTTPError as e:
-            logger.warning("Zammad Auth Failed: %s", e)
+            logger.warning("%s Auth Failed: %s", self.config.name, e)
             return {
-                "name": "Zammad",
+                "name": self.config.name,
                 "status": "auth_error",
                 "latency": 0,
                 "error": str(e),
             }
         except Exception:
-            logger.exception("Zammad Unreachable")
+            logger.exception("%s Unreachable", self.config.name)
             return {
-                "name": "Zammad",
+                "name": self.config.name,
                 "status": "offline",
                 "latency": 0,
                 "error": "Unreachable",

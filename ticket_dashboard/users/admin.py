@@ -1,6 +1,7 @@
 from allauth.account.decorators import secure_admin_login
 from allauth.socialaccount.models import SocialApp
 from allauth.socialaccount.models import SocialToken
+from django import forms
 from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import admin as auth_admin
@@ -63,10 +64,48 @@ class UserAdmin(auth_admin.UserAdmin):
     )
 
 
+class ServiceConfigurationForm(forms.ModelForm):
+    class Meta:
+        model = ServiceConfiguration
+        fields = [
+            "name",
+            "service_type",
+            "api_url",
+            "api_token",
+            "is_active",
+        ]
+        widgets = {
+            "api_token": forms.PasswordInput(render_value=True),
+        }
+
+
 @admin.register(ServiceConfiguration)
 class ServiceConfigurationAdmin(admin.ModelAdmin):
-    list_display = ["name", "is_active"]
+    form = ServiceConfigurationForm
+    list_display = ["name", "service_type", "api_url", "is_active"]
     list_editable = ["is_active"]
+    list_filter = ["service_type", "is_active"]
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "name",
+                    "service_type",
+                    "is_active",
+                ),
+            },
+        ),
+        (
+            _("API Configuration"),
+            {
+                "fields": (
+                    "api_url",
+                    "api_token",
+                ),
+            },
+        ),
+    )
 
 
 # 1. Allow managing permissions directly inside the Django Group page

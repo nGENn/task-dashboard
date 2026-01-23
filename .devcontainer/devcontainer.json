@@ -48,12 +48,15 @@
             "extensions": [
                 "davidanson.vscode-markdownlint",
                 "mrmlnc.vscode-duplicate",
-                // python
                 "ms-python.python",
                 "ms-python.vscode-pylance",
                 "charliermarsh.ruff",
-                // django
-                "batisteo.vscode-django"
+                "batisteo.vscode-django",
+                "Gruntfuggly.todo-tree",
+                "oderwat.indent-rainbow",
+                "ybaumes.highlight-trailing-white-spaces",
+                "monosans.djlint",
+                "junstyle.vscode-django-support"
             ]
         }
     },

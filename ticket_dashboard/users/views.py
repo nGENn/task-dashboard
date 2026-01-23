@@ -1,30 +1,28 @@
+import json
 import logging
 
-import requests
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.paginator import Paginator
 from django.db.models import QuerySet
+from django.http import HttpResponseRedirect
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
+from django.views.decorators.http import require_POST
 from django.views.generic import DetailView
 from django.views.generic import RedirectView
 from django.views.generic import TemplateView
 from django.views.generic import UpdateView
 
-from ticket_dashboard.services.eramba import ErambaService
-from ticket_dashboard.services.espocrm import EspoService
-from ticket_dashboard.services.gitlab import GitLabService
-from ticket_dashboard.services.openproject import OpenProjectService
-
-# Services
-from ticket_dashboard.services.zammad import ZammadService
-from ticket_dashboard.users.models import ExternalGroup
-from ticket_dashboard.users.models import ServiceConfiguration
-from ticket_dashboard.users.models import TicketPermission
-
 # Models
+from ticket_dashboard.users.models import SavedView
+from ticket_dashboard.users.models import Ticket
+from ticket_dashboard.users.models import TicketPermission
 from ticket_dashboard.users.models import User
+from ticket_dashboard.users.tasks import fetch_all_tickets_task
 
 logger = logging.getLogger(__name__)
 
@@ -72,90 +70,28 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         request = self.request
 
-        # 1. INITIALIZE LIST
-        all_tickets = []
-        force_refresh = request.GET.get("refresh") == "1"
+        # 0. FORCE REFRESH LOGIC
+        if request.GET.get("refresh") == "1":
+            fetch_all_tickets_task()
 
-        # 2. CONFIGS
-        zammad_conf, _ = ServiceConfiguration.objects.get_or_create(name="Zammad")
-        gitlab_conf, _ = ServiceConfiguration.objects.get_or_create(name="GitLab")
-        espo_conf, _ = ServiceConfiguration.objects.get_or_create(name="EspoCRM")
-        op_conf, _ = ServiceConfiguration.objects.get_or_create(name="OpenProject")
-        eramba_conf, _ = ServiceConfiguration.objects.get_or_create(name="Eramba")
-
-        # 3. FETCH SERVICES
-        if zammad_conf.is_active:
-            try:
-                all_tickets.extend(
-                    ZammadService().get_tickets(force_refresh=force_refresh),
-                )
-            except requests.RequestException:
-                logger.exception("Zammad fetch failed")
-
-        if gitlab_conf.is_active:
-            try:
-                all_tickets.extend(
-                    GitLabService().get_tickets(force_refresh=force_refresh),
-                )
-            except requests.RequestException:
-                logger.exception("GitLab fetch failed")
-
-        if espo_conf.is_active:
-            try:
-                all_tickets.extend(
-                    EspoService().get_tickets(force_refresh=force_refresh),
-                )
-            except requests.RequestException:
-                logger.exception("EspoCRM fetch failed")
-
-        if op_conf.is_active:
-            try:
-                all_tickets.extend(
-                    OpenProjectService().get_tickets(force_refresh=force_refresh),
-                )
-            except requests.RequestException:
-                logger.exception("OpenProject fetch failed")
-
-        if eramba_conf.is_active:
-            try:
-                all_tickets.extend(
-                    ErambaService().get_tickets(force_refresh=force_refresh),
-                )
-            except requests.RequestException:
-                logger.exception("Eramba fetch failed")
-
-        # 4. INITIAL SORT
-        all_tickets.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
+        # 1. RETRIEVE TICKETS FROM DATABASE
+        all_tickets = (
+            Ticket.objects.filter(
+                service__is_active=True,
+            )
+            .select_related("service")
+            .order_by("-updated_at")
+        )
 
         # =========================================================
         # 5. SECURITY GATEKEEPER (RBAC)
         # =========================================================
 
-        found_groups = set()
-        for t in all_tickets:
-            if t.get("origin") and t.get("group"):
-                found_groups.add((t["origin"], t["group"]))
-
-        existing_groups = set(
-            ExternalGroup.objects.filter(
-                origin__in=[x[0] for x in found_groups],
-                name__in=[x[1] for x in found_groups],
-            ).values_list("origin", "name"),
-        )
-
-        new_groups = [
-            ExternalGroup(origin=o, name=n)
-            for o, n in found_groups
-            if (o, n) not in existing_groups
-        ]
-        if new_groups:
-            ExternalGroup.objects.bulk_create(new_groups, ignore_conflicts=True)
-
         allowed_tickets = []
         user_email = request.user.email
 
         if request.user.is_superuser:
-            allowed_tickets = all_tickets
+            allowed_tickets = list(all_tickets)
         else:
             perms = TicketPermission.objects.filter(
                 django_group__in=request.user.groups.all(),
@@ -176,22 +112,26 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                     perm_map[key] = level
 
             for t in all_tickets:
-                if t.get("owner_email") and t.get("owner_email") == user_email:
+                t_origin = t.service.name
+                t_group = t.group
+                t_owner_email = t.owner_email
+                t_owner = t.owner
+
+                if t_owner_email and t_owner_email == user_email:
                     allowed_tickets.append(t)
                     continue
 
-                key = f"{t.get('origin')}|{t.get('group')}"
+                key = f"{t_origin}|{t_group}"
                 if key in perm_map:
                     level = perm_map[key]
                     if level == "FULL":
                         allowed_tickets.append(t)
                     elif level == "LIMITED":
-                        owner = str(t.get("owner", ""))
-                        if (
-                            owner in ["Unassigned", "-", "", "None"]
-                            or t.get("owner") is None
-                        ):
+                        owner = str(t_owner)
+                        if owner in ["Unassigned", "-", "", "None"] or t_owner is None:
                             allowed_tickets.append(t)
+                    elif level == "OWN_ONLY":
+                        pass
 
         # =========================================================
         # 6. UI FILTERING & SORTING
@@ -208,28 +148,51 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         if selected_states:
             filtered_tickets = [
-                t for t in filtered_tickets if t.get("status") in selected_states
+                t for t in filtered_tickets if t.status in selected_states
             ]
         elif is_default_view:
-            filtered_tickets = [
-                t for t in filtered_tickets if t.get("status") != "resolved"
-            ]
+            filtered_tickets = [t for t in filtered_tickets if t.status != "resolved"]
 
         if selected_owners:
-            # FIXED LOGIC: Check BOTH email and name against selected values
-            filtered_tickets = [
-                t
-                for t in filtered_tickets
-                if str(t.get("owner")) in selected_owners
-                or str(t.get("owner_email")) in selected_owners
-            ]
+            want_unassigned = "Unassigned" in selected_owners
+            specific_targets = set(selected_owners)
+            if want_unassigned:
+                specific_targets.discard("Unassigned")
+
+            unassigned_markers = {None, "", "-", "None", "Unassigned"}
+
+            new_filtered = []
+            for t in filtered_tickets:
+                is_match = False
+                owner = t.owner
+                email = t.owner_email
+
+                # Check specific targets (Names or Emails)
+                if specific_targets:
+                    if str(owner) in specific_targets or str(email) in specific_targets:
+                        is_match = True
+
+                # Check unassigned (Only match if BOTH owner/email empty)
+                if want_unassigned and not is_match:
+                    owner_empty = (
+                        owner in unassigned_markers or str(owner) in unassigned_markers
+                    )
+                    email_empty = (
+                        email in unassigned_markers or str(email) in unassigned_markers
+                    )
+                    if owner_empty and email_empty:
+                        is_match = True
+
+                if is_match:
+                    new_filtered.append(t)
+            filtered_tickets = new_filtered
         elif is_default_view:
             filtered_tickets = [
                 t
                 for t in filtered_tickets
-                if t.get("owner_email") == user_email
-                or str(t.get("owner")) in ["Unassigned", "-", "None", ""]
-                or t.get("owner") is None
+                if t.owner_email == user_email
+                or str(t.owner) in ["Unassigned", "-", "None", ""]
+                or t.owner is None
             ]
 
         # B. Text Search
@@ -237,17 +200,22 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             filtered_tickets = [
                 t
                 for t in filtered_tickets
-                if query in str(t.get("title", "")).lower()
-                or query in str(t.get("id", "")).lower()
-                or query in str(t.get("customer", "")).lower()
-                or query in str(t.get("owner", "")).lower()
+                if query in str(t.title or "").lower()
+                or query in str(t.external_id or "").lower()
+                or query in str(t.customer or "").lower()
+                or query in str(t.owner or "").lower()
             ]
 
         # C. Dropdowns
         def apply_dropdown(items, param, field):
             vals = request.GET.getlist(param)
             if vals:
-                return [t for t in items if str(t.get(field)) in vals]
+                return [
+                    t
+                    for t in items
+                    if str(getattr(t, field) if field != "origin" else t.service.name)
+                    in vals
+                ]
             return items
 
         filtered_tickets = apply_dropdown(filtered_tickets, "origin", "origin")
@@ -264,7 +232,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 filtered_tickets = [
                     t
                     for t in filtered_tickets
-                    if t.get("created_at") and start <= t.get("created_at") <= end
+                    if t.created_at and start <= str(t.created_at)[:10] <= end
                 ]
             except ValueError:
                 pass
@@ -277,40 +245,94 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             reverse = custom_dir == "desc"
 
             def sort_key(t):
-                val = t.get(custom_sort)
-                return str(val).lower() if val is not None else ""
+                # Map template sort keys to model fields
+                field_map = {
+                    "origin": "service__name",
+                    "id": "external_id",
+                    "status": "status",
+                    "priority": "priority",
+                    "title": "title",
+                    "customer": "customer",
+                    "group": "group",
+                    "owner": "owner_email",
+                    "created_at": "created_at",
+                    "updated_at": "updated_at",
+                    "due_date": "due_date",
+                }
+                actual_field = field_map.get(custom_sort, custom_sort)
+
+                # Get the value
+                if "__" in actual_field:
+                    parts = actual_field.split("__")
+                    val = t
+                    for p in parts:
+                        val = getattr(val, p, None)
+                else:
+                    val = getattr(t, actual_field, None)
+
+                if val is None:
+                    # For due_date (or any other sort), None values go to the end
+                    return "zzzzzzzzzz" if not reverse else ""
+                return str(val).lower()
 
             filtered_tickets.sort(key=sort_key, reverse=reverse)
         else:
 
             def priority_sort(t):
-                if t.get("owner_email") == user_email:
+                if t.owner_email == user_email:
                     return 0
-                owner = str(t.get("owner", ""))
-                if owner in ["Unassigned", "-", "", "None"] or t.get("owner") is None:
+                owner = str(t.owner or "")
+                if owner in ["Unassigned", "-", "", "None"] or t.owner is None:
                     return 1
                 return 2
 
-            filtered_tickets.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
+            filtered_tickets.sort(key=lambda x: x.updated_at or "", reverse=True)
             filtered_tickets.sort(key=priority_sort)
 
         # 7. GENERATE OPTIONS (FIXED: Extract Emails for Owners)
         def get_options(field):
+            if field == "origin":
+                return sorted({t.service.name for t in allowed_tickets if t.service})
+            if field == "status":
+                return sorted({t.status for t in allowed_tickets if t.status})
             return sorted(
-                {str(t.get(field, "")) for t in allowed_tickets if t.get(field)},
+                {
+                    str(getattr(t, field, ""))
+                    for t in allowed_tickets
+                    if getattr(t, field, "")
+                },
             )
 
         # Custom Logic for Owner Options: Prefer Email
         owner_options = set()
+        has_unassigned = False
+        unassigned_vals = ["Unassigned", "-", "None", ""]
+
         for t in allowed_tickets:
-            val = t.get("owner_email") if t.get("owner_email") else t.get("owner")
-            if val and str(val) not in ["Unassigned", "-", "None", ""]:
+            owner = t.owner
+            owner_email = t.owner_email
+
+            # Check if this task is considered unassigned
+            if (
+                not owner
+                or not owner_email
+                or str(owner) in unassigned_vals
+                or str(owner_email) in unassigned_vals
+            ):
+                has_unassigned = True
+
+            val = owner_email if owner_email else owner
+            if val and str(val) not in unassigned_vals:
                 owner_options.add(str(val))
+
+        owners = sorted(owner_options)
+        if has_unassigned:
+            owners.insert(0, "Unassigned")
 
         context["filter_options"] = {
             "customers": get_options("customer"),
             "groups": get_options("group"),
-            "owners": sorted(owner_options),  # Sorted list of Emails/Names
+            "owners": owners,
             "origins": get_options("origin"),
             "states": get_options("status"),
             "priorities": get_options("priority"),
@@ -318,16 +340,18 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         # 8. STATS
         total = len(allowed_tickets)
-        my_count = sum(1 for t in allowed_tickets if t.get("owner_email") == user_email)
+        my_count = sum(
+            1
+            for t in allowed_tickets
+            if t.owner_email == user_email and t.status in ["open", "pending", "new"]
+        )
 
         context["stats"] = {
             "total": total,
             "my_tickets": my_count,
-            "open": sum(1 for t in allowed_tickets if t.get("status") == "open"),
-            "pending": sum(1 for t in allowed_tickets if t.get("status") == "pending"),
-            "resolved": sum(
-                1 for t in allowed_tickets if t.get("status") == "resolved"
-            ),
+            "open": sum(1 for t in allowed_tickets if t.status == "open"),
+            "pending": sum(1 for t in allowed_tickets if t.status == "pending"),
+            "resolved": sum(1 for t in allowed_tickets if t.status == "resolved"),
         }
 
         # 9. PAGINATION
@@ -342,4 +366,65 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             on_ends=1,
         )
 
+        # 10. SAVED VIEWS
+        saved_views = SavedView.objects.filter(user=self.request.user)
+        context["saved_views"] = [
+            {
+                "id": v.id,
+                "name": v.name,
+                "params": v.query_params,
+                "url": f"?{v.get_query_string()}",
+            }
+            for v in saved_views
+        ]
+        active_states = ["open", "pending", "new"]
+        context["default_views"] = [
+            {
+                "name": "My Tasks",
+                "params": {"owner": [user_email], "state": active_states},
+                "url": f"?owner={user_email}&state=open&state=pending&state=new",
+            },
+            {
+                "name": "Unassigned",
+                "params": {"owner": ["Unassigned"], "state": active_states},
+                "url": "?owner=Unassigned&state=open&state=pending&state=new",
+            },
+        ]
+
         return context
+
+
+@login_required
+@require_POST
+def save_view(request):
+    try:
+        data = json.loads(request.body)
+        name = data.get("name")
+        query_params = data.get("query_params", {})
+
+        if not name:
+            return JsonResponse({"error": "Name is required"}, status=400)
+
+        # Update or create the saved view
+        view, created = SavedView.objects.update_or_create(
+            user=request.user,
+            name=name,
+            defaults={"query_params": query_params},
+        )
+
+        return JsonResponse(
+            {"status": "success", "id": view.id, "created": created},
+        )
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    except Exception:
+        logger.exception("Error saving view")
+        return JsonResponse({"error": "Internal server error"}, status=500)
+
+
+@login_required
+@require_POST
+def delete_saved_view(request, pk):
+    view = get_object_or_404(SavedView, pk=pk, user=request.user)
+    view.delete()
+    return HttpResponseRedirect(reverse("users:dashboard"))

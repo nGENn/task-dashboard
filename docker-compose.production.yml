@@ -17,10 +17,8 @@ services:
       - production_django_media:/app/ticket_dashboard/media
     depends_on:
       - postgres
-      - redis
     env_file:
-      - ./.envs/.production/.django
-      - ./.envs/.production/.postgres
+      - .env
     command: /start
 
   postgres:
@@ -32,31 +30,16 @@ services:
       - production_postgres_data:/var/lib/postgresql/18/docker
       - production_postgres_data_backups:/backups
     env_file:
-      - ./.envs/.production/.postgres
+      - .env
 
-  traefik:
+  qcluster:
     build:
       context: .
-      dockerfile: ./compose/production/traefik/Dockerfile
-    image: ticket_dashboard_production_traefik
+      dockerfile: ./compose/production/django/Dockerfile
+    image: ticket_dashboard_production_django
+    command: python manage.py qcluster
+    env_file: .env
     depends_on:
-      - django
+      - postgres
     volumes:
-      - production_traefik:/etc/traefik/acme
-    ports:
-      - '0.0.0.0:80:80'
-      - '0.0.0.0:443:443'
-
-  redis:
-    image: docker.io/redis:7.2
-
-
-  nginx:
-    build:
-      context: .
-      dockerfile: ./compose/production/nginx/Dockerfile
-    image: ticket_dashboard_production_nginx
-    depends_on:
-      - django
-    volumes:
-      - production_django_media:/usr/share/nginx/media:ro
+      - production_django_media:/app/ticket_dashboard/media
