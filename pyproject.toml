@@ -15,7 +15,7 @@ plugins = ["django_coverage_plugin"]
 
 # ==== mypy ====
 [tool.mypy]
-python_version = "3.14"
+python_version = "3.13"
 check_untyped_defs = true
 ignore_missing_imports = true
 warn_unused_ignores = true
@@ -161,7 +161,7 @@ license = { text = "MIT" }
 authors = [
   { name = "Justus Jäger", email = "jaeger@ngenn.net" },
 ]
-requires-python = "==3.14.*"
+requires-python = "==3.13.*"
 dependencies = [
     "argon2-cffi==25.1.0",
     "crispy-bootstrap5==2025.6",
