@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from collections.abc import Sequence
 from typing import Any
 
 from factory import Faker
@@ -6,9 +6,6 @@ from factory import post_generation
 from factory.django import DjangoModelFactory
 
 from ticket_dashboard.users.models import User
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
 
 
 class UserFactory(DjangoModelFactory[User]):

@@ -1,13 +1,9 @@
 """Module for all Form Tests."""
 
-from typing import TYPE_CHECKING
-
 from django.utils.translation import gettext_lazy as _
 
 from ticket_dashboard.users.forms import UserAdminCreationForm
-
-if TYPE_CHECKING:
-    from ticket_dashboard.users.models import User
+from ticket_dashboard.users.models import User
 
 
 class TestUserAdminCreationForm:

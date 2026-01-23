@@ -1,10 +1,7 @@
-from typing import TYPE_CHECKING
-
 from django.urls import resolve
 from django.urls import reverse
 
-if TYPE_CHECKING:
-    from ticket_dashboard.users.models import User
+from ticket_dashboard.users.models import User
 
 
 def test_detail(user: User):

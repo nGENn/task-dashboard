@@ -1,15 +1,11 @@
-from typing import TYPE_CHECKING
-
 import pytest
 from allauth.socialaccount.models import SocialAccount
 from allauth.socialaccount.models import SocialLogin
 from django.contrib.auth.models import Group
+from django.test import RequestFactory
 
 from ticket_dashboard.users.adapters import SocialAccountAdapter
 from ticket_dashboard.users.models import User
-
-if TYPE_CHECKING:
-    from django.test import RequestFactory
 
 pytestmark = pytest.mark.django_db
 

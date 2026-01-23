@@ -1,5 +1,4 @@
 from http import HTTPStatus
-from typing import TYPE_CHECKING
 
 import pytest
 from django.conf import settings
@@ -10,6 +9,7 @@ from django.contrib.messages.middleware import MessageMiddleware
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.http import HttpRequest
 from django.http import HttpResponseRedirect
+from django.test import RequestFactory
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -25,9 +25,6 @@ from ticket_dashboard.users.views import DashboardView
 from ticket_dashboard.users.views import UserRedirectView
 from ticket_dashboard.users.views import UserUpdateView
 from ticket_dashboard.users.views import user_detail_view
-
-if TYPE_CHECKING:
-    from django.test import RequestFactory
 
 pytestmark = pytest.mark.django_db
 

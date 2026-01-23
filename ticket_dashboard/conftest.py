@@ -1,11 +1,7 @@
-from typing import TYPE_CHECKING
-
 import pytest
 
+from ticket_dashboard.users.models import User
 from ticket_dashboard.users.tests.factories import UserFactory
-
-if TYPE_CHECKING:
-    from ticket_dashboard.users.models import User
 
 
 @pytest.fixture(autouse=True)
