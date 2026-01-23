@@ -133,11 +133,11 @@ class TestDashboardView:
             is_active=True,
         )
 
-        # 2. Create Tickets in Database
+        # 2. Create Tasks in Database
         test_datetime = timezone.now()
         Ticket.objects.create(
             external_id="ZAM-1",
-            title="My Ticket",
+            title="My Task",
             status="open",
             service=service_config,
             group="Support",
@@ -148,7 +148,7 @@ class TestDashboardView:
         )
         Ticket.objects.create(
             external_id="ZAM-2",
-            title="Other Ticket",
+            title="Other Task",
             status="open",
             service=service_config,
             group="Support",
@@ -159,7 +159,7 @@ class TestDashboardView:
         )
         Ticket.objects.create(
             external_id="ZAM-3",
-            title="Unassigned Ticket",
+            title="Unassigned Task",
             status="open",
             service=service_config,
             group="Support",

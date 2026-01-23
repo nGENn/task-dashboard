@@ -315,7 +315,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             owner = t.owner
             owner_email = t.owner_email
 
-            # Check if this ticket is considered unassigned
+            # Check if this task is considered unassigned
             if (
                 not owner
                 or not owner_email
@@ -383,7 +383,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         active_states = ["open", "pending", "new"]
         context["default_views"] = [
             {
-                "name": "My Tickets",
+                "name": "My Tasks",
                 "params": {"owner": [user_email], "state": active_states},
                 "url": f"?owner={user_email}&state=open&state=pending&state=new",
             },

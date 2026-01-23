@@ -9,9 +9,9 @@
 * [x] origin equals subdomain
 * [x] set groups with openid groups
 * [x] rename origins in admin panel
-* [x] only my ticket option for groups (in addition to all and my + unassigned)
+* [x] only my task option for groups (in addition to all and my + unassigned)
 * [x] change date formatting
-* [x] fix/implement pipeline
+* [ ] fix/implement pipeline
 * [x] move away from docs/local/prod architecture, also for .env
 * [ ] change README
 * [ ] clean up/refactor

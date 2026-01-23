@@ -77,10 +77,10 @@ class ZammadService:
             return normalized_tickets  # noqa: TRY300
 
         except RequestException:
-            logger.exception("Error fetching Zammad tickets")
+            logger.exception("Error fetching Zammad tasks")
             return []
         except Exception:
-            logger.exception("Unexpected error fetching Zammad tickets")
+            logger.exception("Unexpected error fetching Zammad tasks")
             raise
 
     def _fetch_all_tickets(self):
@@ -90,7 +90,7 @@ class ZammadService:
         per_page = 100
         max_pages = 100
 
-        logger.debug("Fetching Zammad tickets (paginated): %s", url)
+        logger.debug("Fetching Zammad tasks (paginated): %s", url)
 
         while page <= max_pages:
             params = {
@@ -116,7 +116,7 @@ class ZammadService:
                 break
 
             raw_tickets.extend(page_tickets)
-            logger.debug("Page %d: Found %d tickets.", page, len(page_tickets))
+            logger.debug("Page %d: Found %d tasks.", page, len(page_tickets))
 
             if len(page_tickets) < per_page:
                 break
@@ -125,7 +125,7 @@ class ZammadService:
 
         if page > max_pages:
             logger.warning(
-                "Zammad fetch limit reached (%d tickets).",
+                "Zammad fetch limit reached (%d tasks).",
                 len(raw_tickets),
             )
         return raw_tickets

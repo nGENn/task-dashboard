@@ -37,8 +37,8 @@ class Migration(migrations.Migration):
                 ('django_group', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='ticket_permissions', to='auth.group')),
             ],
             options={
-                'verbose_name': 'Ticket Permission',
-                'verbose_name_plural': 'Ticket Permissions',
+                'verbose_name': 'Task Permission',
+                'verbose_name_plural': 'Task Permissions',
                 'unique_together': {('django_group', 'allowed_external_group')},
             },
         ),

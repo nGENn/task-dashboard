@@ -21,7 +21,7 @@ def setup_periodic_tasks(sender, **kwargs):
     Schedule.objects.get_or_create(
         func=func,
         defaults={
-            "name": "Fetch All Tickets",
+            "name": "Fetch All Tasks",
             "schedule_type": Schedule.MINUTES,
             "minutes": 5,
             "repeats": -1,

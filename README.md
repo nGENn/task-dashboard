@@ -1,6 +1,6 @@
-# Universal Ticket Dashboard
+# Universal Task Dashboard
 
-An internal operational dashboard aggregating tickets, issues, tasks, and risks from Zammad, GitLab, EspoCRM, OpenProject, and Eramba.
+An internal operational dashboard aggregating tasks, issues, tasks, and risks from Zammad, GitLab, EspoCRM, OpenProject, and Eramba.
 
 ## Bump Version
 
@@ -12,10 +12,10 @@ uv version --bump (major|minor|patch)
 
 The application uses a **"Fetch All, Filter Locally"** pattern to ensure speed and unified security rules:
 
-1. **Aggregation:** The backend uses global Admin/API Tokens to fetch **all** active tickets from every service.
+1. **Aggregation:** The backend uses global Admin/API Tokens to fetch **all** active tasks from every service.
 2. **Caching:** Results are cached in Redis for 5 minutes. Passing `?refresh=1` in the URL forces a cache bypass.
 3. **Security Gatekeeper:** Raw data never reaches the template. A Gatekeeper in `views.py` filters the cached list based on the user's **Django Group Permissions**.
-      * **Rule:** A user only sees a ticket if their group has explicit access to that Ticket's Origin/Group, OR if the ticket is assigned to their specific email address.
+      * **Rule:** A user only sees a task if their group has explicit access to that Task's Origin/Group, OR if the task is assigned to their specific email address.
 
 ### Environment Variables & Security
 
@@ -74,14 +74,14 @@ Services (Zammad, GitLab, etc.) are managed dynamically in the **Admin Panel** u
 
 Access control is decoupled from the services and managed via **Django Groups**.
 
-1. **Auto-Discovery:** Loading the dashboard triggers a scan of all fetched tickets. New groups (e.g., "Zammad - Support") are automatically added to **Admin \> Users \> External Groups**.
+1. **Auto-Discovery:** Loading the dashboard triggers a scan of all fetched tasks. New groups (e.g., "Zammad - Support") are automatically added to **Admin \> Users \> External Groups**.
 2. **Assignment:**
       * Go to **Admin \> Auth \> Groups**.
       * Edit an internal group (e.g., "Sales Team").
-      * Add a **Ticket Permission** entry inline.
+      * Add a **Task Permission** entry inline.
 3. **Access Levels:**
-      * **FULL:** View all tickets in that specific external group.
-      * **LIMITED:** View only tickets in that group that are **Unassigned** or assigned to the **current user**.
+      * **FULL:** View all tasks in that specific external group.
+      * **LIMITED:** View only tasks in that group that are **Unassigned** or assigned to the **current user**.
 
 ## Service Integration Details
 

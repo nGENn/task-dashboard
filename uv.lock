@@ -1447,7 +1447,7 @@ wheels = [
 ]
 
 [[package]]
-name = "ticket-dashboard"
+name = "task-dashboard"
 version = "0.1.20"
 source = { virtual = "." }
 dependencies = [

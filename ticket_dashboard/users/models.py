@@ -16,7 +16,7 @@ from .managers import UserManager
 
 class User(AbstractUser):
     """
-    Default custom user model for Ticket Dashboard.
+    Default custom user model for Task Dashboard.
     If adding fields that need to be filled at user signup,
     check forms.SignupForm and forms.SocialSignupForms accordingly.
     """
@@ -115,9 +115,9 @@ class TicketPermission(models.Model):
 
     # 1. Define the Choices
     ACCESS_CHOICES = [
-        ("FULL", "Full Access (See all tickets)"),
-        ("LIMITED", "Limited (Own tickets + Unassigned only)"),
-        ("OWN_ONLY", "Only own tickets"),
+        ("FULL", "Full Access (See all tasks)"),
+        ("LIMITED", "Limited (Own tasks + Unassigned only)"),
+        ("OWN_ONLY", "Only own tasks"),
     ]
 
     django_group = models.ForeignKey(
@@ -133,16 +133,16 @@ class TicketPermission(models.Model):
         choices=ACCESS_CHOICES,
         default="FULL",
         help_text=(
-            "FULL: View everything. LIMITED: View only unassigned tickets "
-            "or those assigned to the user. OWN_ONLY: View only tickets "
+            "FULL: View everything. LIMITED: View only unassigned tasks "
+            "or those assigned to the user. OWN_ONLY: View only tasks "
             "assigned to the user."
         ),
     )
 
     class Meta:
         unique_together = ("django_group", "allowed_external_group")
-        verbose_name = "Ticket Permission"
-        verbose_name_plural = "Ticket Permissions"
+        verbose_name = "Task Permission"
+        verbose_name_plural = "Task Permissions"
 
     def __str__(self):
         return (

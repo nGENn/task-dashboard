@@ -77,7 +77,7 @@ class Command(BaseCommand):
                 if role_id
                 else [2],  # Default to Agent if not found
                 "password": "password123",
-                # CRITICAL: Give access to the group so they can be assigned tickets!
+                # CRITICAL: Give access to the group so they can be assigned tasks!
                 "group_ids": {str(group_id): ["full"]},
             }
 
@@ -94,7 +94,7 @@ class Command(BaseCommand):
         cust_id = ensure_user("customer@demo.local", "Alice", "Customer", "Customer")
         agent_id = ensure_user("agent@demo.local", "Bob", "Agent", "Agent")
 
-        # 4. Create Tickets (Check Duplicates via List, not Search)
+        # 4. Create Tasks (Check Duplicates via List, not Search)
         tickets = [
             {
                 "title": "Printer on fire",
@@ -122,7 +122,7 @@ class Command(BaseCommand):
             },
         ]
 
-        # Fetch all existing tickets to check titles
+        # Fetch all existing tasks to check titles
         existing_tickets = client.get(f"{base_url}/api/v1/tickets").json()
         existing_titles = {t["title"] for t in existing_tickets}
 
@@ -140,7 +140,7 @@ class Command(BaseCommand):
                 "state": t["state"],
                 "article": {
                     "subject": t["title"],
-                    "body": "Seeded ticket body.",
+                    "body": "Seeded task body.",
                     "type": "note",
                     "internal": False,
                 },

@@ -24,7 +24,7 @@ SERVICE_CLASSES = {
 
 def fetch_all_tickets_task():
     """
-    Background task to fetch tickets from all active services and upsert them.
+    Background task to fetch tasks from all active services and upsert them.
     """
     active_configs = ServiceConfiguration.objects.filter(is_active=True)
     total_upserted = 0
@@ -41,7 +41,7 @@ def fetch_all_tickets_task():
                 continue
 
             logger.info(
-                "Fetching tickets for service: %s (%s)",
+                "Fetching tasks for service: %s (%s)",
                 config.name,
                 config.service_type,
             )
@@ -87,14 +87,14 @@ def fetch_all_tickets_task():
                 service_upsert_count += 1
 
             logger.info(
-                "Successfully upserted %s tickets for %s",
+                "Successfully upserted %s tasks for %s",
                 service_upsert_count,
                 config.name,
             )
             total_upserted += service_upsert_count
 
         except Exception:
-            logger.exception("Error fetching tickets for service %s", config.name)
+            logger.exception("Error fetching tasks for service %s", config.name)
 
-    logger.info("Total tickets upserted across all services: %s", total_upserted)
+    logger.info("Total tasks upserted across all services: %s", total_upserted)
     return total_upserted

@@ -6,7 +6,7 @@
       {# djlint:off H026 #}
       <input type="text"
              name="q"
-             placeholder="Search by Ticket ID, Title, or Customer..."
+             placeholder="Search by Task ID, Title, or Customer..."
              class="input input-bordered w-full pl-12"
              {% if request.GET.q %}value="{{ request.GET.q }}"{% endif %} />
       {# djlint:on #}
@@ -23,11 +23,11 @@
   </div>
 </form>
 <div role="tablist" class="tabs mb-2">
-  <!-- All Tickets -->
+  <!-- All Tasks -->
   {% with params=request.GET.urlencode %}
     <a role="tab"
        class="tab {% if not params %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
-       href="?">All Tickets</a>
+       href="?">All Tasks</a>
   {% endwith %}
   <!-- Default Views -->
   {% for view in default_views %}
@@ -75,7 +75,7 @@
       <input type="text"
              id="view_name"
              class="input input-bordered w-full"
-             placeholder="e.g. My High Priority Tickets" />
+             placeholder="e.g. My High Priority Tasks" />
     </div>
     <div class="modal-action">
       <form method="dialog">
