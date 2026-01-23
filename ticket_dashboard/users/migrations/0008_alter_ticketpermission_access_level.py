@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='ticketpermission',
             name='access_level',
-            field=models.CharField(choices=[('FULL', 'Full Access (See all tickets)'), ('LIMITED', 'Limited (Own tickets + Unassigned only)'), ('OWN_ONLY', 'Only own tickets')], default='FULL', help_text='FULL: View everything. LIMITED: View only unassigned tickets or those assigned to the user. OWN_ONLY: View only tickets assigned to the user.', max_length=10),
+            field=models.CharField(choices=[('FULL', 'Full Access (See all tasks)'), ('LIMITED', 'Limited (Own tasks + Unassigned only)'), ('OWN_ONLY', 'Only own tasks')], default='FULL', help_text='FULL: View everything. LIMITED: View only unassigned tasks or those assigned to the user. OWN_ONLY: View only tasks assigned to the user.', max_length=10),
         ),
     ]

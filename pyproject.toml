@@ -154,7 +154,7 @@ dev = [
 [project]
 name = "ticket_dashboard"
 version = "0.1.20"
-description = "Awsome Ticket Dashboard"
+description = "Awsome Task Dashboard"
 readme = "README.md"
 
 license = { text = "MIT" }

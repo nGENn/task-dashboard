@@ -3,7 +3,7 @@
 ## Features
 
 * [x] implement views toolbar
-* [ ] rename "Task Dashboard"
+* [x] rename "Task Dashboard"
 * [x] add due date
 * [x] whole row as link
 * [x] origin equals subdomain

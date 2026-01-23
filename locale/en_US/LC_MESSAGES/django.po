@@ -1,4 +1,4 @@
-# Translations for the Ticket Dashboard project
+# Translations for the Task Dashboard project
 # Copyright (C) 2025 Justus Jäger
 # Justus Jäger <jaeger@ngenn.net>, 2025.
 #
