@@ -28,6 +28,18 @@ pytest:
   image: docker:25.0
   services:
     - docker:dind
+  variables:
+    # General
+    USE_DOCKER: "yes"
+    IPYTHONDIR: "/app/.ipython"
+
+    # PostgreSQL (CI)
+    POSTGRES_HOST: "postgres"
+    POSTGRES_PORT: "5432"
+    POSTGRES_DB: "test_ticket_dashboard"
+    POSTGRES_USER: "ticket_dashboard"
+    POSTGRES_PASSWORD: ""
+    POSTGRES_HOST_AUTH_METHOD: "trust"
   before_script:
     - docker compose -f docker-compose.local.yml build
     # Ensure celerybeat does not crash due to non-existent tables
