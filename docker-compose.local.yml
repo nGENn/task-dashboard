@@ -65,7 +65,7 @@ services:
       context: .
       dockerfile: ./compose/local/django/Dockerfile
     volumes:
-      - ../:/app:z
+      - .:/app:z
       - /app/.venv
     env_file: .env
     command: uv run manage.py qcluster
