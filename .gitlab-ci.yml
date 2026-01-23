@@ -23,6 +23,20 @@ variables:
   ALLOWED_HOSTS: "localhost,127.0.0.1"
   USE_DOCKER: "yes"
 
+.default-scripts: &default-scripts
+  - |
+    if [ "$GCL" = "true" ]; then
+      echo "Detected gitlab-ci-local, falling back to host Docker socket"
+      export DOCKER_HOST=unix:///var/run/docker.sock
+    fi
+  # Create a temporary .env file for the root docker-compose.yml
+  - echo "POSTGRES_DB=$POSTGRES_DB" >> .env
+  - echo "POSTGRES_USER=$POSTGRES_USER" >> .env
+  - echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> .env
+  - echo "POSTGRES_HOST=$POSTGRES_HOST" >> .env
+  - echo "DJANGO_SETTINGS_MODULE=$DJANGO_SETTINGS_MODULE" >> .env
+  - echo "SECRET_KEY=$SECRET_KEY" >> .env
+
 # --- Lint Stage (Unchanged) ---
 precommit:
   stage: lint
@@ -49,20 +63,7 @@ pytest:
     DOCKER_TLS_CERTDIR: ""
     DOCKER_DRIVER: overlay2
   before_script:
-    - |
-      if [ "$GCL" = "true" ]; then
-        echo "Detected gitlab-ci-local, falling back to host Docker socket"
-        export DOCKER_HOST=unix:///var/run/docker.sock
-      fi
-    # 1. Create a temporary .env file for the root docker-compose.yml
-    #    (Compose will fail if 'env_file: .env' is missing)
-    - echo "POSTGRES_DB=$POSTGRES_DB" >> .env
-    - echo "POSTGRES_USER=$POSTGRES_USER" >> .env
-    - echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> .env
-    - echo "POSTGRES_HOST=$POSTGRES_HOST" >> .env
-    - echo "DJANGO_SETTINGS_MODULE=$DJANGO_SETTINGS_MODULE" >> .env
-    - echo "SECRET_KEY=$SECRET_KEY" >> .env
-
+    - *default-scripts
     # 2. Build and Start Postgres using the ROOT Compose file
     - docker compose build django
     - docker compose up -d postgres
