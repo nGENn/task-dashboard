@@ -153,7 +153,7 @@ dev = [
 
 [project]
 name = "ticket_dashboard"
-version = "0.1.20"
+version = "0.1.21"
 description = "Awsome Task Dashboard"
 readme = "README.md"
 
@@ -163,6 +163,7 @@ authors = [
 ]
 requires-python = "==3.13.*"
 dependencies = [
+    "django-extensions==4.1",
     "argon2-cffi==25.1.0",
     "crispy-bootstrap5==2025.6",
     "django==5.2.8",
