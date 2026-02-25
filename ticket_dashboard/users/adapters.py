@@ -86,7 +86,7 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         logger.info(
             "SSO pre_social_login: is_secure=%s, X-Forwarded-Proto=%s, provider=%s",
             request.is_secure(),
-            request.META.get("HTTP_X_FORWARDED_PROTO"),
+            request.headers.get("x-forwarded-proto"),
             sociallogin.account.provider,
         )
 

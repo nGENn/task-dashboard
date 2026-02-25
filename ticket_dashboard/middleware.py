@@ -18,8 +18,8 @@ class SSODebugMiddleware:
                 request.method,
                 request.path,
                 request.is_secure(),
-                request.META.get("HTTP_X_FORWARDED_PROTO"),
-                request.META.get("HTTP_HOST"),
+                request.headers.get("x-forwarded-proto"),
+                request.headers.get("host"),
                 request.session.session_key,
                 list(request.COOKIES.keys()),
             )
