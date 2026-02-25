@@ -1,7 +1,7 @@
 # ==============================================================================
 # Build Stage - Install dependencies
 # ==============================================================================
-FROM ghcr.io/astral-sh/uv:python3.13-alpine AS python-build-stage
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS python-build-stage
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -10,13 +10,11 @@ ENV UV_COMPILE_BYTECODE=1 \
 ARG APP_HOME=/app
 WORKDIR ${APP_HOME}
 
-# Install build dependencies for compiling C extensions (psycopg, argon2, etc.)
-RUN apk add --no-cache \
-    gcc \
-    musl-dev \
-    postgresql-dev \
+# Install build dependencies for C extensions (psycopg[c], argon2, etc.)
+RUN apt-get update && apt-get install --no-install-recommends -y \
+    build-essential \
     libpq-dev \
-    libffi-dev
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy only dependency files first (cached unless dependencies change)
 COPY pyproject.toml uv.lock ./
@@ -35,24 +33,22 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # ==============================================================================
 # Runtime Stage - Minimal production image
 # ==============================================================================
-FROM python:3.13-alpine AS python-run-stage
+FROM python:3.13-slim-bookworm AS python-run-stage
 
 ARG APP_HOME=/app
 WORKDIR ${APP_HOME}
 
 # Create non-root user
-RUN addgroup -S django \
-    && adduser -S -G django django
+RUN addgroup --system django \
+    && adduser --system --ingroup django django
 
 # Install only runtime dependencies
-RUN apk add --no-cache \
-    libpq \
-    postgresql-libs \
+RUN apt-get update && apt-get install --no-install-recommends -y \
+    libpq5 \
     gettext \
-    bash
-
-# Install wait-for-it (not in Alpine repos)
-ADD --chmod=755 https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh /usr/local/bin/wait-for-it
+    wait-for-it \
+    && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy scripts
 COPY --chmod=755 ./compose/production/django/entrypoint /entrypoint
@@ -85,6 +81,6 @@ RUN DATABASE_URL="" \
     python manage.py collectstatic --noinput
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:5000/ || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/')" || exit 1
 
 ENTRYPOINT ["/entrypoint"]
