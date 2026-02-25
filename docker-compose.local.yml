@@ -84,7 +84,10 @@ services:
     build:
       context: .
       dockerfile: ./compose/local/django/Dockerfile
-    command: python manage.py qcluster
+    volumes:
+      - .:/app:z
+      - /app/.venv
+    command: uv run manage.py qcluster
     depends_on:
       - postgres
     environment:
