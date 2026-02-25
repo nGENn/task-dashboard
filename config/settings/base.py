@@ -258,6 +258,10 @@ LOGGING = {
         },
     },
     "root": {"level": "INFO", "handlers": ["console"]},
+    "loggers": {
+        # TODO: Remove after SSO debugging is complete
+        "allauth": {"level": "DEBUG", "handlers": ["console"], "propagate": False},
+    },
 }
 
 REDIS_URL = env("REDIS_URL", default="redis://redis:6379/0")
