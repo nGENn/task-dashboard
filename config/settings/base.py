@@ -142,7 +142,6 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
-    "ticket_dashboard.middleware.SSODebugMiddleware",  # TODO: Remove after SSO debugging
 ]
 
 # STATIC

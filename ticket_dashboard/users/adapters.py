@@ -81,15 +81,6 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         Triggered before a social login is completed.
         Used to sync Keycloak groups to Django groups.
         """
-        # TODO: Remove after SSO debugging is complete
-        logger = logging.getLogger(__name__)
-        logger.info(
-            "SSO pre_social_login: is_secure=%s, X-Forwarded-Proto=%s, provider=%s",
-            request.is_secure(),
-            request.headers.get("x-forwarded-proto"),
-            sociallogin.account.provider,
-        )
-
         super().pre_social_login(request, sociallogin)
 
         # Sync groups if user already exists

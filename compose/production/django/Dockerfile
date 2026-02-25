@@ -1,22 +1,30 @@
-# ---- Build stage ----
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS python-build-stage
+# ==============================================================================
+# Build Stage - Install dependencies
+# ==============================================================================
+FROM ghcr.io/astral-sh/uv:python3.13-alpine AS python-build-stage
 
-ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=0
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=0
 
 ARG APP_HOME=/app
 WORKDIR ${APP_HOME}
 
-RUN apt-get update && apt-get install --no-install-recommends -y \
-  build-essential \
-  libpq-dev \
-  && rm -rf /var/lib/apt/lists/*
+# Install build dependencies for compiling C extensions (psycopg, argon2, etc.)
+RUN apk add --no-cache \
+    gcc \
+    musl-dev \
+    postgresql-dev \
+    libpq-dev \
+    libffi-dev
 
-# Install dependencies first (cached unless lock/pyproject change)
+# Copy only dependency files first (cached unless dependencies change)
+COPY pyproject.toml uv.lock ./
+
 RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
-    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --locked --no-install-project --no-dev
 
+# Copy source code
 COPY . ${APP_HOME}
 
 # Install the project itself
@@ -24,43 +32,59 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev
 
 
-# ---- Run stage ----
-FROM python:3.13-slim-bookworm AS python-run-stage
+# ==============================================================================
+# Runtime Stage - Minimal production image
+# ==============================================================================
+FROM python:3.13-alpine AS python-run-stage
 
 ARG APP_HOME=/app
 WORKDIR ${APP_HOME}
 
-RUN addgroup --system django \
-  && adduser --system --ingroup django django
+# Create non-root user
+RUN addgroup -S django \
+    && adduser -S -G django django
 
-RUN apt-get update && apt-get install --no-install-recommends -y \
-  libpq-dev \
-  gettext \
-  wait-for-it \
-  && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
-  && rm -rf /var/lib/apt/lists/*
+# Install only runtime dependencies
+RUN apk add --no-cache \
+    libpq \
+    postgresql-libs \
+    gettext \
+    bash
 
-# Copy scripts and set permissions in one layer
+# Install wait-for-it (not in Alpine repos)
+ADD --chmod=755 https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh /usr/local/bin/wait-for-it
+
+# Copy scripts
 COPY --chmod=755 ./compose/production/django/entrypoint /entrypoint
 COPY --chmod=755 ./compose/production/django/start /start
 
-# Copy the venv and application from the builder
+# Copy Python environment and application from build stage
 COPY --from=python-build-stage --chown=django:django ${APP_HOME} ${APP_HOME}
 
+# Create media directory
 RUN mkdir -p ${APP_HOME}/ticket_dashboard/media \
-  && chown django:django ${APP_HOME}
+    && chown -R django:django ${APP_HOME}
 
-ENV PATH="/app/.venv/bin:$PATH"
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
 USER django
 
-# Compile translations and collect static files at build time
+# Compile translations at build time
 RUN DATABASE_URL="" \
-  DJANGO_SETTINGS_MODULE="config.settings.test" \
-  python manage.py compilemessages
+    DJANGO_SETTINGS_MODULE="config.settings.test" \
+    python manage.py compilemessages
 
+# Collect static files with production settings (generates manifest)
 RUN DATABASE_URL="" \
-  DJANGO_SETTINGS_MODULE="config.settings.test" \
-  python manage.py collectstatic --noinput
+    DJANGO_SETTINGS_MODULE="config.settings.production" \
+    DJANGO_SECRET_KEY="build-only-not-real" \
+    DJANGO_ADMIN_URL="admin/" \
+    SENTRY_DSN="" \
+    python manage.py collectstatic --noinput
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:5000/ || exit 1
 
 ENTRYPOINT ["/entrypoint"]
