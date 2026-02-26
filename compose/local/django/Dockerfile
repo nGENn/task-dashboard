@@ -41,7 +41,8 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 RUN groupadd --gid 1000 dev-user \
   && useradd --uid 1000 --gid dev-user --shell /bin/bash --create-home dev-user \
   && echo dev-user ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/dev-user \
-  && chmod 0440 /etc/sudoers.d/dev-user
+  && chmod 0440 /etc/sudoers.d/dev-user \
+  && chown -R dev-user:dev-user ${APP_HOME}
 
 ENV PATH="/${APP_HOME}/.venv/bin:$PATH"
 ENV PYTHONPATH="${APP_HOME}/.venv/lib/python3.13/site-packages:$PYTHONPATH"

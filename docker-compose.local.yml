@@ -62,7 +62,6 @@ services:
     #   - .:/app:z
     ports:
       - '8000:8000'
-    command: /start
 
   postgres:
     build:
