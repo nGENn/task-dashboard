@@ -2,7 +2,8 @@
 {
     "name": "ticket_dashboard_dev",
     "dockerComposeFile": [
-        "../docker-compose.local.yml"
+        "../docker-compose.local.yml",
+        "../docker-compose.override.yml"
     ],
     "init": true,
     "mounts": [

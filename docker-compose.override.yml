@@ -1,0 +1,7 @@
+# Local development overrides — bind-mount source for live reloading.
+# Auto-loaded by `docker compose` when no explicit -f flags are given.
+# NOT used in CI (which explicitly passes -f docker-compose.local.yml).
+services:
+  django:
+    volumes:
+      - .:/app:z

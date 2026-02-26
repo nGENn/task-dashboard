@@ -58,7 +58,6 @@ services:
     depends_on:
       - postgres
     volumes:
-      - .:/app:z
       - /app/.venv
     ports:
       - '8000:8000'
