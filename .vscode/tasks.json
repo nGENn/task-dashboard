@@ -24,6 +24,17 @@
             }
         },
         {
+            "label": "Start Server (Debug)",
+            "type": "shell",
+            "command": "DJANGO_SETTINGS_MODULE=config.settings.debug uv run ./manage.py runserver 0.0.0.0:8000",
+            "group": "none",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
             "label": "Pre-commit (Staged)",
             "type": "shell",
             "command": "uv run pre-commit run --show-diff-on-failure --color=always",
