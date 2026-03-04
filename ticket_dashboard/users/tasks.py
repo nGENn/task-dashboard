@@ -8,6 +8,7 @@ from ticket_dashboard.services.gitlab import GitLabService
 from ticket_dashboard.services.openproject import OpenProjectService
 from ticket_dashboard.services.zammad import ZammadService
 
+from .models import ExternalGroup
 from .models import ServiceConfiguration
 from .models import Ticket
 
@@ -84,6 +85,15 @@ def fetch_all_tickets_task():
                         "due_date": due_date,
                     },
                 )
+
+                # Ensure ExternalGroup exists for RBAC management
+                group_name = ticket_dict.get("group")
+                if group_name:
+                    ExternalGroup.objects.update_or_create(
+                        origin=config.name,
+                        name=group_name,
+                    )
+
                 service_upsert_count += 1
 
             logger.info(

@@ -228,7 +228,7 @@ class EspoService:
         if s in ["new", "assigned", "pending", "not started", "in progress"]:
             return "open"
         if s in ["closed", "rejected", "merged", "completed"]:
-            return "resolved"
+            return "closed"
         return "pending"
 
     def _map_priority(self, priority_text):

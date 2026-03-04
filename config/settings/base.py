@@ -1,6 +1,7 @@
 # ruff: noqa: ERA001, E501
 """Base settings to build other settings files upon."""
 
+import logging
 from pathlib import Path
 
 import environ
@@ -15,6 +16,8 @@ READ_DOT_ENV_FILE = env.bool("DJANGO_READ_DOT_ENV_FILE", default=False)
 if READ_DOT_ENV_FILE:
     # OS environment variables take precedence over variables from .env
     env.read_env(str(BASE_DIR / ".env"))
+
+logger = logging.getLogger(__name__)
 
 # GENERAL
 # ------------------------------------------------------------------------------
@@ -297,6 +300,25 @@ SOCIALACCOUNT_FORMS = {"signup": "ticket_dashboard.users.forms.UserSocialSignupF
 
 # Your stuff...
 # ------------------------------------------------------------------------------
+
+# Check if Keycloak set
+_keycloak_url = env("KEYCLOAK_SERVER_URL", default="")
+_keycloak_id = env("KEYCLOAK_CLIENT_ID", default="")
+_keycloak_secret = env("KEYCLOAK_CLIENT_SECRET", default="")
+
+
+if _keycloak_url == "":
+    logger.warning("KEYCLOAK_SERVER_URL is not set. Keycloak OIDC login will not work.")
+
+if _keycloak_id == "":
+    logger.warning("KEYCLOAK_CLIENT_ID is not set. Keycloak OIDC login will not work.")
+
+if _keycloak_secret == "":
+    logger.warning(
+        "KEYCLOAK_CLIENT_SECRET is not set. Keycloak OIDC login will not work."
+    )
+
+# Keycloak / OIDC Configuration
 INSTALLED_APPS.append("allauth.socialaccount.providers.openid_connect")
 
 # 2. Keycloak / OIDC Configuration

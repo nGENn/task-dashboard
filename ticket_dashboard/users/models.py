@@ -74,6 +74,17 @@ class ServiceConfiguration(models.Model):
         null=True,
         help_text="API Token or Secret for authentication.",
     )
+    api_username = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Username for Basic Authentication (e.g. Eramba)",
+    )
+    api_password = EncryptedCharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Password for Basic Authentication (e.g. Eramba)",
+    )
     is_active = models.BooleanField(
         default=True,
         help_text="Uncheck to hide this service from the dashboard completely.",

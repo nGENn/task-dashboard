@@ -279,3 +279,8 @@ ticket_dashboard/media/
 .agent/
 .ruff_cache/
 .github/
+
+
+# Tailwind Binaries
+tailwindcss
+**/static/css/tailwindcss

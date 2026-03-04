@@ -170,7 +170,7 @@ class ZammadService:
         if state_name in ["new", "open"]:
             return "open"
         if state_name in ["closed", "merged"]:
-            return "resolved"
+            return "closed"
         return "pending"
 
     def _map_priority(self, zammad_priority):
