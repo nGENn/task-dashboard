@@ -118,21 +118,25 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 t_owner_email = t.owner_email
                 t_owner = t.owner
 
-                if t_owner_email and t_owner_email == user_email:
-                    allowed_tickets.append(t)
-                    continue
-
+                # RBAC: Only allow access if the user has a permission for this ticket's (Origin, Group)
                 key = f"{t_origin}|{t_group}"
                 if key in perm_map:
                     level = perm_map[key]
                     if level == "FULL":
                         allowed_tickets.append(t)
                     elif level == "LIMITED":
-                        owner = str(t_owner)
-                        if owner in ["Unassigned", "-", "", "None"] or t_owner is None:
+                        # Own tasks OR Unassigned
+                        is_owner = t_owner_email and t_owner_email == user_email
+                        is_unassigned = (
+                            str(t_owner) in ["Unassigned", "-", "", "None"]
+                            or t_owner is None
+                        )
+                        if is_owner or is_unassigned:
                             allowed_tickets.append(t)
                     elif level == "OWN_ONLY":
-                        pass
+                        # Only own tasks
+                        if t_owner_email and t_owner_email == user_email:
+                            allowed_tickets.append(t)
 
         # =========================================================
         # 6. UI FILTERING & SORTING
