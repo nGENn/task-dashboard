@@ -1,5 +1,6 @@
 import json
 import logging
+import datetime
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -277,6 +278,8 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
             filtered_tickets.sort(key=sort_key, reverse=reverse)
         else:
+            # Fallback date for sorting (aware min date)
+            min_date = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
 
             def priority_sort(t):
                 if t.owner_email == user_email:
@@ -286,7 +289,10 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                     return 1
                 return 2
 
-            filtered_tickets.sort(key=lambda x: x.updated_at or "", reverse=True)
+            filtered_tickets.sort(
+                key=lambda x: x.updated_at or min_date,
+                reverse=True,
+            )
             filtered_tickets.sort(key=priority_sort)
 
         # 7. GENERATE OPTIONS (FIXED: Extract Emails for Owners)

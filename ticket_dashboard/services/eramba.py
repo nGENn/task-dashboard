@@ -1,3 +1,4 @@
+import concurrent.futures
 import logging
 from datetime import UTC
 from datetime import datetime
@@ -7,245 +8,355 @@ import requests
 from django.core.cache import cache
 from django.utils import timezone as django_timezone
 from requests import RequestException
+from requests.auth import HTTPBasicAuth
 
 logger = logging.getLogger(__name__)
 
+ASSET_TYPE_MAP = {
+    2: "Backup System",
+    3: "Mail System",
+    4: "ERP-Software",
+    5: "CRM",
+    6: "Network Devices",
+    7: "Firewalls",
+    8: "Server",
+    9: "Office",
+    10: "Apple IOS Devices",
+    11: "PC Windows",
+    12: "PC MacOS",
+    13: "Server Room",
+    14: "IoT Devices",
+    15: "Logs",
+    16: "Metrics",
+    17: "Analytics data website",
+    18: "Web Services",
+    19: "Asset data",
+    20: "CRM Data",
+    21: "Knowledge base data",
+    22: "Customer oriented content",
+    23: "Commercial data",
+    24: "Marketing data",
+    25: "Password/User-identity data",
+    26: "Calendar data",
+    27: "Git Server",
+    28: "Container registry",
+    29: "CI/CD Server",
+    30: "Source Code",
+    31: "Configuration data",
+    32: "GRC data",
+    33: "Project management data",
+    34: "Reverse Proxy",
+    35: "Certificates",
+    36: "Sichkon",
+    37: "Ticket data",
+    38: "Employee data",
+    39: "Security Keys",
+    40: "Storage Media",
+}
+
 
 class ErambaService:
+    POSSIBLE_WRAPPERS = {
+        "Item",
+        "SecurityIncident",
+        "SecurityIncidents",
+        "Project",
+        "Projects",
+        "SecurityServiceAudit",
+        "SecurityServiceAudits",
+        "SecurityPolicyReview",
+        "SecurityPolicyReviews",
+        "AssetReview",
+        "AssetReviews",
+        "RiskReview",
+        "RiskReviews",
+        "ThirdPartyRiskReview",
+        "ThirdPartyRiskReviews",
+        "BusinessContinuityReview",
+        "BusinessContinuityReviews",
+        "ProjectAchievement",
+        "ProjectAchievements",
+    }
+
     def __init__(self, config):
         self.config = config
-        self.base_url = config.api_url
-        self.api_key = config.api_token
-        # Eramba typically uses an 'ApiKey' header
+        self.base_url = config.api_url.rstrip("/")
+        self.username = config.api_username
+        self.password = config.api_password
+        self.auth = (
+            HTTPBasicAuth(self.username, self.password)
+            if self.username and self.password
+            else None
+        )
         self.headers = {
-            "ApiKey": self.api_key,
             "Accept": "application/json",
             "Content-Type": "application/json",
         }
 
     def check_health(self):
         start = django_timezone.now()
-
-        if not self.api_key:
+        if not self.auth:
             return {
                 "name": self.config.name,
                 "status": "auth_missing",
                 "latency": 0,
-                "error": "Missing API Key",
+                "error": "Missing Username or Password",
             }
 
         try:
-            # Ping settings or simple endpoint to verify access
-            # /settings/index.json is usually lightweight
+            # Use the lightest endpoint for health check
             response = requests.get(
-                f"{self.base_url}/settings/index.json",
+                f"{self.base_url}/api/security-incidents/index",
                 headers=self.headers,
-                timeout=5,
+                auth=self.auth,
+                params={"limit": 1},
+                timeout=10,
             )
             response.raise_for_status()
-
-            latency = int(
-                (django_timezone.now() - start).total_seconds() * 1000,
-            )
-            return {  # noqa: TRY300
+            latency = int((django_timezone.now() - start).total_seconds() * 1000)
+            return {
                 "name": self.config.name,
                 "status": "online",
                 "latency": latency,
                 "error": None,
             }
-
-        except requests.HTTPError as e:
-            logger.warning("%s Auth Failed: %s", self.config.name, e)
-            return {
-                "name": self.config.name,
-                "status": "auth_error",
-                "latency": 0,
-                "error": str(e),
-            }
-        except Exception:
-            logger.exception("%s Unreachable", self.config.name)
+        except RequestException as e:
+            logger.warning("Eramba health check failed for '%s': %s", self.config.name, e)
             return {
                 "name": self.config.name,
                 "status": "offline",
                 "latency": 0,
-                "error": "Unreachable",
+                "error": str(e),
             }
 
     def get_tickets(self, *, force_refresh=False):
-        """
-        Fetches Security Incidents, Security Operations, and Notifications.
-        """
         cache_key = f"eramba_{self.config.id}_active_items_cache"
-
         if not force_refresh:
             cached_data = cache.get(cache_key)
             if cached_data:
                 return cached_data
 
-        if not self.api_key:
+        if not self.auth:
             return []
 
-        normalized_tickets = []
+        modules_to_fetch = [
+            {
+                "module_api_path": "api/security-incidents",
+                "model_class": "SecurityIncidents",
+                "group_label": "Incident",
+                "web_path": "security-incidents",
+            },
+            {
+                "module_api_path": "api/projects",
+                "model_class": "Projects",
+                "group_label": "Project",
+                "web_path": "projects",
+            },
+            {
+                "module_api_path": "api/project-achievements",
+                "model_class": "ProjectAchievements",
+                "group_label": "Achievement",
+                "web_path": "project-achievements",
+            },
+        ]
 
-        try:
-            # 1. Security Incidents (Existing)
-            self._fetch_module(
-                "security_incidents",
-                "Incident",
-                normalized_tickets,
-            )
+        all_normalized_tickets = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            future_to_module = {
+                executor.submit(self._fetch_module, **module): module
+                for module in modules_to_fetch
+            }
+            for future in concurrent.futures.as_completed(future_to_module):
+                try:
+                    module_tickets = future.result()
+                    all_normalized_tickets.extend(module_tickets)
+                except Exception:
+                    module_name = future_to_module[future]["group_label"]
+                    logger.exception("Failed to fetch Eramba module: %s", module_name)
 
-            # 2. Security Operations Projects (Manager Request)
-            # Endpoint: /security_operations/index.json
-            self._fetch_module(
-                "security_operations",
-                "SecOps",
-                normalized_tickets,
-            )
+        cache.set(cache_key, all_normalized_tickets, timeout=300)
+        return all_normalized_tickets
 
-            # 3. Notifications (Manager Request)
-            # "Notifications" in Eramba are often specific warnings.
-            # We assume a 'notifications' endpoint exists or
-            # map 'warning' items.
-            # If this endpoint fails (404), the helper will safely log it
-            # and continue.
-            self._fetch_module(
-                "notifications",
-                "Notification",
-                normalized_tickets,
-            )
-
-            cache.set(cache_key, normalized_tickets, timeout=300)
-            return normalized_tickets  # noqa: TRY300
-
-        except RequestException:
-            logger.exception("Error fetching Eramba data")
-            return []
-
-    def _fetch_module(self, module_slug, label, target_list):
-        """
-        Generic helper for Eramba modules.
-        module_slug: e.g. 'security_operations'
-        label: e.g. 'SecOps' (Used for ID and Group)
-        """
+    def _fetch_module(self, module_api_path, model_class, group_label, web_path):
+        normalized_list = []
         try:
             page = 1
             limit = 100
-            max_pages = 100
-            total_fetched = 0
+            max_pages = 20
 
             while page <= max_pages:
-                url = f"{self.base_url}/{module_slug}/index.json"
-                params = {
-                    "page": page,
-                    "limit": limit,
-                }
+                url = f"{self.base_url}/{module_api_path}/index"
+                logger.debug("Fetching Eramba module: %s (Page %d)", url, page)
                 response = requests.get(
                     url,
                     headers=self.headers,
-                    params=params,
-                    timeout=10,
+                    auth=self.auth,
+                    params={"page": page, "limit": limit},
+                    timeout=30,
                 )
 
-                # If module doesn't exist or permissions denied, skip it
                 if response.status_code != HTTPStatus.OK:
-                    return
-
-                data = response.json()
-                raw_list = data.get("items", []) if isinstance(data, dict) else data
-
-                if not raw_list:
-                    break
-
-                for entry in raw_list:
-                    # Eramba objects are dynamically keyed,
-                    # e.g. the key is usually 'SecurityOperation'
-                    keys = list(entry.keys())
-                    if not keys:
-                        continue
-
-                    # Heuristic: Grab the first key (e.g. 'SecurityOperation')
-                    item_key = keys[0]
-                    item = entry[item_key]
-
-                    # Check status (Skip closed)
-                    status_raw = str(item.get("status", "")).lower()
-                    if "close" in status_raw or "completed" in status_raw:
-                        continue
-
-                    # ID formatting: ERA-SEC-123
-                    short_label = label[:3].upper()
-
-                    target_list.append(
-                        {
-                            "id": f"ERA-{short_label}-{item.get('id')}",
-                            "title": item.get("title")
-                            or item.get("name")
-                            or f"{label} #{item.get('id')}",
-                            "status": "open",
-                            # Eramba priority mapping varies widely per module
-                            "priority": "Medium",
-                            "origin": self.config.name,
-                            "customer": "Internal",
-                            "group": label,
-                            "owner": "GRC Team",
-                            "created_at": self._format_date(
-                                item.get("created"),
-                            ),
-                            "updated_at": self._format_date(
-                                item.get("modified"),
-                            ),
-                            "due_date": self._format_date(
-                                item.get("deadline") or item.get("planned_end"),
-                            ),
-                            "url": (
-                                f"{self.base_url}/{module_slug}/view/{item.get('id')}"
-                            ),
-                        },
+                    logger.warning(
+                        "Eramba module %s returned %s. URL: %s",
+                        module_api_path,
+                        response.status_code,
+                        url,
                     )
-
-                total_fetched += len(raw_list)
-
-                if len(raw_list) < limit:
                     break
 
+                try:
+                    data = response.json()
+                except ValueError:
+                    logger.error(
+                        "Eramba module %s returned invalid JSON. URL: %s",
+                        module_api_path,
+                        url,
+                    )
+                    break
+
+                items = self._extract_items(data)
+                if not items:
+                    break
+
+                for entry in items:
+                    parsed = self._parse_item(entry, model_class, group_label, web_path)
+                    if parsed:
+                        normalized_list.append(parsed)
+
+                if len(items) < limit:
+                    break
                 page += 1
-
-            if page > max_pages:
-                logger.warning(
-                    "Eramba %s fetch limit reached (%d items). "
-                    "Some older items may not be visible.",
-                    module_slug,
-                    total_fetched,
-                )
-
         except RequestException as e:
-            logger.warning(
-                "Failed to fetch Eramba module '%s': %s",
-                module_slug,
-                e,
+            logger.warning("Network error fetching Eramba module '%s': %s", module_api_path, e)
+
+        return normalized_list
+
+    def _extract_items(self, data):
+        if isinstance(data, list):
+            return data
+        if isinstance(data, dict):
+            if "data" in data and isinstance(data["data"], list):
+                return data["data"]
+            if "items" in data and isinstance(data["items"], list):
+                return data["items"]
+        return []
+
+    def _parse_item(self, entry, model_class, group_label, web_path):
+        if not isinstance(entry, dict):
+            return None
+
+        # Unwrap common Eramba response patterns
+        item = entry
+        keys = list(entry.keys())
+        if (
+            len(keys) == 1
+            and (keys[0] == model_class or keys[0] in self.POSSIBLE_WRAPPERS)
+            and isinstance(entry[keys[0]], dict)
+        ):
+            item = entry[keys[0]]
+
+        if "id" not in item:
+            item = entry if "id" in entry else None
+            if not item:
+                return None
+
+        # Resolve title with module-specific fallbacks
+        title = None
+        if "AssetReview" in model_class:
+            fk = item.get("foreign_key")
+            if isinstance(fk, int):
+                title = ASSET_TYPE_MAP.get(fk)
+
+        if not title:
+            title = (
+                item.get("title")
+                or item.get("name")
+                or f"{group_label} #{item.get('id')}"
             )
 
-    def _map_priority(self, classification):
-        # Eramba classification is often a string like "High", "Critical", etc.
-        s = str(classification).lower()
-        if "critical" in s:
-            return "Critical"
-        if "high" in s:
-            return "High"
-        if "low" in s:
-            return "Low"
+        view_url = f"{self.base_url}/{web_path}/view/{model_class}/{item.get('id')}"
+
+        return {
+            "id": f"ERA-{group_label[:3].upper()}-{item.get('id')}",
+            "title": str(title)[:250], # Ensure within DB limits
+            "status": self._determine_status(item),
+            "priority": self._determine_priority(item),
+            "origin": self.config.name,
+            "customer": "Internal",
+            "group": group_label,
+            "owner": self._parse_owners(item.get("owners", []))[:250],
+            "created_at": self._format_date(
+                item.get("created") or item.get("open_date") or item.get("start")
+            ),
+            "updated_at": self._format_date(item.get("modified")),
+            "due_date": self._format_date(
+                # Prioritize planned_date for reviews
+                item.get("planned_date")
+                or item.get("deadline")
+                or item.get("end")
+                or item.get("planned_end")
+            ),
+            "url": view_url[:500],
+        }
+
+    def _determine_status(self, item):
+        if item.get("closure_date") or item.get("actual_date"):
+            return "closed"
+
+        status_raw = str(item.get("status", "")).lower()
+        if any(x in status_raw for x in ["close", "completed"]):
+            return "closed"
+
+        # Project status: 1=Planned, 2=Ongoing, 3=Done
+        pid = item.get("project_status_id")
+        if pid == 3: return "closed"
+        if pid == 1: return "pending"
+        if pid == 2: return "open"
+
+        if any(x in status_raw for x in ["pending", "plan"]):
+            return "pending"
+
+        return "open"
+
+    def _determine_priority(self, item):
+        # Eramba uses custom fields for priority often
+        custom_prio = item.get("custom_field_9")
+        if isinstance(custom_prio, dict) and custom_prio.get("value"):
+            return str(custom_prio["value"]).capitalize()
         return "Medium"
+
+    def _parse_owners(self, owners_field):
+        if not isinstance(owners_field, list) or not owners_field:
+            return "GRC Team"
+
+        names = []
+        for o in owners_field:
+            if isinstance(o, dict) and o.get("user"):
+                u = o["user"]
+                if isinstance(u, dict):
+                    names.append(u.get("email") or f"{u.get('name', '')} {u.get('surname', '')}".strip())
+                else:
+                    names.append(str(u))
+            else:
+                names.append(str(o))
+
+        return ", ".join(filter(None, names)) or "GRC Team"
 
     def _format_date(self, date_str):
         if not date_str:
             return ""
-        try:
-            # Eramba often uses "YYYY-MM-DD HH:MM:SS"
-            dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S").replace(
-                tzinfo=UTC,
-            )
-            # Convert to ISO format for the dashboard
-            return dt.isoformat()
-        except ValueError:
-            return date_str
+
+        if isinstance(date_str, str) and "T" in date_str:
+            try:
+                return datetime.fromisoformat(date_str).isoformat()
+            except ValueError:
+                pass
+
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+            try:
+                dt = datetime.strptime(str(date_str), fmt).replace(tzinfo=UTC)
+                return dt.isoformat()
+            except (ValueError, TypeError):
+                continue
+
+        return str(date_str)

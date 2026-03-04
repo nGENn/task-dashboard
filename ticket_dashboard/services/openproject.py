@@ -211,7 +211,7 @@ class OpenProjectService:
         if any(x in s for x in open_keywords):
             return "open"
         if any(x in s for x in ["closed", "done", "resolved", "reject"]):
-            return "resolved"
+            return "closed"
         return "pending"
 
     def _map_priority(self, priority_text):

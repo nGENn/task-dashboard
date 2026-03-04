@@ -72,10 +72,13 @@ class ServiceConfigurationForm(forms.ModelForm):
             "service_type",
             "api_url",
             "api_token",
+            "api_username",
+            "api_password",
             "is_active",
         ]
         widgets = {
             "api_token": forms.PasswordInput(render_value=True),
+            "api_password": forms.PasswordInput(render_value=True),
         }
 
 
@@ -102,6 +105,8 @@ class ServiceConfigurationAdmin(admin.ModelAdmin):
                 "fields": (
                     "api_url",
                     "api_token",
+                    "api_username",
+                    "api_password",
                 ),
             },
         ),
