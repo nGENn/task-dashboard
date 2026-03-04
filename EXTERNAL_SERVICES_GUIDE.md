@@ -31,8 +31,8 @@ Eramba uses Basic Authentication for API access.
 
 ### How to configure
 1. **Create an API User:** Log in as admin and navigate to **Settings** > **Users Management** > **Users**. Create a user (e.g., `api-dashboard`).
-2. **Enable REST APIs:** In the user configuration, ensure the **"Rest APIs"** checkbox is **enabled**. 
-3. **Grant Access:** Navigate to **Settings** > **Users Management** > **Access Control**. 
+2. **Enable REST APIs:** In the user configuration, ensure the **"Rest APIs"** checkbox is **enabled**.
+3. **Grant Access:** Navigate to **Settings** > **Users Management** > **Access Control**.
 4. Assign the user (or its group) **Read-only** permissions for:
    - `Security Incidents`
    - `Projects`
@@ -60,7 +60,7 @@ Zammad uses Personal Access Tokens.
 
 ### How to configure
 1. **Create an API User:** Create a dedicated agent user (e.g., `api-dashboard@example.com`).
-2. **Grant Global Access:** 
+2. **Grant Global Access:**
    - Ensure the user has the **Agent** role.
    - Under **Permissions**, ensure the user has **Read** access to all relevant **Groups**. In Zammad, an agent needs explicit access to groups to see their tickets.
 3. **Log in as the API User**.
@@ -75,8 +75,8 @@ OpenProject uses API Keys associated with a user account.
 
 ### Recommended: Global View Permissions
 1. **Create an API User:** Create a dedicated user (e.g., `api-dashboard`).
-2. **Global Access:** 
-   - Add the user to projects as a "Viewer". 
+2. **Global Access:**
+   - Add the user to projects as a "Viewer".
    - Alternatively, if you have many projects, you can use a "Global Role" (if supported by your version) or ensure the user is added to a group that has read access to all projects.
 3. **Log in as the API User**.
 4. Navigate to **My account** > **Access Token**.
