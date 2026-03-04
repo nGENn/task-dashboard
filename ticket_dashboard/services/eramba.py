@@ -113,20 +113,23 @@ class ErambaService:
                 timeout=10,
             )
             response.raise_for_status()
+        except RequestException as e:
+            logger.warning(
+                "Eramba health check failed for '%s': %s", self.config.name, e
+            )
+            return {
+                "name": self.config.name,
+                "status": "offline",
+                "latency": 0,
+                "error": str(e),
+            }
+        else:
             latency = int((django_timezone.now() - start).total_seconds() * 1000)
             return {
                 "name": self.config.name,
                 "status": "online",
                 "latency": latency,
                 "error": None,
-            }
-        except RequestException as e:
-            logger.warning("Eramba health check failed for '%s': %s", self.config.name, e)
-            return {
-                "name": self.config.name,
-                "status": "offline",
-                "latency": 0,
-                "error": str(e),
             }
 
     def get_tickets(self, *, force_refresh=False):
@@ -207,7 +210,7 @@ class ErambaService:
                 try:
                     data = response.json()
                 except ValueError:
-                    logger.error(
+                    logger.exception(
                         "Eramba module %s returned invalid JSON. URL: %s",
                         module_api_path,
                         url,
@@ -227,7 +230,9 @@ class ErambaService:
                     break
                 page += 1
         except RequestException as e:
-            logger.warning("Network error fetching Eramba module '%s': %s", module_api_path, e)
+            logger.warning(
+                "Network error fetching Eramba module '%s': %s", module_api_path, e
+            )
 
         return normalized_list
 
@@ -278,7 +283,7 @@ class ErambaService:
 
         return {
             "id": f"ERA-{group_label[:3].upper()}-{item.get('id')}",
-            "title": str(title)[:250], # Ensure within DB limits
+            "title": str(title)[:250],  # Ensure within DB limits
             "status": self._determine_status(item),
             "priority": self._determine_priority(item),
             "origin": self.config.name,
@@ -300,20 +305,22 @@ class ErambaService:
         }
 
     def _determine_status(self, item):
-        if item.get("closure_date") or item.get("actual_date"):
-            return "closed"
-
         status_raw = str(item.get("status", "")).lower()
-        if any(x in status_raw for x in ["close", "completed"]):
-            return "closed"
+        pid = item.get("project_status_id")
 
         # Project status: 1=Planned, 2=Ongoing, 3=Done
-        pid = item.get("project_status_id")
-        if pid == 3: return "closed"
-        if pid == 1: return "pending"
-        if pid == 2: return "open"
+        status_done = 3
+        status_planned = 1
 
-        if any(x in status_raw for x in ["pending", "plan"]):
+        if (
+            item.get("closure_date")
+            or item.get("actual_date")
+            or any(x in status_raw for x in ["close", "completed"])
+            or pid == status_done
+        ):
+            return "closed"
+
+        if pid == status_planned or any(x in status_raw for x in ["pending", "plan"]):
             return "pending"
 
         return "open"
@@ -334,7 +341,9 @@ class ErambaService:
             if isinstance(o, dict) and o.get("user"):
                 u = o["user"]
                 if isinstance(u, dict):
-                    names.append(u.get("email") or f"{u.get('name', '')} {u.get('surname', '')}".strip())
+                    email = u.get("email")
+                    full_name = f"{u.get('name', '')} {u.get('surname', '')}".strip()
+                    names.append(email or full_name)
                 else:
                     names.append(str(u))
             else:

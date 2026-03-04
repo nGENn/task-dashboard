@@ -306,9 +306,6 @@ _keycloak_url = env("KEYCLOAK_SERVER_URL", default="")
 _keycloak_id = env("KEYCLOAK_CLIENT_ID", default="")
 _keycloak_secret = env("KEYCLOAK_CLIENT_SECRET", default="")
 
-print(f"DEBUG: KEYCLOAK_SERVER_URL: '{_keycloak_url}'")
-print(f"DEBUG: KEYCLOAK_CLIENT_ID: '{_keycloak_id}'")
-print(f"DEBUG: KEYCLOAK_CLIENT_SECRET: '{'********' if _keycloak_secret else ''}'")
 
 if _keycloak_url == "":
     logger.warning("KEYCLOAK_SERVER_URL is not set. Keycloak OIDC login will not work.")

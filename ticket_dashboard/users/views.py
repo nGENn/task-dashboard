@@ -1,6 +1,6 @@
+import datetime
 import json
 import logging
-import datetime
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -279,7 +279,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             filtered_tickets.sort(key=sort_key, reverse=reverse)
         else:
             # Fallback date for sorting (aware min date)
-            min_date = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+            min_date = datetime.datetime.min.replace(tzinfo=datetime.UTC)
 
             def priority_sort(t):
                 if t.owner_email == user_email:
