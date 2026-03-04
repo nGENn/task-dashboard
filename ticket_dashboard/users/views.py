@@ -118,7 +118,8 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 t_owner_email = t.owner_email
                 t_owner = t.owner
 
-                # RBAC: Only allow access if the user has a permission for this ticket's (Origin, Group)
+                # RBAC: Only allow access if the user has a permission for this
+                # ticket's (Origin, Group)
                 key = f"{t_origin}|{t_group}"
                 if key in perm_map:
                     level = perm_map[key]
