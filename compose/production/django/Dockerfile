@@ -1,4 +1,22 @@
 
+# CSS build stage
+FROM debian:bookworm-slim AS css-build-stage
+
+WORKDIR /app
+
+# Install dependencies for downloading and running the standalone binary
+RUN apt-get update && apt-get install -y curl bash ca-certificates && rm -rf /var/lib/apt/lists/*
+
+# Copy CSS source and relevant templates for Tailwind to scan
+COPY ./ticket_dashboard/static/css /app/ticket_dashboard/static/css
+COPY ./ticket_dashboard/templates /app/ticket_dashboard/templates
+
+# Download Tailwind standalone binary and build the CSS
+# Using the command provided by the user
+RUN cd ticket_dashboard/static/css && \
+    curl -sL daisyui.com/fast | bash && \
+    ./tailwindcss -i input.css -o output.css --minify
+
 # define an alias for the specific python version used in this file.
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS python-build-stage
 
@@ -63,6 +81,10 @@ RUN chmod +x /start
 
 # Copy the application from the builder
 COPY --from=python-build-stage --chown=django:django ${APP_HOME} ${APP_HOME}
+
+# Copy the compiled CSS from the css-build-stage
+COPY --from=css-build-stage --chown=django:django /app/ticket_dashboard/static/css/output.css ${APP_HOME}/ticket_dashboard/static/css/output.css
+
 # explicitly create the media folder before changing ownership below
 RUN mkdir -p ${APP_HOME}/ticket_dashboard/media
 

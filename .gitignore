@@ -52,6 +52,7 @@ coverage.xml
 
 # Django stuff:
 staticfiles/
+ticket_dashboard/static/css/output.css
 
 # Sphinx documentation
 docs/_build/

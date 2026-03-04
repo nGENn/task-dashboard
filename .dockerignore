@@ -11,3 +11,9 @@ venv
 .venv
 .git
 .envs/
+
+# CSS Source Files
+ticket_dashboard/static/css/input.css
+ticket_dashboard/static/css/daisyui.mjs
+ticket_dashboard/static/css/daisyui-theme.mjs
+ticket_dashboard/static/css/tailwindcss
