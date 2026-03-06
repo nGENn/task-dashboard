@@ -2,6 +2,7 @@ import datetime
 import json
 import logging
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
@@ -25,6 +26,8 @@ from ticket_dashboard.users.models import ServiceConfiguration
 from ticket_dashboard.users.models import Ticket
 from ticket_dashboard.users.models import TicketPermission
 from ticket_dashboard.users.models import User
+from django_q.tasks import async_task
+
 from ticket_dashboard.users.tasks import fetch_all_tickets_task
 
 logger = logging.getLogger(__name__)
@@ -72,7 +75,13 @@ def force_refresh_view(request):
     Triggers a fresh fetch from all services.
     Used by the "Force Refresh" button.
     """
-    fetch_all_tickets_task()
+    # Trigger background task
+    async_task("ticket_dashboard.users.tasks.fetch_all_tickets_task")
+
+    messages.info(
+        request,
+        _("Ticket refresh has been started in the background. Please wait a moment."),
+    )
 
     # Clear health check cache to force fresh status as well
     active_configs = ServiceConfiguration.objects.filter(is_active=True)

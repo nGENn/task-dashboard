@@ -73,3 +73,10 @@ INSTALLED_APPS += ["django_extensions"]
 
 # Force runserver_plus to always bind to 0.0.0.0:8000 by default
 RUNSERVERPLUS_SERVER_ADDRESS_PORT = "0.0.0.0:8000"
+
+# Django-Q Local Development
+# ------------------------------------------------------------------------------
+# If you don't want to run 'python manage.py qcluster' locally,
+# you can uncomment the following line to run tasks synchronously.
+# WARNING: This will cause the server to block (freeze) during the fetch.
+# Q_CLUSTER = {**Q_CLUSTER, "sync": True}  # noqa: F405

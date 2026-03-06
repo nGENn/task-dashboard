@@ -57,10 +57,10 @@
             }
         },
         {
-            "label": "Run Tests",
+            "label": "Start QCluster",
             "type": "shell",
-            "command": "uv run pytest",
-            "group": "test",
+            "command": "uv run manage.py qcluster",
+            "group": "none",
             "presentation": {
                 "reveal": "always",
                 "panel": "new",

@@ -4,7 +4,7 @@
 
 1. **Least Privilege:** Only **read permissions** are required.
 2. **Dedicated API Users:** Always create a dedicated "API User" (Service Account) in each system rather than using a personal account.
-3. **Global Read Access (Recommended):** To avoid adding the API user to every individual project or group, configure "Global Read" or "Admin Read-only" access where possible.
+3. **Global Read Access (Recommended):** To avoid adding the API user to every individual project or group, configure "Global Read" or "Admin Read-only" access where possible. This is also required for certain advanced features like mapping User IDs to Emails (e.g., in GitLab).
 4. **Scope of Visibility:** The Dashboard can only display items that the configured API User has permission to see.
 
 ## GitLab
@@ -12,7 +12,7 @@
 The dashboard uses the GitLab API to fetch Issues and Merge Requests.
 
 ### Recommended: Administrator-level Read Access
-Using an Admin-level token allows the dashboard to see all issues and merge requests across the entire instance without manually adding the user to every project.
+Using an Admin-level token allows the dashboard to see all issues and merge requests across the entire instance without manually adding the user to every project. It also allows the system to map GitLab User IDs to real email addresses for secure permission filtering.
 
 1. **Create an API User:** Create a dedicated user account (e.g., `svc-dashboard`) and give it **Administrator** privileges.
 2. **Log in as the API User**.
