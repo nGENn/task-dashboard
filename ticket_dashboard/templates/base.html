@@ -144,17 +144,21 @@
                     <div class="divider my-1"></div>
                     <div class="flex justify-between items-center mt-2 px-1">
                       <p class="text-xs text-base-content/60">Auto-refresh: 5m</p>
-                      <button id="force-refresh-btn"
-                              class="btn btn-ghost btn-xs btn-circle text-base-content/40 transition-colors duration-300"
-                              title="Toggle Live Fetch (Ignore Cache)">
-                        <svg xmlns="http://www.w3.org/2000/svg"
-                             class="h-4 w-4"
-                             fill="none"
-                             viewBox="0 0 24 24"
-                             stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                      </button>
+                      <form method="post" action="{% url 'users:force-refresh' %}">
+                        {% csrf_token %}
+                        <button id="force-refresh-btn"
+                                type="submit"
+                                class="btn btn-ghost btn-xs btn-circle text-base-content/40 transition-colors duration-300"
+                                title="Force Live Fetch (Clear Cache)">
+                          <svg xmlns="http://www.w3.org/2000/svg"
+                               class="h-4 w-4"
+                               fill="none"
+                               viewBox="0 0 24 24"
+                               stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                        </button>
+                      </form>
                     </div>
                   </div>
                 </div>
@@ -312,45 +316,10 @@
         document.addEventListener("DOMContentLoaded", function() {
           const refreshBtn = document.getElementById('force-refresh-btn');
 
-          if (!refreshBtn) return;
-
-          // 1. Check URL on load to set initial color
-          const urlParams = new URLSearchParams(window.location.search);
-          const isFresh = urlParams.get('refresh') === '1';
-
-          updateButtonState(isFresh);
-
-          // 2. Handle Click
-          refreshBtn.addEventListener('click', function(e) {
-            const currentUrl = new URL(window.location.href);
-
-            // Toggle the state based on current URL param
-            if (currentUrl.searchParams.get('refresh') === '1') {
-              currentUrl.searchParams.delete('refresh'); // Turn OFF
-            } else {
-              currentUrl.searchParams.set('refresh', '1'); // Turn ON
-            }
-
-            // Visual feedback before reload
-            updateButtonState(!isFresh);
-
-            // Reload page
-            window.location.href = currentUrl.toString();
-          });
-
-          // Helper to swap styles
-          function updateButtonState(isActive) {
-            if (isActive) {
-              // Active State: Green, full opacity
-              refreshBtn.classList.remove('text-base-content/40');
-              refreshBtn.classList.add('text-success', 'opacity-100');
-              refreshBtn.setAttribute('title', 'Live Fetch Active');
-            } else {
-              // Inactive State: Gray, lower opacity
-              refreshBtn.classList.remove('text-success', 'opacity-100');
-              refreshBtn.classList.add('text-base-content/40');
-              refreshBtn.setAttribute('title', 'Using Cached Data');
-            }
+          if (refreshBtn) {
+            refreshBtn.addEventListener('click', function() {
+              refreshBtn.classList.add('animate-spin', 'text-success');
+            });
           }
 
           function showToast(message, type = 'success') {

@@ -19,10 +19,7 @@ def system_status(request):  # noqa: C901
     if not request.user.is_authenticated:
         return {}
 
-    # 1. Check for Forced Refresh
-    force_refresh = request.GET.get("refresh") == "1"
-
-    # 2. Define Available Services Map (Service Type -> Class)
+    # 1. Define Available Services Map (Service Type -> Class)
     service_map = {
         "eramba": ErambaService,
         "espocrm": EspoService,
@@ -53,8 +50,8 @@ def system_status(request):  # noqa: C901
         cache_key = f"health_check_result_{config.pk}"
         health = cache.get(cache_key)
 
-        # If refresh is requested OR no cache exists, fetch fresh
-        if force_refresh or health is None:
+        # If no cache exists, fetch fresh
+        if health is None:
             service_instance = service_class(config)
             health = service_instance.check_health()
             # Cache this specific result for 5 minutes
