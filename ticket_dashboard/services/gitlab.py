@@ -144,6 +144,10 @@ class GitLabService:
                 "updated_at": self._format_date(item.get("updated_at")),
                 "due_date": self._format_date(item.get("due_date")),
                 "url": item.get("web_url"),
+                "extra_info": {
+                    "project_id": item.get("project_id"),
+                    "namespace": group_name.split("/")[0] if "/" in group_name else group_name,
+                },
             })
 
     def _extract_priority(self, labels):

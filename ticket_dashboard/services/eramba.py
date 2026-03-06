@@ -223,6 +223,9 @@ class ErambaService:
             "updated_at": self._format_date(item.get("modified")),
             "due_date": self._format_date(item.get("planned_date") or item.get("deadline") or item.get("end") or item.get("planned_end")),
             "url": view_url[:500],
+            "extra_info": {
+                "module": model_class,
+            },
         }
 
     def _determine_status(self, item):

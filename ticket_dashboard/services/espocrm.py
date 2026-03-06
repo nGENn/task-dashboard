@@ -115,6 +115,9 @@ class EspoService:
                 "updated_at": item.get("modifiedAt"),
                 "due_date": (item.get("dueDate") or item.get("dateEnd")),
                 "url": f"{self.base_url}/#{entity_type}/view/{item.get('id')}",
+                "extra_info": {
+                    "entity_type": entity_type,
+                },
             })
 
     def _map_status(self, espo_status):

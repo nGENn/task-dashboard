@@ -148,6 +148,10 @@ class ZammadService:
                     "updated_at": self._format_date(ticket.get("updated_at")),
                     "due_date": self._format_date(ticket.get("escalation_at")),
                     "url": f"{self.base_url}/#ticket/zoom/{ticket.get('id')}",
+                    "extra_info": {
+                        "group_id": ticket.get("group_id"),
+                        "organization_id": ticket.get("organization_id"),
+                    },
                 },
             )
         return normalized_tickets
