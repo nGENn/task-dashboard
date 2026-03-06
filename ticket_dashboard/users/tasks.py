@@ -2,6 +2,7 @@ import logging
 
 from django.utils import timezone as django_timezone
 from django.utils.dateparse import parse_datetime
+from django_q.tasks import async_task
 
 from ticket_dashboard.services.eramba import ErambaService
 from ticket_dashboard.services.espocrm import EspoService
@@ -24,46 +25,22 @@ SERVICE_CLASSES = {
 }
 
 
-def fetch_service_tickets(config_id: int):
-    """
-    Fetches tickets for a specific service configuration and performs batch upsert.
-    """
-    try:
-        config = ServiceConfiguration.objects.get(pk=config_id, is_active=True)
-    except ServiceConfiguration.DoesNotExist:
-        logger.error("ServiceConfiguration with id %s not found or inactive.", config_id)
-        return 0
+def parse_dt(dt_str):
+    """Helper to parse datetime strings and ensure they are timezone-aware."""
+    if not dt_str:
+        return None
+    dt = parse_datetime(dt_str)
+    if dt and django_timezone.is_naive(dt):
+        return django_timezone.make_aware(dt)
+    return dt
 
-    service_class = SERVICE_CLASSES.get(config.service_type)
-    if not service_class:
-        logger.error(
-            "Unknown service type '%s' for configuration '%s'",
-            config.service_type,
-            config.name,
-        )
-        return 0
 
-    logger.info("Fetching tasks for service: %s (%s)", config.name, config.service_type)
-    service_instance = service_class(config)
-    try:
-        tickets_data = service_instance.get_tickets(force_refresh=True)
-    except Exception:
-        logger.exception("Error fetching tasks for service %s", config.name)
-        return 0
-
-    tickets_to_upsert = {}  # Use dict to handle unique tickets per service fetch
-    groups_to_upsert = {}  # Use dict to handle unique groups per service fetch
+def _prepare_upsert_data(config, tickets_data):
+    """Helper to prepare ticket and group objects for batch upsert."""
+    tickets_to_upsert = {}
+    groups_to_upsert = {}
 
     for ticket_dict in tickets_data:
-        # Date Parsing
-        def parse_dt(dt_str):
-            if not dt_str:
-                return None
-            dt = parse_datetime(dt_str)
-            if dt and django_timezone.is_naive(dt):
-                return django_timezone.make_aware(dt)
-            return dt
-
         ticket_id = ticket_dict["id"]
         tickets_to_upsert[ticket_id] = Ticket(
             service=config,
@@ -88,6 +65,39 @@ def fetch_service_tickets(config_id: int):
                 name=group_name,
                 extra_data=ticket_dict.get("extra_info", {}),
             )
+    return tickets_to_upsert, groups_to_upsert
+
+
+def fetch_service_tickets(config_id: int):
+    """
+    Fetches tickets for a specific service configuration and performs batch upsert.
+    """
+    try:
+        config = ServiceConfiguration.objects.get(pk=config_id, is_active=True)
+    except ServiceConfiguration.DoesNotExist:
+        logger.exception(
+            "ServiceConfiguration with id %s not found or inactive.", config_id
+        )
+        return 0
+
+    service_class = SERVICE_CLASSES.get(config.service_type)
+    if not service_class:
+        logger.error(
+            "Unknown service type '%s' for configuration '%s'",
+            config.service_type,
+            config.name,
+        )
+        return 0
+
+    logger.info("Fetching tasks for service: %s (%s)", config.name, config.service_type)
+    service_instance = service_class(config)
+    try:
+        tickets_data = service_instance.get_tickets(force_refresh=True)
+    except Exception:
+        logger.exception("Error fetching tasks for service %s", config.name)
+        return 0
+
+    tickets_to_upsert, groups_to_upsert = _prepare_upsert_data(config, tickets_data)
 
     # Perform Batch Upserts
     if groups_to_upsert:
@@ -119,13 +129,34 @@ def fetch_service_tickets(config_id: int):
         )
 
         # PRUNING: Remove tickets that are no longer in the service
-        deleted_count, _ = Ticket.objects.filter(service=config).exclude(
-            external_id__in=tickets_to_upsert.keys(),
-        ).delete()
+        deleted_count, _ = (
+            Ticket.objects.filter(service=config)
+            .exclude(
+                external_id__in=tickets_to_upsert.keys(),
+            )
+            .delete()
+        )
         if deleted_count:
             logger.info("Pruned %s stale tasks for %s", deleted_count, config.name)
+    elif tickets_data:
+        # If we got tickets back but they were all invalid or filtered out,
+        # but the request itself SUCCEEDED (non-empty tickets_data list),
+        # we should still prune existing tickets.
+        deleted_count, _ = Ticket.objects.filter(service=config).delete()
+        if deleted_count:
+            logger.info("Pruned %s stale tasks for %s", deleted_count, config.name)
+    else:
+        # Request returned 0 tickets or was empty.
+        # SAFEGUARD: To avoid fluctuation, only prune if we are sure the service
+        # returned a valid empty response, not an error.
+        logger.warning(
+            "Service %s returned 0 results. Skipping pruning to prevent fluctuation.",
+            config.name,
+        )
 
-    logger.info("Successfully upserted %s tasks for %s", len(tickets_to_upsert), config.name)
+    logger.info(
+        "Successfully upserted %s tasks for %s", len(tickets_to_upsert), config.name
+    )
     return len(tickets_to_upsert)
 
 
@@ -134,8 +165,6 @@ def fetch_all_tickets_task():
     Main task to trigger ticket fetching for all active services.
     Dispatches individual service fetches in parallel.
     """
-    from django_q.tasks import async_task
-
     active_configs = ServiceConfiguration.objects.filter(is_active=True)
     for config in active_configs:
         logger.info("Dispatching parallel fetch for service: %s", config.name)

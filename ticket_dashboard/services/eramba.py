@@ -81,7 +81,9 @@ class ErambaService:
         self.base_url = config.api_url.rstrip("/")
         self.username = config.api_username
         self.password = config.api_password
-        self.auth = (self.username, self.password) if self.username and self.password else None
+        self.auth = (
+            (self.username, self.password) if self.username and self.password else None
+        )
         self.headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
@@ -122,9 +124,11 @@ class ErambaService:
         ]
 
         async with httpx.AsyncClient(auth=self.auth) as client:
-            tasks = [self._fetch_module(client, **module) for module in modules_to_fetch]
+            tasks = [
+                self._fetch_module(client, **module) for module in modules_to_fetch
+            ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            
+
             all_normalized_tickets = []
             for res in results:
                 if isinstance(res, list):
@@ -135,22 +139,24 @@ class ErambaService:
             cache.set(cache_key, all_normalized_tickets, timeout=300)
             return all_normalized_tickets
 
-    async def _fetch_module(self, client, module_api_path, model_class, group_label, web_path):
+    async def _fetch_module(
+        self, client, module_api_path, model_class, group_label, web_path
+    ):
         normalized_list = []
         try:
             url = f"{self.base_url}/{module_api_path}/index"
-            # Fetch first page
             limit = 100
-            resp = await client.get(url, headers=self.headers, params={"page": 1, "limit": limit}, timeout=30.0)
-            
+            resp = await client.get(
+                url,
+                headers=self.headers,
+                params={"page": 1, "limit": limit},
+                timeout=30.0,
+            )
+
             if resp.status_code != HTTPStatus.OK:
                 return []
 
-            try:
-                data = resp.json()
-            except ValueError:
-                return []
-
+            data = resp.json()
             items = self._extract_items(data)
             if not items:
                 return []
@@ -160,18 +166,24 @@ class ErambaService:
                 if parsed:
                     normalized_list.append(parsed)
 
-            # If page 1 was full, fetch page 2 concurrently
             if len(items) == limit:
-                resp2 = await client.get(url, headers=self.headers, params={"page": 2, "limit": limit}, timeout=30.0)
+                resp2 = await client.get(
+                    url,
+                    headers=self.headers,
+                    params={"page": 2, "limit": limit},
+                    timeout=30.0,
+                )
                 if resp2.status_code == HTTPStatus.OK:
                     items2 = self._extract_items(resp2.json())
                     for entry in items2:
-                        parsed = self._parse_item(entry, model_class, group_label, web_path)
+                        parsed = self._parse_item(
+                            entry, model_class, group_label, web_path
+                        )
                         if parsed:
                             normalized_list.append(parsed)
 
-        except httpx.HTTPError as e:
-            logger.warning("Network error fetching Eramba module '%s': %s", module_api_path, e)
+        except (httpx.HTTPError, ValueError) as e:
+            logger.warning("Error fetching Eramba module '%s': %s", module_api_path, e)
 
         return normalized_list
 
@@ -191,7 +203,11 @@ class ErambaService:
 
         item = entry
         keys = list(entry.keys())
-        if (len(keys) == 1 and (keys[0] == model_class or keys[0] in self.POSSIBLE_WRAPPERS) and isinstance(entry[keys[0]], dict)):
+        if (
+            len(keys) == 1
+            and (keys[0] == model_class or keys[0] in self.POSSIBLE_WRAPPERS)
+            and isinstance(entry[keys[0]], dict)
+        ):
             item = entry[keys[0]]
 
         if "id" not in item:
@@ -206,7 +222,11 @@ class ErambaService:
                 title = ASSET_TYPE_MAP.get(fk)
 
         if not title:
-            title = (item.get("title") or item.get("name") or f"{group_label} #{item.get('id')}")
+            title = (
+                item.get("title")
+                or item.get("name")
+                or f"{group_label} #{item.get('id')}"
+            )
 
         view_url = f"{self.base_url}/{web_path}/view/{model_class}/{item.get('id')}"
 
@@ -219,9 +239,16 @@ class ErambaService:
             "customer": "Internal",
             "group": group_label,
             "owner": self._parse_owners(item.get("owners", []))[:250],
-            "created_at": self._format_date(item.get("created") or item.get("open_date") or item.get("start")),
+            "created_at": self._format_date(
+                item.get("created") or item.get("open_date") or item.get("start")
+            ),
             "updated_at": self._format_date(item.get("modified")),
-            "due_date": self._format_date(item.get("planned_date") or item.get("deadline") or item.get("end") or item.get("planned_end")),
+            "due_date": self._format_date(
+                item.get("planned_date")
+                or item.get("deadline")
+                or item.get("end")
+                or item.get("planned_end")
+            ),
             "url": view_url[:500],
             "extra_info": {
                 "module": model_class,
@@ -234,7 +261,12 @@ class ErambaService:
         status_done = 3
         status_planned = 1
 
-        if (item.get("closure_date") or item.get("actual_date") or any(x in status_raw for x in ["close", "completed"]) or pid == status_done):
+        if (
+            item.get("closure_date")
+            or item.get("actual_date")
+            or any(x in status_raw for x in ["close", "completed"])
+            or pid == status_done
+        ):
             return "closed"
 
         if pid == status_planned or any(x in status_raw for x in ["pending", "plan"]):
@@ -292,12 +324,34 @@ class ErambaService:
     def check_health(self):
         start = django_timezone.now()
         if not self.auth:
-            return {"name": self.config.name, "status": "auth_missing", "latency": 0, "error": "Missing Credentials"}
+            return {
+                "name": self.config.name,
+                "status": "auth_missing",
+                "latency": 0,
+                "error": "Missing Credentials",
+            }
 
         try:
-            response = httpx.get(f"{self.base_url}/api/security-incidents/index", headers=self.headers, auth=self.auth, params={"limit": 1}, timeout=10.0)
+            response = httpx.get(
+                f"{self.base_url}/api/security-incidents/index",
+                headers=self.headers,
+                auth=self.auth,
+                params={"limit": 1},
+                timeout=10.0,
+            )
             response.raise_for_status()
-            latency = int((django_timezone.now() - start).total_seconds() * 1000)
-            return {"name": self.config.name, "status": "online", "latency": latency, "error": None}
         except httpx.HTTPError as e:
-            return {"name": self.config.name, "status": "offline", "latency": 0, "error": str(e)}
+            return {
+                "name": self.config.name,
+                "status": "offline",
+                "latency": 0,
+                "error": str(e),
+            }
+        else:
+            latency = int((django_timezone.now() - start).total_seconds() * 1000)
+            return {
+                "name": self.config.name,
+                "status": "online",
+                "latency": latency,
+                "error": None,
+            }

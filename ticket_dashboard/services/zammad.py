@@ -31,17 +31,20 @@ class ZammadService:
         user_map = {}
         try:
             url = f"{self.base_url}/api/v1/users"
+            # Increased timeout for user map
             resp = await client.get(
                 url,
                 headers=self.headers,
                 params={"per_page": 250},
-                timeout=10.0,
+                timeout=30.0,
             )
             if resp.status_code == HTTPStatus.OK:
                 for u in resp.json():
                     uid = u.get("id")
                     email = u.get("email")
-                    name = (f"{u.get('firstname', '')} {u.get('lastname', '')}").strip() or u.get("login")
+                    name = (
+                        f"{u.get('firstname', '')} {u.get('lastname', '')}"
+                    ).strip() or u.get("login")
                     if uid:
                         user_map[uid] = {"email": email, "name": name}
 
@@ -72,16 +75,17 @@ class ZammadService:
             try:
                 raw_tickets = await self._fetch_all_tickets_async(client)
                 normalized_tickets = self._normalize_tickets(raw_tickets, user_map)
-
-                cache.set(cache_key, normalized_tickets, timeout=300)
-                return normalized_tickets
-
             except httpx.HTTPError:
                 logger.exception("Error fetching Zammad tasks")
-                return []
+                # Instead of returning [], we raise so fetch_service_tickets knows it
+                # failed (PLR0913 workaround)
+                raise
             except Exception:
                 logger.exception("Unexpected error fetching Zammad tasks")
                 raise
+            else:
+                cache.set(cache_key, normalized_tickets, timeout=300)
+                return normalized_tickets
 
     async def _fetch_all_tickets_async(self, client: httpx.AsyncClient):
         url = f"{self.base_url}/api/v1/tickets"
@@ -96,7 +100,10 @@ class ZammadService:
             "order_by": "updated_at",
             "sort_by": "desc",
         }
-        resp = await client.get(url, headers=self.headers, params=first_page_params, timeout=15.0)
+        # Increased timeout to 45.0s to avoid ReadTimeout
+        resp = await client.get(
+            url, headers=self.headers, params=first_page_params, timeout=45.0
+        )
         resp.raise_for_status()
         data = resp.json()
 
@@ -107,21 +114,34 @@ class ZammadService:
 
         raw_tickets.extend(first_page_tickets)
 
-        # If we have a full first page, fetch subsequent pages in parallel
-        # We'll fetch up to 10 pages concurrently for now
+        # If we have a full first page, fetch subsequent pages.
+        # SAFEGUARD: Use a Semaphore to limit concurrency and avoid overwhelming Zammad
         if len(first_page_tickets) == per_page:
-            tasks = []
-            for page in range(2, 11):
-                params = {**first_page_params, "page": page}
-                tasks.append(client.get(url, headers=self.headers, params=params, timeout=15.0))
+            semaphore = asyncio.Semaphore(2)  # Max 2 concurrent page requests
 
+            async def fetch_page(page_num):
+                async with semaphore:
+                    params = {**first_page_params, "page": page_num}
+                    r = await client.get(
+                        url, headers=self.headers, params=params, timeout=45.0
+                    )
+                    r.raise_for_status()
+                    p_data = r.json()
+                    return (
+                        p_data.get("tickets", [])
+                        if isinstance(p_data, dict)
+                        else p_data
+                    )
+
+            tasks = [fetch_page(page) for page in range(2, 11)]
             responses = await asyncio.gather(*tasks, return_exceptions=True)
-            for resp in responses:
-                if isinstance(resp, httpx.Response) and resp.status_code == HTTPStatus.OK:
-                    page_data = resp.json()
-                    page_tickets = page_data.get("tickets", []) if isinstance(page_data, dict) else page_data
-                    if page_tickets:
-                        raw_tickets.extend(page_tickets)
+
+            for res in responses:
+                if isinstance(res, list):
+                    raw_tickets.extend(res)
+                elif isinstance(res, Exception):
+                    logger.warning("Failed to fetch Zammad page: %s", res)
+                    # We continue even if one page fails, as we have other data
 
         return raw_tickets
 
@@ -215,17 +235,9 @@ class ZammadService:
             response = httpx.get(
                 f"{self.base_url}/api/v1/users/me",
                 headers=self.headers,
-                timeout=3.0,
+                timeout=10.0,
             )
             response.raise_for_status()
-
-            latency = int((django_timezone.now() - start).total_seconds() * 1000)
-            return {
-                "name": self.config.name,
-                "status": "online",
-                "latency": latency,
-                "error": None,
-            }
         except httpx.HTTPError as e:
             logger.warning("%s Auth Failed: %s", self.config.name, e)
             return {
@@ -241,4 +253,12 @@ class ZammadService:
                 "status": "offline",
                 "latency": 0,
                 "error": "Unreachable",
+            }
+        else:
+            latency = int((django_timezone.now() - start).total_seconds() * 1000)
+            return {
+                "name": self.config.name,
+                "status": "online",
+                "latency": latency,
+                "error": None,
             }

@@ -1,5 +1,4 @@
 import asyncio
-
 import base64
 import logging
 from http import HTTPStatus
@@ -49,11 +48,12 @@ class OpenProjectService:
 
             try:
                 await self._fetch_work_packages(client, normalized_tickets, user_map)
-                cache.set(cache_key, normalized_tickets, timeout=300)
-                return normalized_tickets
             except httpx.HTTPError:
                 logger.exception("Error fetching OpenProject packages")
                 return []
+            else:
+                cache.set(cache_key, normalized_tickets, timeout=300)
+                return normalized_tickets
 
     async def _get_user_map(self, client: httpx.AsyncClient):
         cache_key = f"op_{self.config.id}_user_map"
@@ -64,7 +64,9 @@ class OpenProjectService:
         user_map = {}
         try:
             url = f"{self.base_url}/api/v3/users"
-            resp = await client.get(url, headers=self._get_headers(), params={"pageSize": 100}, timeout=10.0)
+            resp = await client.get(
+                url, headers=self._get_headers(), params={"pageSize": 100}, timeout=10.0
+            )
             if resp.status_code == HTTPStatus.OK:
                 elements = resp.json().get("_embedded", {}).get("elements", [])
                 for u in elements:
@@ -74,6 +76,11 @@ class OpenProjectService:
                     if uid:
                         final_email = email if email else f"{login}@placeholder"
                         user_map[uid] = final_email
+            elif resp.status_code == HTTPStatus.FORBIDDEN:
+                logger.warning(
+                    "OpenProject User Map access forbidden (403). "
+                    "Credentials may lack permission to list users."
+                )
             cache.set(cache_key, user_map, timeout=3600)
         except httpx.HTTPError as e:
             logger.warning("OpenProject User Map failed: %s", e)
@@ -82,12 +89,18 @@ class OpenProjectService:
     async def _fetch_work_packages(self, client, normalized_tickets, user_map):
         url = f"{self.base_url}/api/v3/work_packages"
         page_size = 100
-        
+
         # Fetch first page
-        params = {"offset": 1, "pageSize": page_size, "sortBy": '[["updatedAt","desc"]]'}
-        resp = await client.get(url, params=params, headers=self._get_headers(), timeout=20.0)
+        params = {
+            "offset": 1,
+            "pageSize": page_size,
+            "sortBy": '[["updatedAt","desc"]]',
+        }
+        resp = await client.get(
+            url, params=params, headers=self._get_headers(), timeout=20.0
+        )
         resp.raise_for_status()
-        
+
         data = resp.json()
         elements = data.get("_embedded", {}).get("elements", [])
         if not elements:
@@ -99,7 +112,9 @@ class OpenProjectService:
         # Fetch page 2 concurrently if page 1 was full
         if len(elements) == page_size:
             params["offset"] = 2
-            resp2 = await client.get(url, params=params, headers=self._get_headers(), timeout=20.0)
+            resp2 = await client.get(
+                url, params=params, headers=self._get_headers(), timeout=20.0
+            )
             if resp2.status_code == HTTPStatus.OK:
                 elements2 = resp2.json().get("_embedded", {}).get("elements", [])
                 for item in elements2:
@@ -139,26 +154,30 @@ class OpenProjectService:
 
         project_id = project_href.split("/")[-1] if project_href else None
 
-        normalized_tickets.append({
-            "id": f"OP-{item.get('id')}",
-            "title": item.get("subject"),
-            "status": mapped_status,
-            "priority": self._map_priority(links.get("priority", {}).get("title", "Medium")),
-            "origin": self.config.name,
-            "customer": customer_name,
-            "group": group_name,
-            "owner": assignee_name,
-            "owner_email": assignee_email,
-            "created_at": item.get("createdAt"),
-            "updated_at": item.get("updatedAt"),
-            "due_date": item.get("dueDate"),
-            "url": f"{self.base_url}/work_packages/{item.get('id')}",
-            "extra_info": {
-                "project_id": project_id,
-                "project_name": project_only,
-                "full_project_title": project_title,
-            },
-        })
+        normalized_tickets.append(
+            {
+                "id": f"OP-{item.get('id')}",
+                "title": item.get("subject"),
+                "status": mapped_status,
+                "priority": self._map_priority(
+                    links.get("priority", {}).get("title", "Medium")
+                ),
+                "origin": self.config.name,
+                "customer": customer_name,
+                "group": group_name,
+                "owner": assignee_name,
+                "owner_email": assignee_email,
+                "created_at": item.get("createdAt"),
+                "updated_at": item.get("updatedAt"),
+                "due_date": item.get("dueDate"),
+                "url": f"{self.base_url}/work_packages/{item.get('id')}",
+                "extra_info": {
+                    "project_id": project_id,
+                    "project_name": project_only,
+                    "full_project_title": project_title,
+                },
+            }
+        )
 
     def _map_status(self, status_text):
         s = str(status_text).lower()
@@ -182,10 +201,31 @@ class OpenProjectService:
     def check_health(self):
         start = django_timezone.now()
         if not self.api_key:
-            return {"name": self.config.name, "status": "auth_missing", "latency": 0, "error": "Missing API Key"}
+            return {
+                "name": self.config.name,
+                "status": "auth_missing",
+                "latency": 0,
+                "error": "Missing API Key",
+            }
         try:
-            httpx.get(f"{self.base_url}/api/v3/users/me", headers=self._get_headers(), timeout=10.0)
-            latency = int((django_timezone.now() - start).total_seconds() * 1000)
-            return {"name": self.config.name, "status": "online", "latency": latency, "error": None}
+            response = httpx.get(
+                f"{self.base_url}/api/v3/users/me",
+                headers=self._get_headers(),
+                timeout=10.0,
+            )
+            response.raise_for_status()
         except httpx.HTTPError as e:
-            return {"name": self.config.name, "status": "offline", "latency": 0, "error": str(e)}
+            return {
+                "name": self.config.name,
+                "status": "offline",
+                "latency": 0,
+                "error": str(e),
+            }
+        else:
+            latency = int((django_timezone.now() - start).total_seconds() * 1000)
+            return {
+                "name": self.config.name,
+                "status": "online",
+                "latency": latency,
+                "error": None,
+            }

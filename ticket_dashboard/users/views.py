@@ -1,6 +1,10 @@
 import datetime
 import json
 import logging
+from urllib.parse import parse_qs
+from urllib.parse import urlencode
+from urllib.parse import urlparse
+from urllib.parse import urlunparse
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -19,6 +23,7 @@ from django.views.generic import DetailView
 from django.views.generic import RedirectView
 from django.views.generic import TemplateView
 from django.views.generic import UpdateView
+from django_q.tasks import async_task
 
 # Models
 from ticket_dashboard.users.models import SavedView
@@ -26,9 +31,6 @@ from ticket_dashboard.users.models import ServiceConfiguration
 from ticket_dashboard.users.models import Ticket
 from ticket_dashboard.users.models import TicketPermission
 from ticket_dashboard.users.models import User
-from django_q.tasks import async_task
-
-from ticket_dashboard.users.tasks import fetch_all_tickets_task
 
 logger = logging.getLogger(__name__)
 
@@ -89,14 +91,9 @@ def force_refresh_view(request):
         cache.delete(f"health_check_result_{config.pk}")
 
     # Redirect back to where the user came from, or dashboard
-    referer = request.META.get("HTTP_REFERER")
+    referer = request.headers.get("referer")
     if referer:
         # Remove any existing refresh=1 from referer to be clean
-        from urllib.parse import parse_qs
-        from urllib.parse import urlencode
-        from urllib.parse import urlparse
-        from urllib.parse import urlunparse
-
         u = urlparse(referer)
         query = parse_qs(u.query)
         query.pop("refresh", None)
