@@ -1,5 +1,6 @@
 import logging
 
+from django.utils import timezone as django_timezone
 from django.utils.dateparse import parse_datetime
 
 from ticket_dashboard.services.eramba import ErambaService
@@ -57,16 +58,24 @@ def fetch_all_tickets_task():
                     if ticket_dict.get("created_at")
                     else None
                 )
+                if created_at and django_timezone.is_naive(created_at):
+                    created_at = django_timezone.make_aware(created_at)
+
                 updated_at = (
                     parse_datetime(ticket_dict.get("updated_at"))
                     if ticket_dict.get("updated_at")
                     else None
                 )
+                if updated_at and django_timezone.is_naive(updated_at):
+                    updated_at = django_timezone.make_aware(updated_at)
+
                 due_date = (
                     parse_datetime(ticket_dict.get("due_date"))
                     if ticket_dict.get("due_date")
                     else None
                 )
+                if due_date and django_timezone.is_naive(due_date):
+                    due_date = django_timezone.make_aware(due_date)
 
                 Ticket.objects.update_or_create(
                     service=config,

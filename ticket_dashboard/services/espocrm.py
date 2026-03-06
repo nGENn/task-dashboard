@@ -191,7 +191,7 @@ class EspoService:
                                 item.get("priority", "Medium"),
                             ),
                             "origin": self.config.name,
-                            "customer": item.get("accountName", "Unknown"),
+                            "customer": item.get("accountName", ""),
                             "group": entity_type,
                             "owner": item.get("assignedUserName", "-"),
                             "owner_email": owner_email,

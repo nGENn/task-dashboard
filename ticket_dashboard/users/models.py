@@ -205,7 +205,7 @@ class Ticket(models.Model):
     title = models.CharField(max_length=255)
     status = models.CharField(max_length=50)
     priority = models.CharField(max_length=50)
-    customer = models.CharField(max_length=255, blank=True)
+    customer = models.CharField(max_length=255, blank=True, null=True)
     group = models.CharField(max_length=255, blank=True)
     owner = models.CharField(max_length=255, blank=True)
     owner_email = models.EmailField(blank=True)
