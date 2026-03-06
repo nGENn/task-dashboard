@@ -111,6 +111,9 @@ class ExternalGroup(models.Model):
     # Helpful for the admin to know when this group was last seen
     last_seen = models.DateTimeField(auto_now=True)
 
+    # Extra data for management (e.g. project IDs, slugs)
+    extra_data = models.JSONField(default=dict, blank=True)
+
     class Meta:
         unique_together = ("origin", "name")
         ordering = ["origin", "name"]

@@ -132,10 +132,11 @@ class GroupAdmin(BaseGroupAdmin):
 # 2. Manage Discovered Groups (Read Only mostly, as they are auto-created)
 @admin.register(ExternalGroup)
 class ExternalGroupAdmin(admin.ModelAdmin):
-    list_display = ["origin", "name", "last_seen"]
+    list_display = ["origin", "name", "last_seen", "extra_data"]
     list_filter = ["origin"]
-    search_fields = ["name", "origin"]
+    search_fields = ["name", "origin", "extra_data"]
     ordering = ["origin", "name"]
+    readonly_fields = ["last_seen"]
 
 
 # 3. Direct Permission Management

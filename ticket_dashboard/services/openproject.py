@@ -185,6 +185,27 @@ class OpenProjectService:
         status_title = links.get("status", {}).get("title", "Unknown")
         mapped_status = self._map_status(status_title)
 
+        # Parse Project Title and Customer
+        project_link = links.get("project", {})
+        project_title = project_link.get("title", "Project")
+        project_href = project_link.get("href", "")
+
+        # Default mapping
+        customer_name = "all"
+        group_name = "all"
+        project_only = project_title
+
+        if " ⏳ " in project_title:
+            parts = project_title.split(" ⏳ ", 1)
+            project_only = parts[0].strip()
+            customer_name = parts[1].strip()
+            # External Group format: "Customer/Project"
+            group_name = f"{customer_name}/{project_only}"
+
+        # Extract Project ID and Slug from href if possible
+        # href format: /api/v3/projects/15
+        project_id = project_href.split("/")[-1] if project_href else None
+
         normalized_tickets.append(
             {
                 "id": f"OP-{item.get('id')}",
@@ -194,14 +215,19 @@ class OpenProjectService:
                     links.get("priority", {}).get("title", "Medium"),
                 ),
                 "origin": self.config.name,
-                "customer": links.get("project", {}).get("title", "Project"),
-                "group": "Project",
+                "customer": customer_name,
+                "group": group_name,
                 "owner": assignee_name,
                 "owner_email": assignee_email,
                 "created_at": item.get("createdAt"),
                 "updated_at": item.get("updatedAt"),
                 "due_date": item.get("dueDate"),
                 "url": f"{self.base_url}/work_packages/{item.get('id')}",
+                "extra_info": {
+                    "project_id": project_id,
+                    "project_name": project_only,
+                    "full_project_title": project_title,
+                },
             },
         )
 

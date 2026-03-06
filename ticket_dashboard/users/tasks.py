@@ -98,9 +98,14 @@ def fetch_all_tickets_task():
                 # Ensure ExternalGroup exists for RBAC management
                 group_name = ticket_dict.get("group")
                 if group_name:
+                    ext_group_defaults = {}
+                    if "extra_info" in ticket_dict:
+                        ext_group_defaults["extra_data"] = ticket_dict["extra_info"]
+
                     ExternalGroup.objects.update_or_create(
                         origin=config.name,
                         name=group_name,
+                        defaults=ext_group_defaults,
                     )
 
                 service_upsert_count += 1
