@@ -91,53 +91,53 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         allowed_tickets = []
         user_email = request.user.email
 
-        if request.user.is_superuser:
-            allowed_tickets = list(all_tickets)
-        else:
-            perms = TicketPermission.objects.filter(
-                django_group__in=request.user.groups.all(),
-            ).values(
-                "allowed_external_group__origin",
-                "allowed_external_group__name",
-                "access_level",
+        # RBAC (Role-Based Access Control)
+        # By default, NO ONE should be able to see any tickets unless
+        # they are in a group that grants them permission.
+        perms = TicketPermission.objects.filter(
+            django_group__in=request.user.groups.all(),
+        ).values(
+            "allowed_external_group__origin",
+            "allowed_external_group__name",
+            "access_level",
+        )
+
+        perm_map = {}
+        for p in perms:
+            key = "{}|{}".format(
+                p["allowed_external_group__origin"],
+                p["allowed_external_group__name"],
             )
+            level = p["access_level"]
+            if key not in perm_map or level == "FULL":
+                perm_map[key] = level
 
-            perm_map = {}
-            for p in perms:
-                key = "{}|{}".format(
-                    p["allowed_external_group__origin"],
-                    p["allowed_external_group__name"],
-                )
-                level = p["access_level"]
-                if key not in perm_map or level == "FULL":
-                    perm_map[key] = level
+        for t in all_tickets:
+            t_origin = t.service.name
+            t_group = t.group
+            t_owner_email = t.owner_email
+            t_owner = t.owner
 
-            for t in all_tickets:
-                t_origin = t.service.name
-                t_group = t.group
-                t_owner_email = t.owner_email
-                t_owner = t.owner
-
-                # RBAC: Only allow access if the user has a permission for this
-                # ticket's (Origin, Group)
-                key = f"{t_origin}|{t_group}"
-                if key in perm_map:
-                    level = perm_map[key]
-                    if level == "FULL":
+            # RBAC: Only allow access if the user has a permission for this
+            # ticket's (Origin, Group)
+            key = f"{t_origin}|{t_group}"
+            if key in perm_map:
+                level = perm_map[key]
+                if level == "FULL":
+                    allowed_tickets.append(t)
+                elif level == "LIMITED":
+                    # Own tasks OR Unassigned
+                    is_owner = t_owner_email and t_owner_email == user_email
+                    is_unassigned = (
+                        str(t_owner) in ["Unassigned", "-", "", "None"]
+                        or t_owner is None
+                    )
+                    if is_owner or is_unassigned:
                         allowed_tickets.append(t)
-                    elif level == "LIMITED":
-                        # Own tasks OR Unassigned
-                        is_owner = t_owner_email and t_owner_email == user_email
-                        is_unassigned = (
-                            str(t_owner) in ["Unassigned", "-", "", "None"]
-                            or t_owner is None
-                        )
-                        if is_owner or is_unassigned:
-                            allowed_tickets.append(t)
-                    elif level == "OWN_ONLY":
-                        # Only own tasks
-                        if t_owner_email and t_owner_email == user_email:
-                            allowed_tickets.append(t)
+                elif level == "OWN_ONLY":
+                    # Only own tasks
+                    if t_owner_email and t_owner_email == user_email:
+                        allowed_tickets.append(t)
 
         # =========================================================
         # 6. UI FILTERING & SORTING
