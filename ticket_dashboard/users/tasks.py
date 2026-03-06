@@ -71,7 +71,7 @@ def fetch_service_tickets(config_id: int):
             title=ticket_dict.get("title", ""),
             status=ticket_dict.get("status", ""),
             priority=ticket_dict.get("priority", ""),
-            customer=ticket_dict.get("customer", ""),
+            customer=ticket_dict.get("customer") or "",
             group=ticket_dict.get("group", ""),
             owner=ticket_dict.get("owner", ""),
             owner_email=ticket_dict.get("owner_email", "") or "",

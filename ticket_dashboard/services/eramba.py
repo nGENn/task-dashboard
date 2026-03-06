@@ -273,7 +273,10 @@ class ErambaService:
 
         if isinstance(date_str, str) and "T" in date_str:
             try:
-                return datetime.fromisoformat(date_str).isoformat()
+                dt = datetime.fromisoformat(date_str)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=UTC)
+                return dt.isoformat()
             except ValueError:
                 pass
 

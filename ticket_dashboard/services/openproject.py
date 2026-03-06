@@ -1,4 +1,6 @@
 import asyncio
+
+import base64
 import logging
 from http import HTTPStatus
 
@@ -13,14 +15,17 @@ logger = logging.getLogger(__name__)
 class OpenProjectService:
     def __init__(self, config):
         self.config = config
-        self.base_url = config.api_url
+        self.base_url = config.api_url.rstrip("/")
         self.api_key = config.api_token
-        # Basic auth with httpx: use (username, password)
-        self.auth = ("apikey", self.api_key)
         self.host_header = getattr(settings, "OPENPROJECT_HOST_HEADER", None)
 
     def _get_headers(self):
-        headers = {"Content-Type": "application/json"}
+        auth_str = f"apikey:{self.api_key}"
+        auth_b64 = base64.b64encode(auth_str.encode()).decode()
+        headers = {
+            "Authorization": f"Basic {auth_b64}",
+            "Content-Type": "application/json",
+        }
         if self.host_header:
             headers["Host"] = self.host_header
         return headers
@@ -38,7 +43,7 @@ class OpenProjectService:
         if not self.api_key:
             return []
 
-        async with httpx.AsyncClient(auth=self.auth) as client:
+        async with httpx.AsyncClient() as client:
             user_map = await self._get_user_map(client)
             normalized_tickets = []
 
@@ -80,7 +85,7 @@ class OpenProjectService:
         
         # Fetch first page
         params = {"offset": 1, "pageSize": page_size, "sortBy": '[["updatedAt","desc"]]'}
-        resp = await client.get(url, params=params, headers=self._get_headers(), timeout=15.0)
+        resp = await client.get(url, params=params, headers=self._get_headers(), timeout=20.0)
         resp.raise_for_status()
         
         data = resp.json()
@@ -94,7 +99,7 @@ class OpenProjectService:
         # Fetch page 2 concurrently if page 1 was full
         if len(elements) == page_size:
             params["offset"] = 2
-            resp2 = await client.get(url, params=params, headers=self._get_headers(), timeout=15.0)
+            resp2 = await client.get(url, params=params, headers=self._get_headers(), timeout=20.0)
             if resp2.status_code == HTTPStatus.OK:
                 elements2 = resp2.json().get("_embedded", {}).get("elements", [])
                 for item in elements2:
@@ -179,7 +184,7 @@ class OpenProjectService:
         if not self.api_key:
             return {"name": self.config.name, "status": "auth_missing", "latency": 0, "error": "Missing API Key"}
         try:
-            httpx.get(f"{self.base_url}/api/v3/users/me", auth=self.auth, headers=self._get_headers(), timeout=5.0)
+            httpx.get(f"{self.base_url}/api/v3/users/me", headers=self._get_headers(), timeout=10.0)
             latency = int((django_timezone.now() - start).total_seconds() * 1000)
             return {"name": self.config.name, "status": "online", "latency": latency, "error": None}
         except httpx.HTTPError as e:
