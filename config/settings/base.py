@@ -375,7 +375,7 @@ Q_CLUSTER = {
     "name": "ticket_dashboard_cluster",
     "workers": 4,
     "recycle": 500,
-    "timeout": 60,
+    "timeout": 120,
     "compress": True,
     "save_limit": 250,
     "queue_limit": 500,

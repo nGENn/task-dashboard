@@ -1,14 +1,12 @@
-import concurrent.futures
+import asyncio
 import logging
 from datetime import UTC
 from datetime import datetime
 from http import HTTPStatus
 
-import requests
+import httpx
 from django.core.cache import cache
 from django.utils import timezone as django_timezone
-from requests import RequestException
-from requests.auth import HTTPBasicAuth
 
 logger = logging.getLogger(__name__)
 
@@ -84,55 +82,17 @@ class ErambaService:
         self.username = config.api_username
         self.password = config.api_password
         self.auth = (
-            HTTPBasicAuth(self.username, self.password)
-            if self.username and self.password
-            else None
+            (self.username, self.password) if self.username and self.password else None
         )
         self.headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
         }
 
-    def check_health(self):
-        start = django_timezone.now()
-        if not self.auth:
-            return {
-                "name": self.config.name,
-                "status": "auth_missing",
-                "latency": 0,
-                "error": "Missing Username or Password",
-            }
-
-        try:
-            # Use the lightest endpoint for health check
-            response = requests.get(
-                f"{self.base_url}/api/security-incidents/index",
-                headers=self.headers,
-                auth=self.auth,
-                params={"limit": 1},
-                timeout=10,
-            )
-            response.raise_for_status()
-        except RequestException as e:
-            logger.warning(
-                "Eramba health check failed for '%s': %s", self.config.name, e
-            )
-            return {
-                "name": self.config.name,
-                "status": "offline",
-                "latency": 0,
-                "error": str(e),
-            }
-        else:
-            latency = int((django_timezone.now() - start).total_seconds() * 1000)
-            return {
-                "name": self.config.name,
-                "status": "online",
-                "latency": latency,
-                "error": None,
-            }
-
     def get_tickets(self, *, force_refresh=False):
+        return asyncio.run(self.get_tickets_async(force_refresh=force_refresh))
+
+    async def get_tickets_async(self, *, force_refresh=False):
         cache_key = f"eramba_{self.config.id}_active_items_cache"
         if not force_refresh:
             cached_data = cache.get(cache_key)
@@ -163,76 +123,67 @@ class ErambaService:
             },
         ]
 
-        all_normalized_tickets = []
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            future_to_module = {
-                executor.submit(self._fetch_module, **module): module
-                for module in modules_to_fetch
-            }
-            for future in concurrent.futures.as_completed(future_to_module):
-                try:
-                    module_tickets = future.result()
-                    all_normalized_tickets.extend(module_tickets)
-                except Exception:
-                    module_name = future_to_module[future]["group_label"]
-                    logger.exception("Failed to fetch Eramba module: %s", module_name)
+        async with httpx.AsyncClient(auth=self.auth) as client:
+            tasks = [
+                self._fetch_module(client, **module) for module in modules_to_fetch
+            ]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        cache.set(cache_key, all_normalized_tickets, timeout=300)
-        return all_normalized_tickets
+            all_normalized_tickets = []
+            for res in results:
+                if isinstance(res, list):
+                    all_normalized_tickets.extend(res)
+                elif isinstance(res, Exception):
+                    logger.error("Failed to fetch Eramba module: %s", res)
 
-    def _fetch_module(self, module_api_path, model_class, group_label, web_path):
+            cache.set(cache_key, all_normalized_tickets, timeout=300)
+            return all_normalized_tickets
+
+    async def _fetch_module(
+        self, client, module_api_path, model_class, group_label, web_path
+    ):
         normalized_list = []
         try:
-            page = 1
+            url = f"{self.base_url}/{module_api_path}/index"
             limit = 100
-            max_pages = 20
+            resp = await client.get(
+                url,
+                headers=self.headers,
+                params={"page": 1, "limit": limit},
+                timeout=30.0,
+            )
 
-            while page <= max_pages:
-                url = f"{self.base_url}/{module_api_path}/index"
-                logger.debug("Fetching Eramba module: %s (Page %d)", url, page)
-                response = requests.get(
+            if resp.status_code != HTTPStatus.OK:
+                return []
+
+            data = resp.json()
+            items = self._extract_items(data)
+            if not items:
+                return []
+
+            for entry in items:
+                parsed = self._parse_item(entry, model_class, group_label, web_path)
+                if parsed:
+                    normalized_list.append(parsed)
+
+            if len(items) == limit:
+                resp2 = await client.get(
                     url,
                     headers=self.headers,
-                    auth=self.auth,
-                    params={"page": page, "limit": limit},
-                    timeout=30,
+                    params={"page": 2, "limit": limit},
+                    timeout=30.0,
                 )
+                if resp2.status_code == HTTPStatus.OK:
+                    items2 = self._extract_items(resp2.json())
+                    for entry in items2:
+                        parsed = self._parse_item(
+                            entry, model_class, group_label, web_path
+                        )
+                        if parsed:
+                            normalized_list.append(parsed)
 
-                if response.status_code != HTTPStatus.OK:
-                    logger.warning(
-                        "Eramba module %s returned %s. URL: %s",
-                        module_api_path,
-                        response.status_code,
-                        url,
-                    )
-                    break
-
-                try:
-                    data = response.json()
-                except ValueError:
-                    logger.exception(
-                        "Eramba module %s returned invalid JSON. URL: %s",
-                        module_api_path,
-                        url,
-                    )
-                    break
-
-                items = self._extract_items(data)
-                if not items:
-                    break
-
-                for entry in items:
-                    parsed = self._parse_item(entry, model_class, group_label, web_path)
-                    if parsed:
-                        normalized_list.append(parsed)
-
-                if len(items) < limit:
-                    break
-                page += 1
-        except RequestException as e:
-            logger.warning(
-                "Network error fetching Eramba module '%s': %s", module_api_path, e
-            )
+        except (httpx.HTTPError, ValueError) as e:
+            logger.warning("Error fetching Eramba module '%s': %s", module_api_path, e)
 
         return normalized_list
 
@@ -250,7 +201,6 @@ class ErambaService:
         if not isinstance(entry, dict):
             return None
 
-        # Unwrap common Eramba response patterns
         item = entry
         keys = list(entry.keys())
         if (
@@ -265,7 +215,6 @@ class ErambaService:
             if not item:
                 return None
 
-        # Resolve title with module-specific fallbacks
         title = None
         if "AssetReview" in model_class:
             fk = item.get("foreign_key")
@@ -283,7 +232,7 @@ class ErambaService:
 
         return {
             "id": f"ERA-{group_label[:3].upper()}-{item.get('id')}",
-            "title": str(title)[:250],  # Ensure within DB limits
+            "title": str(title)[:250],
             "status": self._determine_status(item),
             "priority": self._determine_priority(item),
             "origin": self.config.name,
@@ -295,20 +244,20 @@ class ErambaService:
             ),
             "updated_at": self._format_date(item.get("modified")),
             "due_date": self._format_date(
-                # Prioritize planned_date for reviews
                 item.get("planned_date")
                 or item.get("deadline")
                 or item.get("end")
                 or item.get("planned_end")
             ),
             "url": view_url[:500],
+            "extra_info": {
+                "module": model_class,
+            },
         }
 
     def _determine_status(self, item):
         status_raw = str(item.get("status", "")).lower()
         pid = item.get("project_status_id")
-
-        # Project status: 1=Planned, 2=Ongoing, 3=Done
         status_done = 3
         status_planned = 1
 
@@ -326,7 +275,6 @@ class ErambaService:
         return "open"
 
     def _determine_priority(self, item):
-        # Eramba uses custom fields for priority often
         custom_prio = item.get("custom_field_9")
         if isinstance(custom_prio, dict) and custom_prio.get("value"):
             return str(custom_prio["value"]).capitalize()
@@ -357,7 +305,10 @@ class ErambaService:
 
         if isinstance(date_str, str) and "T" in date_str:
             try:
-                return datetime.fromisoformat(date_str).isoformat()
+                dt = datetime.fromisoformat(date_str)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=UTC)
+                return dt.isoformat()
             except ValueError:
                 pass
 
@@ -369,3 +320,38 @@ class ErambaService:
                 continue
 
         return str(date_str)
+
+    def check_health(self):
+        start = django_timezone.now()
+        if not self.auth:
+            return {
+                "name": self.config.name,
+                "status": "auth_missing",
+                "latency": 0,
+                "error": "Missing Credentials",
+            }
+
+        try:
+            response = httpx.get(
+                f"{self.base_url}/api/security-incidents/index",
+                headers=self.headers,
+                auth=self.auth,
+                params={"limit": 1},
+                timeout=10.0,
+            )
+            response.raise_for_status()
+        except httpx.HTTPError as e:
+            return {
+                "name": self.config.name,
+                "status": "offline",
+                "latency": 0,
+                "error": str(e),
+            }
+        else:
+            latency = int((django_timezone.now() - start).total_seconds() * 1000)
+            return {
+                "name": self.config.name,
+                "status": "online",
+                "latency": latency,
+                "error": None,
+            }

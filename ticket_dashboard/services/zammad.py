@@ -1,11 +1,11 @@
+import asyncio
 import logging
 from datetime import datetime
 from http import HTTPStatus
 
-import requests
+import httpx
 from django.core.cache import cache
 from django.utils import timezone as django_timezone
-from requests import RequestException
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class ZammadService:
             "Content-Type": "application/json",
         }
 
-    def _get_user_map(self):
+    async def _get_user_map(self, client: httpx.AsyncClient):
         """Map Zammad User ID -> Email"""
         cache_key = f"zammad_{self.config.id}_user_map"
         cached_map = cache.get(cache_key)
@@ -31,13 +31,12 @@ class ZammadService:
         user_map = {}
         try:
             url = f"{self.base_url}/api/v1/users"
-            # Zammad users API is paginated, but for now we'll fetch first 250
-            # which usually covers the agents/owners.
-            resp = requests.get(
+            # Increased timeout for user map
+            resp = await client.get(
                 url,
                 headers=self.headers,
                 params={"per_page": 250},
-                timeout=10,
+                timeout=30.0,
             )
             if resp.status_code == HTTPStatus.OK:
                 for u in resp.json():
@@ -50,11 +49,14 @@ class ZammadService:
                         user_map[uid] = {"email": email, "name": name}
 
             cache.set(cache_key, user_map, timeout=3600)
-        except RequestException as e:
+        except httpx.HTTPError as e:
             logger.warning("Zammad User Map failed: %s", e)
         return user_map
 
     def get_tickets(self, *, force_refresh=False):
+        return asyncio.run(self.get_tickets_async(force_refresh=force_refresh))
+
+    async def get_tickets_async(self, *, force_refresh=False):
         cache_key = f"zammad_{self.config.id}_active_tickets_cache"
 
         if not force_refresh:
@@ -67,67 +69,80 @@ class ZammadService:
             logger.warning("Zammad credentials not found.")
             return []
 
-        user_map = self._get_user_map()
+        async with httpx.AsyncClient() as client:
+            user_map = await self._get_user_map(client)
 
-        try:
-            raw_tickets = self._fetch_all_tickets()
-            normalized_tickets = self._normalize_tickets(raw_tickets, user_map)
+            try:
+                raw_tickets = await self._fetch_all_tickets_async(client)
+                normalized_tickets = self._normalize_tickets(raw_tickets, user_map)
+            except httpx.HTTPError:
+                logger.exception("Error fetching Zammad tasks")
+                # Instead of returning [], we raise so fetch_service_tickets knows it
+                # failed (PLR0913 workaround)
+                raise
+            except Exception:
+                logger.exception("Unexpected error fetching Zammad tasks")
+                raise
+            else:
+                cache.set(cache_key, normalized_tickets, timeout=300)
+                return normalized_tickets
 
-            cache.set(cache_key, normalized_tickets, timeout=300)
-            return normalized_tickets  # noqa: TRY300
-
-        except RequestException:
-            logger.exception("Error fetching Zammad tasks")
-            return []
-        except Exception:
-            logger.exception("Unexpected error fetching Zammad tasks")
-            raise
-
-    def _fetch_all_tickets(self):
+    async def _fetch_all_tickets_async(self, client: httpx.AsyncClient):
         url = f"{self.base_url}/api/v1/tickets"
         raw_tickets = []
-        page = 1
         per_page = 100
-        max_pages = 100
 
-        logger.debug("Fetching Zammad tasks (paginated): %s", url)
+        # Fetch first page to see how many we have
+        first_page_params = {
+            "expand": "true",
+            "page": 1,
+            "per_page": per_page,
+            "order_by": "updated_at",
+            "sort_by": "desc",
+        }
+        # Increased timeout to 45.0s to avoid ReadTimeout
+        resp = await client.get(
+            url, headers=self.headers, params=first_page_params, timeout=45.0
+        )
+        resp.raise_for_status()
+        data = resp.json()
 
-        while page <= max_pages:
-            params = {
-                "expand": "true",
-                "page": page,
-                "per_page": per_page,
-                "order_by": "updated_at",
-                "sort_by": "desc",
-            }
+        # Zammad API might return list directly or dict with 'tickets'
+        first_page_tickets = data.get("tickets", []) if isinstance(data, dict) else data
+        if not first_page_tickets:
+            return []
 
-            response = requests.get(
-                url,
-                headers=self.headers,
-                params=params,
-                timeout=10,
-            )
-            response.raise_for_status()
+        raw_tickets.extend(first_page_tickets)
 
-            data = response.json()
-            page_tickets = data.get("tickets", []) if isinstance(data, dict) else data
+        # If we have a full first page, fetch subsequent pages.
+        # SAFEGUARD: Use a Semaphore to limit concurrency and avoid overwhelming Zammad
+        if len(first_page_tickets) == per_page:
+            semaphore = asyncio.Semaphore(2)  # Max 2 concurrent page requests
 
-            if not page_tickets:
-                break
+            async def fetch_page(page_num):
+                async with semaphore:
+                    params = {**first_page_params, "page": page_num}
+                    r = await client.get(
+                        url, headers=self.headers, params=params, timeout=45.0
+                    )
+                    r.raise_for_status()
+                    p_data = r.json()
+                    return (
+                        p_data.get("tickets", [])
+                        if isinstance(p_data, dict)
+                        else p_data
+                    )
 
-            raw_tickets.extend(page_tickets)
-            logger.debug("Page %d: Found %d tasks.", page, len(page_tickets))
+            tasks = [fetch_page(page) for page in range(2, 11)]
+            responses = await asyncio.gather(*tasks, return_exceptions=True)
 
-            if len(page_tickets) < per_page:
-                break
+            for res in responses:
+                if isinstance(res, list):
+                    raw_tickets.extend(res)
+                elif isinstance(res, Exception):
+                    logger.warning("Failed to fetch Zammad page: %s", res)
+                    # We continue even if one page fails, as we have other data
 
-            page += 1
-
-        if page > max_pages:
-            logger.warning(
-                "Zammad fetch limit reached (%d tasks).",
-                len(raw_tickets),
-            )
         return raw_tickets
 
     def _normalize_tickets(self, raw_tickets, user_map):
@@ -153,6 +168,10 @@ class ZammadService:
                     "updated_at": self._format_date(ticket.get("updated_at")),
                     "due_date": self._format_date(ticket.get("escalation_at")),
                     "url": f"{self.base_url}/#ticket/zoom/{ticket.get('id')}",
+                    "extra_info": {
+                        "group_id": ticket.get("group_id"),
+                        "organization_id": ticket.get("organization_id"),
+                    },
                 },
             )
         return normalized_tickets
@@ -200,7 +219,6 @@ class ZammadService:
             return date_str
         else:
             return dt_str
-            return date_str
 
     def check_health(self):
         start = django_timezone.now()
@@ -214,23 +232,13 @@ class ZammadService:
             }
 
         try:
-            response = requests.get(
+            response = httpx.get(
                 f"{self.base_url}/api/v1/users/me",
                 headers=self.headers,
-                timeout=3,
+                timeout=10.0,
             )
             response.raise_for_status()
-
-            latency = int(
-                (django_timezone.now() - start).total_seconds() * 1000,
-            )
-            return {  # noqa: TRY300
-                "name": self.config.name,
-                "status": "online",
-                "latency": latency,
-                "error": None,
-            }
-        except requests.HTTPError as e:
+        except httpx.HTTPError as e:
             logger.warning("%s Auth Failed: %s", self.config.name, e)
             return {
                 "name": self.config.name,
@@ -245,4 +253,12 @@ class ZammadService:
                 "status": "offline",
                 "latency": 0,
                 "error": "Unreachable",
+            }
+        else:
+            latency = int((django_timezone.now() - start).total_seconds() * 1000)
+            return {
+                "name": self.config.name,
+                "status": "online",
+                "latency": latency,
+                "error": None,
             }

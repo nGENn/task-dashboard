@@ -1,10 +1,16 @@
 import datetime
 import json
 import logging
+from urllib.parse import parse_qs
+from urllib.parse import urlencode
+from urllib.parse import urlparse
+from urllib.parse import urlunparse
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
+from django.core.cache import cache
 from django.core.paginator import Paginator
 from django.db.models import QuerySet
 from django.http import HttpResponseRedirect
@@ -17,13 +23,14 @@ from django.views.generic import DetailView
 from django.views.generic import RedirectView
 from django.views.generic import TemplateView
 from django.views.generic import UpdateView
+from django_q.tasks import async_task
 
 # Models
 from ticket_dashboard.users.models import SavedView
+from ticket_dashboard.users.models import ServiceConfiguration
 from ticket_dashboard.users.models import Ticket
 from ticket_dashboard.users.models import TicketPermission
 from ticket_dashboard.users.models import User
-from ticket_dashboard.users.tasks import fetch_all_tickets_task
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +70,39 @@ class UserRedirectView(LoginRequiredMixin, RedirectView):
 user_redirect_view = UserRedirectView.as_view()
 
 
+@login_required
+@require_POST
+def force_refresh_view(request):
+    """
+    Triggers a fresh fetch from all services.
+    Used by the "Force Refresh" button.
+    """
+    # Trigger background task
+    async_task("ticket_dashboard.users.tasks.fetch_all_tickets_task")
+
+    messages.info(
+        request,
+        _("Ticket refresh has been started in the background. Please wait a moment."),
+    )
+
+    # Clear health check cache to force fresh status as well
+    active_configs = ServiceConfiguration.objects.filter(is_active=True)
+    for config in active_configs:
+        cache.delete(f"health_check_result_{config.pk}")
+
+    # Redirect back to where the user came from, or dashboard
+    referer = request.headers.get("referer")
+    if referer:
+        # Remove any existing refresh=1 from referer to be clean
+        u = urlparse(referer)
+        query = parse_qs(u.query)
+        query.pop("refresh", None)
+        u = u._replace(query=urlencode(query, doseq=True))
+        return HttpResponseRedirect(urlunparse(u))
+
+    return HttpResponseRedirect(reverse("users:dashboard"))
+
+
 # --- DASHBOARD VIEW ---
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "pages/home.html"
@@ -70,10 +110,6 @@ class DashboardView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):  # noqa: C901, PLR0912, PLR0915
         context = super().get_context_data(**kwargs)
         request = self.request
-
-        # 0. FORCE REFRESH LOGIC
-        if request.GET.get("refresh") == "1":
-            fetch_all_tickets_task()
 
         # 1. RETRIEVE TICKETS FROM DATABASE
         all_tickets = (

@@ -21,6 +21,13 @@ An internal operational dashboard aggregating tasks, issues, and risks from Zamm
 
    Update `DJANGO_SECRET_KEY` and other settings in `.env` as needed.
 
+2. **Run the Worker:**
+   This project uses Django-Q for background tasks. In a separate terminal, run:
+
+   ```bash
+   uv run manage.py qcluster
+   ```
+
 ### Database Seeding
 
 To populate the local environment with test data:
@@ -53,11 +60,13 @@ cd ticket_dashboard/static/css
 
 ### Data Strategy
 
-The application uses a **"Fetch All, Filter Locally"** pattern:
+The application uses an asynchronous **"Fetch-Sync-Prune"** pattern for high performance and reliability:
 
-1. **Aggregation:** API Tokens fetch **all** active tasks.
-2. **Caching:** Results cached for 5 minutes (`?refresh=1` to bypass).
-3. **Security Gatekeeper:** `views.py` filters cached lists based on **Django Group Permissions**.
+1.  **Parallel Background Fetching:** When a refresh is triggered, **Django-Q** dispatches parallel tasks for each service. All services are fetched simultaneously.
+2.  **Concurrent Pagination:** Individual service clients use **`httpx`** and **`asyncio`** to fetch multiple API pages concurrently, drastically reducing I/O wait times.
+3.  **High-Speed Batch Upserting:** Thousands of tickets are processed and written to the PostgreSQL database in bulk using `bulk_create` with `update_conflicts=True`.
+4.  **Automatic Pruning:** After each sync, the system automatically deletes local tickets that are no longer present in the remote service (e.g., closed or deleted tickets), keeping the database perfectly in sync.
+5.  **Security Gatekeeper:** `views.py` filters the database records in real-time based on **Django Group Permissions (RBAC)**.
 
 ### Environment Variables & Security
 >
@@ -80,7 +89,7 @@ Manage services in **Admin > Users > Service Configurations**.
 
 Access control is decoupled from services and managed via **Django Groups**.
 
-1. **Auto-Discovery:** Loading the dashboard discovers external groups (e.g., "Zammad - Support").
+1. **Auto-Discovery:** Synchronizing a service automatically discovers external groups (e.g., "Zammad - Support").
 2. **Assignment:** In **Admin > Auth > Groups**, add a **Task Permission** entry.
 3. **Access Levels:**
    - **FULL:** View all tasks in the group.
@@ -89,11 +98,11 @@ Access control is decoupled from services and managed via **Django Groups**.
 
 ## 🔌 Service Integration Details
 
-- **Zammad:** Fetches via List API. Duplicates checked before seeding.
-- **GitLab:** Fetches Issues and Merge Requests. Maps User IDs to Emails.
-- **EspoCRM:** Fetches Cases and Tasks. Requires "Read All" role.
-- **OpenProject:** Injects `Host` header to bypass hostname validation.
+- **Zammad:** Concurrent fetching of up to 10 pages. Maps User IDs to Emails.
+- **GitLab:** Parallel fetching of Issues and Merge Requests.
+- **EspoCRM:** Parallel fetching of Cases and Tasks. Requires "Read All" role.
+- **OpenProject:** Optimized work package fetching with `Host` header injection.
 
 ### WIP
 
-- **Eramba:** Parses nested JSON structures for Incidents/Operations.
+- **Eramba:** Parallel fetching of Security Incidents, Projects, and Achievements.

@@ -111,6 +111,9 @@ class ExternalGroup(models.Model):
     # Helpful for the admin to know when this group was last seen
     last_seen = models.DateTimeField(auto_now=True)
 
+    # Extra data for management (e.g. project IDs, slugs)
+    extra_data = models.JSONField(default=dict, blank=True)
+
     class Meta:
         unique_together = ("origin", "name")
         ordering = ["origin", "name"]
@@ -205,7 +208,7 @@ class Ticket(models.Model):
     title = models.CharField(max_length=255)
     status = models.CharField(max_length=50)
     priority = models.CharField(max_length=50)
-    customer = models.CharField(max_length=255, blank=True)
+    customer = models.CharField(max_length=255, blank=True, default="")
     group = models.CharField(max_length=255, blank=True)
     owner = models.CharField(max_length=255, blank=True)
     owner_email = models.EmailField(blank=True)
