@@ -3,6 +3,7 @@
 <form method="get"
       action="."
       class="mb-2 bg-base-100 rounded-box shadow-sm border border-base-300 p-4">
+  <input type="hidden" name="view" value="all" />
   <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-3 mb-2">
     <div class="dropdown w-full">
       <div tabindex="0"
@@ -221,7 +222,7 @@
             id="active-filters-label">Active filters:</span>
     </div>
     <div class="flex items-center gap-2 whitespace-nowrap">
-      <a href="." class="btn btn-ghost btn-sm">Reset</a>
+      <a href="?view={{ current_view|default:'my' }}" class="btn btn-ghost btn-sm">Reset</a>
       <button type="submit" class="btn btn-primary btn-sm">Apply Filters</button>
     </div>
   </div>

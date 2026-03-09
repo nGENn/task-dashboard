@@ -107,6 +107,11 @@ def force_refresh_view(request):
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "pages/home.html"
 
+    def get(self, request, *args, **kwargs):
+        if not request.GET:
+            return HttpResponseRedirect(f"{request.path}?view=my")
+        return super().get(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs):  # noqa: C901, PLR0912, PLR0915
         context = super().get_context_data(**kwargs)
         request = self.request
@@ -179,12 +184,26 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         # 6. UI FILTERING & SORTING
         # =========================================================
 
-        filtered_tickets = allowed_tickets
+        current_view = request.GET.get("view", "my")
+        context["current_view"] = current_view
+        
+        # Apply Base View Context
+        if current_view == "my":
+            filtered_tickets = [t for t in allowed_tickets if t.owner_email == user_email]
+        elif current_view == "unassigned":
+            unassigned_markers = {None, "", "-", "None", "Unassigned"}
+            filtered_tickets = [t for t in allowed_tickets if str(t.owner) in unassigned_markers and str(t.owner_email) in unassigned_markers]
+        else:
+            filtered_tickets = allowed_tickets
 
         # A. Focus Mode Logic
         selected_states = request.GET.getlist("state")
         selected_owners = request.GET.getlist("owner")
         query = request.GET.get("q", "").lower().strip()
+
+        # Apply default active states for 'my' and 'unassigned' views if no explicit state filter is active
+        if not selected_states and current_view in ["my", "unassigned"]:
+            selected_states = ["open", "pending", "new"]
 
         if selected_states:
             filtered_tickets = [
@@ -403,17 +422,16 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             }
             for v in saved_views
         ]
-        active_states = ["open", "pending", "new"]
         context["default_views"] = [
             {
                 "name": "My Tasks",
-                "params": {"owner": [user_email], "state": active_states},
-                "url": f"?owner={user_email}&state=open&state=pending&state=new",
+                "view_param": "my",
+                "url": "?view=my",
             },
             {
                 "name": "Unassigned",
-                "params": {"owner": ["Unassigned"], "state": active_states},
-                "url": "?owner=Unassigned&state=open&state=pending&state=new",
+                "view_param": "unassigned",
+                "url": "?view=unassigned",
             },
         ]
 

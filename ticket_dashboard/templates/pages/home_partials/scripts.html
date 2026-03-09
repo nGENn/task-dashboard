@@ -84,7 +84,9 @@
         // Add Clear All link
         if (!container.querySelector(".clear-all-link")) {
           const clearBtn = document.createElement("a");
-          clearBtn.href = ".";
+          const urlParams = new URLSearchParams(window.location.search);
+          const currentView = urlParams.get('view') || 'my';
+          clearBtn.href = "?view=" + currentView;
           clearBtn.className = "btn btn-ghost btn-xs text-error clear-all-link";
           clearBtn.innerText = "Clear all";
           container.appendChild(clearBtn);

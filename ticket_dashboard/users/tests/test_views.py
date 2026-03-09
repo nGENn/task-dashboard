@@ -144,7 +144,7 @@ class TestDashboardView:
         )
 
         # 3. Request (no groups assigned to user)
-        request = rf.get("/?owner=Other User&owner=" + user.name)
+        request = rf.get("/?view=all&owner=Other User&owner=" + user.name)
         request.user = user
 
         # 4. Execute View
