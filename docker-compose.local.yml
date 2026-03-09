@@ -1,6 +1,6 @@
 volumes:
-  ticket_dashboard_local_postgres_data: {}
-  ticket_dashboard_local_postgres_data_backups: {}
+  task_dashboard_local_postgres_data: {}
+  task_dashboard_local_postgres_data_backups: {}
 
 services:
   # --- 1. Main App (Port 8000) ---
@@ -8,8 +8,8 @@ services:
     build:
       context: .
       dockerfile: ./compose/local/django/Dockerfile
-    image: ticket_dashboard_local_django
-    container_name: ticket_dashboard_django
+    image: task_dashboard_local_django
+    container_name: task_dashboard_django
     environment:
       USE_DOCKER: ${USE_DOCKER:-yes}
       IPYTHONDIR: ${IPYTHONDIR:-/app/.ipython}
@@ -21,10 +21,10 @@ services:
       DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-config.settings.local}
       POSTGRES_USER: ${POSTGRES_USER:-debug}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-debug}
-      POSTGRES_DB: ${POSTGRES_DB:-ticket_dashboard}
+      POSTGRES_DB: ${POSTGRES_DB:-task_dashboard}
       POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
-      DATABASE_URL: postgres://${POSTGRES_USER:-debug}:${POSTGRES_PASSWORD:-debug}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-ticket_dashboard}
+      DATABASE_URL: postgres://${POSTGRES_USER:-debug}:${POSTGRES_PASSWORD:-debug}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-task_dashboard}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
       KEYCLOAK_SERVER_URL: ${KEYCLOAK_SERVER_URL}
@@ -39,14 +39,14 @@ services:
     build:
       context: .
       dockerfile: ./compose/production/postgres/Dockerfile
-    image: ticket_dashboard_production_postgres
-    container_name: ticket_dashboard_postgres
+    image: task_dashboard_production_postgres
+    container_name: task_dashboard_postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-debug}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-debug}
-      POSTGRES_DB: ${POSTGRES_DB:-ticket_dashboard}
+      POSTGRES_DB: ${POSTGRES_DB:-task_dashboard}
       POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
     volumes:
-      - ticket_dashboard_local_postgres_data:/var/lib/postgresql/18/docker
-      - ticket_dashboard_local_postgres_data_backups:/backups
+      - task_dashboard_local_postgres_data:/var/lib/postgresql/18/docker
+      - task_dashboard_local_postgres_data_backups:/backups

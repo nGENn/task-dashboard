@@ -13,7 +13,7 @@ venv
 .envs/
 
 # CSS Source Files
-ticket_dashboard/static/css/input.css
-ticket_dashboard/static/css/daisyui.mjs
-ticket_dashboard/static/css/daisyui-theme.mjs
-ticket_dashboard/static/css/tailwindcss
+task_dashboard/static/css/input.css
+task_dashboard/static/css/daisyui.mjs
+task_dashboard/static/css/daisyui-theme.mjs
+task_dashboard/static/css/tailwindcss

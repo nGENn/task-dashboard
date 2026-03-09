@@ -20,9 +20,9 @@ def main():
         ) from exc
 
     # This allows easy placement of apps within the interior
-    # ticket_dashboard directory.
+    # task_dashboard directory.
     current_path = Path(__file__).parent.resolve()
-    sys.path.append(str(current_path / "ticket_dashboard"))
+    sys.path.append(str(current_path / "task_dashboard"))
 
     execute_from_command_line(sys.argv)
 

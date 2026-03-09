@@ -8,8 +8,8 @@ import environ
 from django.utils.translation import gettext_lazy as _
 
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
-# ticket_dashboard/
-APPS_DIR = BASE_DIR / "ticket_dashboard"
+# task_dashboard/
+APPS_DIR = BASE_DIR / "task_dashboard"
 env = environ.Env()
 
 READ_DOT_ENV_FILE = env.bool("DJANGO_READ_DOT_ENV_FILE", default=False)
@@ -86,7 +86,7 @@ THIRD_PARTY_APPS = [
 ]
 
 LOCAL_APPS = [
-    "ticket_dashboard.users",
+    "task_dashboard.users",
     # Your stuff: custom apps go here
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
@@ -95,7 +95,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 # MIGRATIONS
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#migration-modules
-MIGRATION_MODULES = {"sites": "ticket_dashboard.contrib.sites.migrations"}
+MIGRATION_MODULES = {"sites": "task_dashboard.contrib.sites.migrations"}
 
 # AUTHENTICATION
 # ------------------------------------------------------------------------------
@@ -190,8 +190,8 @@ TEMPLATES = [
                 "django.template.context_processors.static",
                 "django.template.context_processors.tz",
                 "django.contrib.messages.context_processors.messages",
-                "ticket_dashboard.users.context_processors.allauth_settings",
-                "ticket_dashboard.context_processors.system_status",
+                "task_dashboard.users.context_processors.allauth_settings",
+                "task_dashboard.context_processors.system_status",
             ],
         },
     },
@@ -283,7 +283,7 @@ ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 # https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_EMAIL_VERIFICATION = "none"
 # https://docs.allauth.org/en/latest/account/configuration.html
-ACCOUNT_ADAPTER = "ticket_dashboard.users.adapters.AccountAdapter"
+ACCOUNT_ADAPTER = "task_dashboard.users.adapters.AccountAdapter"
 # https://docs.allauth.org/en/latest/account/configuration.html
 # Depreciated: ACCOUNT_LOGIN_ATTEMPTS_LIMIT = None
 # New Rate Limit Syntax
@@ -291,11 +291,11 @@ ACCOUNT_ADAPTER = "ticket_dashboard.users.adapters.AccountAdapter"
 # login_failed: Block after 5 failed attempts in 5 minutes (300s)
 ACCOUNT_RATE_LIMITS = {"login_failed": "5/5m"}
 # https://docs.allauth.org/en/latest/account/forms.html
-ACCOUNT_FORMS = {"signup": "ticket_dashboard.users.forms.UserSignupForm"}
+ACCOUNT_FORMS = {"signup": "task_dashboard.users.forms.UserSignupForm"}
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
-SOCIALACCOUNT_ADAPTER = "ticket_dashboard.users.adapters.SocialAccountAdapter"
+SOCIALACCOUNT_ADAPTER = "task_dashboard.users.adapters.SocialAccountAdapter"
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
-SOCIALACCOUNT_FORMS = {"signup": "ticket_dashboard.users.forms.UserSocialSignupForm"}
+SOCIALACCOUNT_FORMS = {"signup": "task_dashboard.users.forms.UserSocialSignupForm"}
 
 
 # Your stuff...
@@ -372,10 +372,11 @@ ZAMMAD_API_TOKEN = env("ZAMMAD_API_TOKEN", default="")
 # ------------------------------------------------------------------------------
 # https://django-q2.readthedocs.io/en/master/configure.html
 Q_CLUSTER = {
-    "name": "ticket_dashboard_cluster",
+    "name": "task_dashboard_cluster",
     "workers": 4,
     "recycle": 500,
     "timeout": 120,
+    "retry": 180,
     "compress": True,
     "save_limit": 250,
     "queue_limit": 500,

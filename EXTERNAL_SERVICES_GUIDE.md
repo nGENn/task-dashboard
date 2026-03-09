@@ -62,12 +62,12 @@ Zammad uses Personal Access Tokens.
 1. **Create an API User:** Create a dedicated agent user (e.g., `api-dashboard@example.com`).
 2. **Grant Global Access:**
    - Ensure the user has the **Agent** role.
-   - Under **Permissions**, ensure the user has **Read** access to all relevant **Groups**. In Zammad, an agent needs explicit access to groups to see their tickets.
+   - Under **Permissions**, ensure the user has **Read** access to all relevant **Groups**. In Zammad, an agent needs explicit access to groups to see their tasks.
 3. **Log in as the API User**.
 4. Click on the avatar > **Profile** > **Token Access**.
 5. Click **Create** with the following **permissions**:
-   - `ticket.agent`: Allows reading tickets and users.
-6. Copy the token and enter it into the `API Token` field in the Dashboard.
+   - `ticket.agent`: Allows reading tasks and users.
+6. Copy the token and enter it into the `API Token` field in the Dashboard configuration.
 
 ## OpenProject
 

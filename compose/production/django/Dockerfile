@@ -8,12 +8,12 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y curl bash ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Copy CSS source and relevant templates for Tailwind to scan
-COPY ./ticket_dashboard/static/css /app/ticket_dashboard/static/css
-COPY ./ticket_dashboard/templates /app/ticket_dashboard/templates
+COPY ./task_dashboard/static/css /app/task_dashboard/static/css
+COPY ./task_dashboard/templates /app/task_dashboard/templates
 
 # Download Tailwind standalone binary and build the CSS
 # Using the command provided by the user
-RUN cd ticket_dashboard/static/css && \
+RUN cd task_dashboard/static/css && \
     curl -sL daisyui.com/fast | bash && \
     ./tailwindcss -i input.css -o output.css --minify
 
@@ -83,10 +83,10 @@ RUN chmod +x /start
 COPY --from=python-build-stage --chown=django:django ${APP_HOME} ${APP_HOME}
 
 # Copy the compiled CSS from the css-build-stage
-COPY --from=css-build-stage --chown=django:django /app/ticket_dashboard/static/css/output.css ${APP_HOME}/ticket_dashboard/static/css/output.css
+COPY --from=css-build-stage --chown=django:django /app/task_dashboard/static/css/output.css ${APP_HOME}/task_dashboard/static/css/output.css
 
 # explicitly create the media folder before changing ownership below
-RUN mkdir -p ${APP_HOME}/ticket_dashboard/media
+RUN mkdir -p ${APP_HOME}/task_dashboard/media
 
 # make django owner of the WORKDIR directory as well.
 RUN chown django:django ${APP_HOME}

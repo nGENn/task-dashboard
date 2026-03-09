@@ -6,10 +6,14 @@ python_files = [
     "tests.py",
     "test_*.py",
 ]
+filterwarnings = [
+    "ignore:The default scheme will be changed from 'http' to 'https' in Django 6.0:django.utils.deprecation.RemovedInDjango60Warning",
+    "ignore:No directory at.*staticfiles:UserWarning",
+]
 
 # ==== Coverage ====
 [tool.coverage.run]
-include = ["ticket_dashboard/**"]
+include = ["task_dashboard/**"]
 omit = ["*/migrations/*", "*/tests/*"]
 plugins = ["django_coverage_plugin"]
 
@@ -152,7 +156,7 @@ dev = [
 ]
 
 [project]
-name = "ticket_dashboard"
+name = "task_dashboard"
 version = "0.1.25"
 description = "Awsome Task Dashboard"
 readme = "README.md"
