@@ -186,14 +186,10 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         selected_owners = request.GET.getlist("owner")
         query = request.GET.get("q", "").lower().strip()
 
-        is_default_view = not (selected_states or selected_owners or query)
-
         if selected_states:
             filtered_tickets = [
                 t for t in filtered_tickets if t.status in selected_states
             ]
-        elif is_default_view:
-            filtered_tickets = [t for t in filtered_tickets if t.status != "resolved"]
 
         if selected_owners:
             want_unassigned = "Unassigned" in selected_owners
@@ -228,14 +224,6 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 if is_match:
                     new_filtered.append(t)
             filtered_tickets = new_filtered
-        elif is_default_view:
-            filtered_tickets = [
-                t
-                for t in filtered_tickets
-                if t.owner_email == user_email
-                or str(t.owner) in ["Unassigned", "-", "None", ""]
-                or t.owner is None
-            ]
 
         # B. Text Search
         if query:
@@ -322,19 +310,10 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             # Fallback date for sorting (aware min date)
             min_date = datetime.datetime.min.replace(tzinfo=datetime.UTC)
 
-            def priority_sort(t):
-                if t.owner_email == user_email:
-                    return 0
-                owner = str(t.owner or "")
-                if owner in ["Unassigned", "-", "", "None"] or t.owner is None:
-                    return 1
-                return 2
-
             filtered_tickets.sort(
                 key=lambda x: x.updated_at or min_date,
                 reverse=True,
             )
-            filtered_tickets.sort(key=priority_sort)
 
         # 7. GENERATE OPTIONS (FIXED: Extract Emails for Owners)
         def get_options(field):
