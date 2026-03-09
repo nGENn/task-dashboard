@@ -28,14 +28,12 @@
   <a role="tab"
      class="tab {% if current_view == 'all' %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
      href="?view=all">All Tasks</a>
-  
   <!-- Default Views -->
   {% for view in default_views %}
     <a role="tab"
        class="tab {% if current_view == view.view_param %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
        href="{{ view.url }}">{{ view.name }}</a>
   {% endfor %}
-  
   <!-- Saved Views -->
   {% for view in saved_views %}
     {% is_active_view request.GET view.params as active %}

@@ -186,13 +186,18 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         current_view = request.GET.get("view", "my")
         context["current_view"] = current_view
-        
+
         # Apply Base View Context
         if current_view == "my":
             filtered_tasks = [t for t in allowed_tasks if t.owner_email == user_email]
         elif current_view == "unassigned":
             unassigned_markers = {None, "", "-", "None", "Unassigned"}
-            filtered_tasks = [t for t in allowed_tasks if str(t.owner) in unassigned_markers and str(t.owner_email) in unassigned_markers]
+            filtered_tasks = [
+                t
+                for t in allowed_tasks
+                if str(t.owner) in unassigned_markers
+                and str(t.owner_email) in unassigned_markers
+            ]
         else:
             filtered_tasks = allowed_tasks
 
@@ -201,14 +206,13 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         selected_owners = request.GET.getlist("owner")
         query = request.GET.get("q", "").lower().strip()
 
-        # Apply default active states for 'my' and 'unassigned' views if no explicit state filter is active
+        # Apply default active states for 'my' and 'unassigned' views if no explicit
+        # state filter is active
         if not selected_states and current_view in ["my", "unassigned"]:
             selected_states = ["open", "pending", "new"]
 
         if selected_states:
-            filtered_tasks = [
-                t for t in filtered_tasks if t.status in selected_states
-            ]
+            filtered_tasks = [t for t in filtered_tasks if t.status in selected_states]
 
         if selected_owners:
             want_unassigned = "Unassigned" in selected_owners
