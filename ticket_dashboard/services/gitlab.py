@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import logging
 from http import HTTPStatus
+from urllib.parse import urlparse
 
 import httpx
 from django.core.cache import cache
@@ -109,6 +110,23 @@ class GitLabService:
                     assignee.get("id") or author.get("id")
                 )
 
+                group_name = item_type
+                references = item.get("references")
+                if references and "full" in references:
+                    full_ref = references["full"]
+                    if "#" in full_ref:
+                        group_name = full_ref.split("#")[0]
+                    elif "!" in full_ref:
+                        group_name = full_ref.split("!")[0]
+                else:
+                    web_url = item.get("web_url", "")
+                    if web_url:
+                        path = urlparse(web_url).path
+                        if "/-/issues/" in path:
+                            group_name = path.split("/-/issues/")[0].strip("/")
+                        elif "/-/merge_requests/" in path:
+                            group_name = path.split("/-/merge_requests/")[0].strip("/")
+
                 ctx["target"].append(
                     {
                         "id": f"GL-{item_type[0]}-{item.get('iid')}",
@@ -117,7 +135,7 @@ class GitLabService:
                         "priority": "Medium",
                         "origin": self.config.name,
                         "customer": "Internal",
-                        "group": item_type,
+                        "group": group_name,
                         "owner": owner_name,
                         "owner_email": owner_email,
                         "created_at": self._format_date(item.get("created_at")),
