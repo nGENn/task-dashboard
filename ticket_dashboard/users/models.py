@@ -43,6 +43,14 @@ class User(AbstractUser):
         return reverse("users:detail", kwargs={"pk": self.id})
 
 
+ACCESS_LEVEL_CHOICES = [
+    ("FULL", "Full Access (See all tasks)"),
+    ("LIMITED", "Limited (Own tasks + Unassigned only)"),
+    ("OWN", "Only own tasks"),
+    ("NONE", "No Access"),
+]
+
+
 class ServiceConfiguration(models.Model):
     SERVICE_TYPES = [
         ("zammad", "Zammad"),
@@ -62,6 +70,12 @@ class ServiceConfiguration(models.Model):
         choices=SERVICE_TYPES,
         help_text="Type of service to connect to.",
         default="zammad",
+    )
+    default_access_level = models.CharField(
+        max_length=10,
+        choices=ACCESS_LEVEL_CHOICES,
+        default="NONE",
+        help_text="Default access level for all users on this service.",
     )
     api_url = models.URLField(
         blank=True,
@@ -127,13 +141,6 @@ class TicketPermission(models.Model):
     Rules connecting Django Groups to External Groups.
     """
 
-    # 1. Define the Choices
-    ACCESS_CHOICES = [
-        ("FULL", "Full Access (See all tasks)"),
-        ("LIMITED", "Limited (Own tasks + Unassigned only)"),
-        ("OWN_ONLY", "Only own tasks"),
-    ]
-
     django_group = models.ForeignKey(
         Group,
         on_delete=models.CASCADE,
@@ -144,12 +151,12 @@ class TicketPermission(models.Model):
     # 2. Add the new field
     access_level = models.CharField(
         max_length=10,
-        choices=ACCESS_CHOICES,
+        choices=ACCESS_LEVEL_CHOICES,
         default="FULL",
         help_text=(
             "FULL: View everything. LIMITED: View only unassigned tasks "
-            "or those assigned to the user. OWN_ONLY: View only tasks "
-            "assigned to the user."
+            "or those assigned to the user. OWN: View only tasks "
+            "assigned to the user. NONE: No access."
         ),
     )
 

@@ -128,8 +128,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         user_email = request.user.email
 
         # RBAC (Role-Based Access Control)
-        # By default, NO ONE should be able to see any tickets unless
-        # they are in a group that grants them permission.
+        # Check permissions using TicketPermission and ServiceConfiguration default
         perms = TicketPermission.objects.filter(
             django_group__in=request.user.groups.all(),
         ).values(
@@ -138,6 +137,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             "access_level",
         )
 
+        level_priority = {"NONE": 0, "OWN": 1, "LIMITED": 2, "FULL": 3}
         perm_map = {}
         for p in perms:
             key = "{}|{}".format(
@@ -145,7 +145,9 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 p["allowed_external_group__name"],
             )
             level = p["access_level"]
-            if key not in perm_map or level == "FULL":
+            if key not in perm_map or level_priority.get(level, 0) > level_priority.get(
+                perm_map[key], 0
+            ):
                 perm_map[key] = level
 
         for t in all_tickets:
@@ -154,26 +156,24 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             t_owner_email = t.owner_email
             t_owner = t.owner
 
-            # RBAC: Only allow access if the user has a permission for this
-            # ticket's (Origin, Group)
+            # RBAC: Use mapped permission or fallback to service default
             key = f"{t_origin}|{t_group}"
-            if key in perm_map:
-                level = perm_map[key]
-                if level == "FULL":
+            level = perm_map.get(key, t.service.default_access_level)
+
+            if level == "FULL":
+                allowed_tickets.append(t)
+            elif level == "LIMITED":
+                # Own tasks OR Unassigned
+                is_owner = t_owner_email and t_owner_email == user_email
+                is_unassigned = (
+                    str(t_owner) in ["Unassigned", "-", "", "None"] or t_owner is None
+                )
+                if is_owner or is_unassigned:
                     allowed_tickets.append(t)
-                elif level == "LIMITED":
-                    # Own tasks OR Unassigned
-                    is_owner = t_owner_email and t_owner_email == user_email
-                    is_unassigned = (
-                        str(t_owner) in ["Unassigned", "-", "", "None"]
-                        or t_owner is None
-                    )
-                    if is_owner or is_unassigned:
-                        allowed_tickets.append(t)
-                elif level == "OWN_ONLY":
-                    # Only own tasks
-                    if t_owner_email and t_owner_email == user_email:
-                        allowed_tickets.append(t)
+            elif level == "OWN":
+                # Only own tasks
+                if t_owner_email and t_owner_email == user_email:
+                    allowed_tickets.append(t)
 
         # =========================================================
         # 6. UI FILTERING & SORTING

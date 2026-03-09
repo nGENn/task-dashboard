@@ -70,6 +70,7 @@ class ServiceConfigurationForm(forms.ModelForm):
         fields = [
             "name",
             "service_type",
+            "default_access_level",
             "api_url",
             "api_token",
             "api_username",
@@ -85,9 +86,15 @@ class ServiceConfigurationForm(forms.ModelForm):
 @admin.register(ServiceConfiguration)
 class ServiceConfigurationAdmin(admin.ModelAdmin):
     form = ServiceConfigurationForm
-    list_display = ["name", "service_type", "api_url", "is_active"]
-    list_editable = ["is_active"]
-    list_filter = ["service_type", "is_active"]
+    list_display = [
+        "name",
+        "service_type",
+        "default_access_level",
+        "api_url",
+        "is_active",
+    ]
+    list_editable = ["is_active", "default_access_level"]
+    list_filter = ["service_type", "is_active", "default_access_level"]
     fieldsets = (
         (
             None,
@@ -95,6 +102,7 @@ class ServiceConfigurationAdmin(admin.ModelAdmin):
                 "fields": (
                     "name",
                     "service_type",
+                    "default_access_level",
                     "is_active",
                 ),
             },

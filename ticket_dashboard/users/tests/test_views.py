@@ -109,6 +109,76 @@ class TestUserDetailView:
 
 
 class TestDashboardView:
+    def test_default_access_level_permission(self, user: User, rf: RequestFactory):
+        # Service with default access level FULL
+        service_config = ServiceConfiguration.objects.create(
+            name="Zammad",
+            service_type="zammad",
+            is_active=True,
+            default_access_level="FULL",
+        )
+
+        # 2. Create Tasks in Database
+        test_datetime = timezone.now()
+        Ticket.objects.create(
+            external_id="ZAM-1",
+            title="My Task",
+            status="open",
+            service=service_config,
+            group="Support",
+            owner_email=user.email,
+            owner=user.name,
+            priority="medium",
+            updated_at=test_datetime,
+        )
+        Ticket.objects.create(
+            external_id="ZAM-2",
+            title="Other Task",
+            status="open",
+            service=service_config,
+            group="Support",
+            owner_email="other@example.com",
+            owner="Other User",
+            priority="medium",
+            updated_at=test_datetime,
+        )
+
+        # 3. Request (no groups assigned to user)
+        request = rf.get("/?owner=Other User&owner=" + user.name)
+        request.user = user
+
+        # 4. Execute View
+        view = DashboardView()
+        view.request = request
+        context = view.get_context_data()
+
+        # 5. Verify Results
+        tickets = context["tickets"].object_list
+        ticket_ids = [t.external_id for t in tickets]
+
+        # Because default access level is FULL, the user should see both tasks
+        assert "ZAM-1" in ticket_ids
+        assert "ZAM-2" in ticket_ids
+        assert len(tickets) == 2  # noqa: PLR2004
+
+        # Now test that a group can override it to NONE
+        group = Group.objects.create(name="Restricted Group")
+        user.groups.add(group)
+
+        ext_group = ExternalGroup.objects.create(
+            origin="Zammad",
+            name="Support",
+        )
+        TicketPermission.objects.create(
+            django_group=group,
+            allowed_external_group=ext_group,
+            access_level="NONE",
+        )
+
+        context = view.get_context_data()
+        tickets = context["tickets"].object_list
+        assert len(tickets) == 0
+
     def test_own_only_permission(self, user: User, rf: RequestFactory):
         # 1. Setup Data
         group = Group.objects.create(name="Support Group")
@@ -121,7 +191,7 @@ class TestDashboardView:
         TicketPermission.objects.create(
             django_group=group,
             allowed_external_group=ext_group,
-            access_level="OWN_ONLY",
+            access_level="OWN",
         )
 
         service_config = ServiceConfiguration.objects.create(
