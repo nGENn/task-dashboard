@@ -51,6 +51,12 @@ uv run manage.py migrate
 uv run manage.py seed_zammad_demo
 uv run manage.py seed_gitlab_demo
 uv run manage.py seed_espocrm_demo
+
+# Version bumping (CI requires a bump on every MR)
+uv version --bump patch   # 0.1.x -> 0.1.(x+1)  for bug fixes / small changes
+uv version --bump minor   # 0.x.0 -> 0.(x+1).0  for new features
+uv version --bump major   # x.0.0 -> (x+1).0.0  for breaking changes
+uv version 1.2.3          # set an explicit version
 ```
 
 ## Architecture
