@@ -1,0 +1,292 @@
+{# djlint:off #}
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    // 1. Initialize Flatpickr
+    const isMobile = window.innerWidth < 768;
+
+    flatpickr("#date-range-picker", {
+      mode: "range",
+      dateFormat: "Y-m-d",
+      altInput: true,
+      altFormat: "d.m.Y",
+      theme: "dark",
+      static: false, // Allow positioning logic to work
+      position: isMobile ? "auto right" : "auto left",
+      onChange: function(selectedDates, dateStr, instance) {
+        updateBadges(); // Update badges when date changes
+      },
+    });
+
+    // 2. Initial Setup: Check boxes based on URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.forEach((value, key) => {
+      if (key === "date_range") return; // Date handled by value="" attribute in HTML
+      // Find checkbox and check it
+      const checkbox = document.querySelector(
+        `input[name="${key}"][value="${value}"]`
+      );
+      if (checkbox) checkbox.checked = true;
+    });
+
+    // 3. Listen for changes on ALL checkboxes
+    const checkboxes = document.querySelectorAll(".filter-checkbox");
+    checkboxes.forEach((box) => {
+      box.addEventListener("change", updateBadges);
+    });
+
+    // 4. Initial Badge Render
+    updateBadges();
+
+    function updateBadges() {
+      const container = document.getElementById("active-filters-container");
+      const label = document.getElementById("active-filters-label");
+
+      // Clear existing badges (except label)
+      // We rebuild them from the CURRENT DOM STATE (what the user sees selected)
+      // This creates the "Hybrid" feel: Immediate visual feedback before applying.
+      const existingBadges = container.querySelectorAll(".badge");
+      existingBadges.forEach((b) => b.remove());
+
+      let hasFilters = false;
+
+      // A. Checkboxes
+      const checkedBoxes = Array.from(document.querySelectorAll(".filter-checkbox:checked"));
+
+      if (checkedBoxes.length > 0) {
+        hasFilters = true;
+        const groupedFilters = {};
+
+        checkedBoxes.forEach((box) => {
+          if (!groupedFilters[box.name]) {
+            groupedFilters[box.name] = 0;
+          }
+          groupedFilters[box.name]++;
+        });
+
+        Object.keys(groupedFilters).forEach((key) => {
+          const count = groupedFilters[key];
+          // Capitalize key for display text (e.g., 'origin' -> 'Origin')
+          const displayName = key.charAt(0).toUpperCase() + key.slice(1);
+          const displayText = `${displayName} (${count})`;
+
+          createBadge(
+            container,
+            key,
+            'all',
+            displayText
+          );
+        });
+      }
+
+      // B. Date Picker
+      const dateInput = document.getElementById("date-range-picker");
+      // We use the flatpickr instance value if available, or the input value
+      if (dateInput.value) {
+        hasFilters = true;
+        // Format: "2024-12-01 to 2024-12-31" -> "01.12.2024 - 31.12.2024"
+        const formattedDate = dateInput.value
+          .replace(/(\d{4})-(\d{2})-(\d{2})/g, "$3.$2.$1")
+          .replace(" to ", " - ");
+        createBadge(
+          container,
+          "date_range",
+          dateInput.value,
+          formattedDate,
+          "badge-neutral"
+        );
+      }
+
+      // Toggle Label visibility
+      if (hasFilters) {
+        label.classList.remove("hidden");
+        // Add Clear All link
+        if (!container.querySelector(".clear-all-link")) {
+          const clearBtn = document.createElement("a");
+          const urlParams = new URLSearchParams(window.location.search);
+          const currentView = urlParams.get('view') || 'my';
+          clearBtn.href = "?view=" + currentView;
+          clearBtn.className = "btn btn-ghost btn-xs text-error clear-all-link";
+          clearBtn.innerText = "Clear all";
+          container.appendChild(clearBtn);
+        }
+      } else {
+        label.classList.add("hidden");
+        const clearBtn = container.querySelector(".clear-all-link");
+        if (clearBtn) clearBtn.remove();
+      }
+    }
+
+    function createBadge(
+      container,
+      key,
+      value,
+      displayText,
+      colorClass = "badge-primary"
+    ) {
+      const badge = document.createElement("div");
+      badge.className = `badge ${colorClass} gap-1 pr-0 py-3`;
+      badge.innerHTML = `
+                ${displayText}
+                <button type="button" class="btn btn-ghost btn-xs text-primary-content hover:bg-transparent" onclick="removeBadge('${key}', '${value}')">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            `;
+      // Insert before the Clear All link (which is always last)
+      const clearLink = container.querySelector(".clear-all-link");
+      if (clearLink) {
+        container.insertBefore(badge, clearLink);
+      } else {
+        container.appendChild(badge);
+      }
+    }
+
+    // Global function for the onclick event in the badge
+    window.removeBadge = function(key, value) {
+      if (key === "date_range") {
+        const dateInput = document.getElementById("date-range-picker");
+        // Clear Flatpickr
+        if (dateInput._flatpickr) dateInput._flatpickr.clear();
+        dateInput.value = "";
+      } else {
+        if (value === 'all') {
+          // Uncheck all checkboxes for this group
+          const checkboxes = document.querySelectorAll(
+            `input[name="${key}"]:checked`
+          );
+          checkboxes.forEach((checkbox) => {
+            checkbox.checked = false;
+          });
+        } else {
+          // Uncheck the specific checkbox
+          const checkbox = document.querySelector(
+            `input[name="${key}"][value="${value}"]`
+          );
+          if (checkbox) {
+            checkbox.checked = false;
+          }
+        }
+      }
+      // Update badges immediately
+      updateBadges();
+    };
+    const table = document.querySelector("table");
+    const resizers = document.querySelectorAll(".resizer");
+    let currentResizer;
+    let startX = 0;
+    let startWidth = 0;
+
+    resizers.forEach(function(resizer) {
+      resizer.addEventListener("mousedown", function(e) {
+        e.preventDefault(); // Prevent text selection
+        currentResizer = resizer;
+
+        // Get the parent TH
+        const th = currentResizer.parentElement;
+
+        // Calculate current width
+        startWidth = th.offsetWidth;
+        startX = e.pageX;
+
+        // Add visual class
+        currentResizer.classList.add("resizing");
+
+        // Attach listeners to document (so you can drag outside the table)
+        document.addEventListener("mousemove", mouseMoveHandler);
+        document.addEventListener("mouseup", mouseUpHandler);
+      });
+    });
+
+    const mouseMoveHandler = function(e) {
+      if (!currentResizer) return;
+
+      // Calculate how far we moved
+      const dx = e.pageX - startX;
+      const th = currentResizer.parentElement;
+
+      // Apply new width (prevent making it too small, e.g., < 50px)
+      if (startWidth + dx > 50) {
+        th.style.width = `${startWidth + dx}px`;
+        // Force the table to respect the manual width
+        th.style.minWidth = `${startWidth + dx}px`;
+      }
+    };
+
+    const mouseUpHandler = function() {
+      if (currentResizer) {
+        currentResizer.classList.remove("resizing");
+        currentResizer = null;
+      }
+      document.removeEventListener("mousemove", mouseMoveHandler);
+      document.removeEventListener("mouseup", mouseUpHandler);
+    };
+  });
+
+  function changePage(pageNumber) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('page', pageNumber);
+    window.location.href = url.toString();
+  }
+
+  window.saveView = function() {
+    const viewName = document.getElementById('view_name').value;
+    if (!viewName) {
+      alert('Please enter a view name.');
+      return;
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const queryParams = {};
+
+    // Use a Set to iterate through unique keys and get all their values
+    [...new Set(urlParams.keys())].forEach(key => {
+      const values = urlParams.getAll(key);
+      queryParams[key] = values.length > 1 ? values : values[0];
+    });
+
+    fetch('/users/saved-views/save/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token }}',
+      },
+      body: JSON.stringify({
+        name: viewName,
+        query_params: queryParams
+      })
+    })
+    .then(response => {
+      if (response.ok) {
+        window.location.reload();
+      } else {
+        alert('Failed to save view.');
+      }
+    });
+  };
+
+  window.deleteView = function(viewId) {
+    const modal = document.getElementById('delete_view_modal');
+    const confirmBtn = document.getElementById('confirm_delete_btn');
+
+    // Set up the confirmation button click handler
+    confirmBtn.onclick = function() {
+      fetch(`/users/saved-views/${viewId}/delete/`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': '{{ csrf_token }}',
+        }
+      })
+      .then(response => {
+        if (response.ok) {
+          window.location.reload();
+        } else {
+          alert('Failed to delete view.');
+        }
+      });
+    };
+
+    modal.showModal();
+  };
+</script>
+{# djlint:on #}

@@ -4,9 +4,9 @@ stages:
   - build
 
 variables:
-  POSTGRES_USER: 'ticket_dashboard'
+  POSTGRES_USER: 'task_dashboard'
   POSTGRES_PASSWORD: ''
-  POSTGRES_DB: 'test_ticket_dashboard'
+  POSTGRES_DB: 'test_task_dashboard'
   POSTGRES_HOST_AUTH_METHOD: trust
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: ""    # Needed for docker:dind + buildx
@@ -17,6 +17,7 @@ precommit:
   image: ghcr.io/astral-sh/uv:python3.13-bookworm
   variables:
     PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
+    SKIP: pytest
   cache:
     paths:
       - ${PRE_COMMIT_HOME}

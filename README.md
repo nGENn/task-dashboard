@@ -45,14 +45,14 @@ The project uses standalone Tailwind CSS.
 **One-time build:**
 
 ```bash
-cd ticket_dashboard/static/css
+cd task_dashboard/static/css
 ./tailwindcss -i input.css -o project.css
 ```
 
 **Watch mode:**
 
 ```bash
-cd ticket_dashboard/static/css
+cd task_dashboard/static/css
 ./tailwindcss -i input.css -o project.css --watch
 ```
 
@@ -64,8 +64,8 @@ The application uses an asynchronous **"Fetch-Sync-Prune"** pattern for high per
 
 1.  **Parallel Background Fetching:** When a refresh is triggered, **Django-Q** dispatches parallel tasks for each service. All services are fetched simultaneously.
 2.  **Concurrent Pagination:** Individual service clients use **`httpx`** and **`asyncio`** to fetch multiple API pages concurrently, drastically reducing I/O wait times.
-3.  **High-Speed Batch Upserting:** Thousands of tickets are processed and written to the PostgreSQL database in bulk using `bulk_create` with `update_conflicts=True`.
-4.  **Automatic Pruning:** After each sync, the system automatically deletes local tickets that are no longer present in the remote service (e.g., closed or deleted tickets), keeping the database perfectly in sync.
+3.  **High-Speed Batch Upserting:** Thousands of tasks are processed and written to the PostgreSQL database in bulk using `bulk_create` with `update_conflicts=True`.
+4.  **Automatic Pruning:** After each sync, the system automatically deletes local tasks that are no longer present in the remote service (e.g., closed or deleted tasks), keeping the database perfectly in sync.
 5.  **Security Gatekeeper:** `views.py` filters the database records in real-time based on **Django Group Permissions (RBAC)**.
 
 ### Environment Variables & Security
@@ -105,4 +105,4 @@ Access control is decoupled from services and managed via **Django Groups**.
 
 ### WIP
 
-- **Eramba:** Parallel fetching of Security Incidents, Projects, and Achievements.
+- **Eramba:** Parallel fetching of Security Incidents, Projects, Achievements, and various Review modules. Includes smart future-task filtering and robust departmental group parsing.

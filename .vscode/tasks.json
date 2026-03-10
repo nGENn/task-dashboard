@@ -68,6 +68,20 @@
                 "showReuseMessage": false
             },
             "problemMatcher": []
+        },
+        {
+            "label": "Tailwind CSS Watch",
+            "type": "shell",
+            "command": "task_dashboard/static/css/tailwindcss -i task_dashboard/static/css/input.css -o task_dashboard/static/css/output.css --watch",
+            "group": "none",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "clear": true,
+                "showReuseMessage": false
+            },
+            "isBackground": true,
+            "problemMatcher": []
         }
     ],
     "inputs": [

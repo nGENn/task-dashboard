@@ -52,7 +52,7 @@ coverage.xml
 
 # Django stuff:
 staticfiles/
-ticket_dashboard/static/css/output.css
+task_dashboard/static/css/output.css
 
 # Sphinx documentation
 docs/_build/
@@ -269,7 +269,7 @@ tags
 dump.rdb
 
 ### Project template
-ticket_dashboard/media/
+task_dashboard/media/
 
 .pytest_cache/
 .ipython/

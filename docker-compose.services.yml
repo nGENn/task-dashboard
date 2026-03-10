@@ -33,7 +33,7 @@ services:
   # --- 2. EspoCRM (Port 8001) ---
   espocrm-db:
     image: mariadb:latest
-    container_name: ticket_dashboard_espocrm_db
+    container_name: task_dashboard_espocrm_db
     command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
     volumes:
       - espocrm_db_data:/var/lib/mysql
@@ -46,7 +46,7 @@ services:
 
   espocrm:
     image: espocrm/espocrm:latest
-    container_name: ticket_dashboard_espocrm
+    container_name: task_dashboard_espocrm
     environment:
       ESPOCRM_DATABASE_HOST: espocrm-db
       ESPOCRM_DATABASE_USER: espocrm
@@ -65,7 +65,7 @@ services:
   # # --- 3. OpenProject (Port 8002) ---
   # openproject:
   #     image: openproject/openproject:${TAG:-16}
-  #     container_name: ticket_dashboard_openproject
+  #     container_name: task_dashboard_openproject
   #     ports:
   #       - "8002:80"
   #     environment:
@@ -80,7 +80,7 @@ services:
   # # --- 4. Zammad (Port 8003) ---
   # zammad-db:
   #   image: postgres:17-alpine
-  #   container_name: ticket_dashboard_zammad_db
+  #   container_name: task_dashboard_zammad_db
   #   environment:
   #     POSTGRES_USER: zammad
   #     POSTGRES_PASSWORD: zammad
@@ -91,17 +91,17 @@ services:
 
   # zammad-memcached:
   #   image: memcached:alpine
-  #   container_name: ticket_dashboard_zammad_memcached
+  #   container_name: task_dashboard_zammad_memcached
   #   restart: no
 
   # zammad-redis:
   #   image: redis:alpine
-  #   container_name: ticket_dashboard_zammad_redis
+  #   container_name: task_dashboard_zammad_redis
   #   restart: no
 
   # zammad-init:
   #   <<: *zammad-service
-  #   container_name: ticket_dashboard_zammad_init
+  #   container_name: task_dashboard_zammad_init
   #   command: ["zammad-init"]
   #   depends_on:
   #     - zammad-db
@@ -110,12 +110,12 @@ services:
 
   # zammad-railsserver:
   #   <<: *zammad-service
-  #   container_name: ticket_dashboard_zammad_railsserver
+  #   container_name: task_dashboard_zammad_railsserver
   #   command: ["zammad-railsserver"]
 
   # zammad-nginx:
   #   <<: *zammad-service
-  #   container_name: ticket_dashboard_zammad_nginx
+  #   container_name: task_dashboard_zammad_nginx
   #   command: ["zammad-nginx"]
   #   ports:
   #     - "8003:8080"
@@ -124,18 +124,18 @@ services:
 
   # zammad-scheduler:
   #   <<: *zammad-service
-  #   container_name: ticket_dashboard_zammad_scheduler
+  #   container_name: task_dashboard_zammad_scheduler
   #   command: ["zammad-scheduler"]
 
   # zammad-websocket:
   #   <<: *zammad-service
-  #   container_name: ticket_dashboard_zammad_websocket
+  #   container_name: task_dashboard_zammad_websocket
   #   command: ["zammad-websocket"]
 
   # # --- 5. GitLab (Port 8004) ---
   # gitlab:
   #   image: gitlab/gitlab-ce:latest
-  #   container_name: ticket_dashboard_gitlab
+  #   container_name: task_dashboard_gitlab
   #   hostname: "localhost"
   #   environment:
   #     GITLAB_OMNIBUS_CONFIG: |

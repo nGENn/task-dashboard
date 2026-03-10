@@ -7,7 +7,7 @@ from django.views import defaults as default_views
 from django.views.generic import RedirectView
 from django.views.generic import TemplateView
 
-from ticket_dashboard.users.views import DashboardView
+from task_dashboard.users.views import DashboardView
 
 urlpatterns = [
     path("", DashboardView.as_view(), name="home"),
@@ -19,7 +19,7 @@ urlpatterns = [
     # Django Admin, use {% url 'admin:index' %}
     path(settings.ADMIN_URL, admin.site.urls),
     # User management
-    path("users/", include("ticket_dashboard.users.urls", namespace="users")),
+    path("users/", include("task_dashboard.users.urls", namespace="users")),
     path(
         "accounts/signup/",
         RedirectView.as_view(pattern_name="account_login", permanent=True),

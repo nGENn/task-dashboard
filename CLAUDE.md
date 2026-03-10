@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Django-based multi-service task aggregation dashboard that pulls tickets/tasks from Zammad, GitLab, EspoCRM, OpenProject, and Eramba into a unified interface with RBAC-based access control. Uses Keycloak for SSO via django-allauth.
+Django-based multi-service task aggregation dashboard that pulls tasks/tasks from Zammad, GitLab, EspoCRM, OpenProject, and Eramba into a unified interface with RBAC-based access control. Uses Keycloak for SSO via django-allauth.
 
 ## Tech Stack
 
@@ -29,19 +29,19 @@ docker compose -f docker-compose.local.yml up
 uv run pytest
 
 # Run a single test file
-uv run pytest ticket_dashboard/users/tests/test_views.py
+uv run pytest task_dashboard/users/tests/test_views.py
 
 # Run a single test
-uv run pytest ticket_dashboard/users/tests/test_views.py::TestDashboardView::test_method_name -v
+uv run pytest task_dashboard/users/tests/test_views.py::TestDashboardView::test_method_name -v
 
 # Linting (pre-commit runs ruff, djlint, django-upgrade)
 uv run pre-commit run --all-files
 
 # Type checking
-uv run mypy ticket_dashboard
+uv run mypy task_dashboard
 
 # Tailwind CSS (rebuild on change)
-cd ticket_dashboard/static/css && ./tailwindcss -i input.css -o project.css --watch
+cd task_dashboard/static/css && ./tailwindcss -i input.css -o project.css --watch
 
 # Migrations
 uv run manage.py makemigrations
@@ -51,6 +51,12 @@ uv run manage.py migrate
 uv run manage.py seed_zammad_demo
 uv run manage.py seed_gitlab_demo
 uv run manage.py seed_espocrm_demo
+
+# Version bumping (CI requires a bump on every MR)
+uv version --bump patch   # 0.1.x -> 0.1.(x+1)  for bug fixes / small changes
+uv version --bump minor   # 0.x.0 -> 0.(x+1).0  for new features
+uv version --bump major   # x.0.0 -> (x+1).0.0  for breaking changes
+uv version 1.2.3          # set an explicit version
 ```
 
 ## Architecture
@@ -59,26 +65,26 @@ uv run manage.py seed_espocrm_demo
 
 Split settings: `base.py` (shared), `local.py` (dev with LocMem cache + debug toolbar), `production.py` (Redis cache + Sentry + SSL), `test.py` (fast hashing, no external deps). Test settings are used by pytest via `--ds=config.settings.test` in pyproject.toml.
 
-### Single Django App (ticket_dashboard/)
+### Single Django App (task_dashboard/)
 
-All business logic lives in `ticket_dashboard/users/` — models, views, tasks, admin, templatetags.
+All business logic lives in `task_dashboard/users/` — models, views, tasks, admin, templatetags.
 
-### Key Models (ticket_dashboard/users/models.py)
+### Key Models (task_dashboard/users/models.py)
 
 - **User** — custom AbstractUser, email as USERNAME_FIELD (no username)
 - **ServiceConfiguration** — stores external service URLs + encrypted API tokens (EncryptedCharField), toggled via `is_active`
-- **Ticket** — normalized task from any service, unique on `(service, external_id)`
+- **Task** — normalized task from any service, unique on `(service, external_id)`
 - **ExternalGroup** — auto-discovered groups from services (origin + name)
-- **TicketPermission** — RBAC: links Django Groups → ExternalGroups with access levels (FULL / LIMITED / OWN_ONLY)
+- **TaskPermission** — RBAC: links Django Groups → ExternalGroups with access levels (FULL / LIMITED / OWN_ONLY)
 - **SavedView** — user's saved filter configurations as JSON
 
-### Service Integrations (ticket_dashboard/services/)
+### Service Integrations (task_dashboard/services/)
 
-Each file (`zammad.py`, `gitlab.py`, `espocrm.py`, `openproject.py`, `eramba.py`) is a service class that fetches tickets via API, normalizes them to the Ticket model format, and caches results (5 min). Uses httpx for HTTP calls.
+Each file (`zammad.py`, `gitlab.py`, `espocrm.py`, `openproject.py`, `eramba.py`) is a service class that fetches tasks via API, normalizes them to the Task model format, and caches results (5 min). Uses httpx for HTTP calls.
 
 ### Data Flow
 
-1. Services fetch all active tickets from external APIs (cached 5 min, force refresh with `?refresh=1`)
+1. Services fetch all active tasks from external APIs (cached 5 min, force refresh with `?refresh=1`)
 2. `DashboardView` applies RBAC filtering in memory based on user's group permissions
 3. UI filters (status, owner, search, date) applied on top
 4. Results paginated (50/page) and rendered server-side

@@ -1,6 +1,6 @@
 // For format details, see https://containers.dev/implementors/json_reference/
 {
-    "name": "ticket_dashboard_dev",
+    "name": "task_dashboard_dev",
     "dockerComposeFile": [
         "../docker-compose.local.yml",
         "../docker-compose.override.yml"
