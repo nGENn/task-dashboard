@@ -6,6 +6,7 @@ from datetime import datetime
 from http import HTTPStatus
 
 import httpx
+from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone as django_timezone
 
@@ -56,6 +57,12 @@ ASSET_TYPE_MAP = {
 # Eramba Magic Numbers for Project Status
 STATUS_PLANNED = 1
 STATUS_DONE = 3
+
+# How many days into the future to consider "Open" tasks relevant.
+# Can be overridden in Django settings.
+OPEN_TASK_FUTURE_WINDOW_DAYS = getattr(
+    settings, "ERAMBA_OPEN_TASK_FUTURE_WINDOW_DAYS", 30
+)
 
 
 class ErambaService:
@@ -180,16 +187,15 @@ class ErambaService:
         if "Authorization" not in self.headers:
             return []
 
+        # Calculate future limit once for this sync run
+        future_limit = django_timezone.now() + django_timezone.timedelta(
+            days=OPEN_TASK_FUTURE_WINDOW_DAYS
+        )
+
         # follow_redirects=False ensures we fail fast if authentication is rejected
         async with httpx.AsyncClient(follow_redirects=False) as client:
             tasks = [
-                self._fetch_module(
-                    client,
-                    module["path"],
-                    module["model"],
-                    module["label"],
-                    module["web"],
-                )
+                self._fetch_module(client, module, future_limit)
                 for module in self.FETCH_CONFIG
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -206,8 +212,13 @@ class ErambaService:
             cache.set(cache_key, all_tasks, timeout=300)
             return all_tasks
 
-    async def _fetch_module(self, client, api_path, model_class, label, web_path):
+    async def _fetch_module(self, client, module_config, future_limit):
         """Fetches a specific module with full pagination support."""
+        api_path = module_config["path"]
+        model_class = module_config["model"]
+        label = module_config["label"]
+        web_path = module_config["web"]
+
         normalized_list = []
         url = f"{self.base_url}/{api_path}/index"
         limit = 100
@@ -245,7 +256,9 @@ class ErambaService:
                     break
 
                 for entry in items:
-                    parsed = self._parse_item(entry, model_class, label, web_path)
+                    parsed = self._parse_item(
+                        entry, model_class, label, web_path, future_limit
+                    )
                     if parsed:
                         normalized_list.append(parsed)
 
@@ -271,7 +284,7 @@ class ErambaService:
             return data.get("data") or data.get("items") or []
         return []
 
-    def _parse_item(self, entry, model_class, group_label, web_path):
+    def _parse_item(self, entry, model_class, group_label, web_path, future_limit):
         """Parses a single Eramba item into the dashboard task format."""
         if not isinstance(entry, dict):
             return None
@@ -289,6 +302,21 @@ class ErambaService:
         item_id = item.get("id")
         if item_id is None:
             return None
+
+        # Determine status first to allow filtering
+        status = self._determine_status(item)
+
+        # Filtering logic: Only keep open tasks that are due within the window
+        if status == "open":
+            due_date_raw = (
+                item.get("planned_date")
+                or item.get("deadline")
+                or item.get("end")
+                or item.get("planned_end")
+            )
+            due_dt = self._parse_date_to_dt(due_date_raw)
+            if due_dt and due_dt > future_limit:
+                return None
 
         # Asset Reviews use foreign keys to determine the asset type title
         title = None
@@ -313,7 +341,7 @@ class ErambaService:
         return {
             "id": f"ERA-{group_label[:3].upper()}-{item_id}",
             "title": str(title)[:250],
-            "status": self._determine_status(item),
+            "status": status,
             "priority": self._determine_priority(item),
             "origin": self.config.name,
             "customer": "Internal",
@@ -359,47 +387,70 @@ class ErambaService:
         return "Medium"
 
     def _parse_owners(self, owners_field):
-        """Extracts names or emails from various owner object formats."""
+        """Extracts names, emails, or group names from various owner object formats."""
         if not isinstance(owners_field, list) or not owners_field:
             return "GRC Team"
 
         names = []
         for o in owners_field:
-            if isinstance(o, dict) and o.get("user"):
-                u = o["user"]
-                if isinstance(u, dict):
-                    email = u.get("email")
-                    full_name = f"{u.get('name', '')} {u.get('surname', '')}".strip()
-                    names.append(email or full_name)
-                else:
-                    names.append(str(u))
-            else:
+            if not isinstance(o, dict):
                 names.append(str(o))
+                continue
+
+            # 1. Try to find a nested 'user' object
+            user = o.get("user")
+            if isinstance(user, dict):
+                email = user.get("email")
+                full_name = f"{user.get('name', '')} {user.get('surname', '')}".strip()
+                names.append(email or full_name)
+                continue
+
+            # 2. Try to find a nested 'group' object
+            group = o.get("group")
+            if isinstance(group, dict):
+                names.append(
+                    group.get("name")
+                    or group.get("slug")
+                    or f"Group #{group.get('id')}"
+                )
+                continue
+
+            # 3. Fallback: check for 'name' or 'email' at the top level
+            display_name = o.get("name") or o.get("email") or o.get("display_name")
+            if display_name:
+                names.append(str(display_name))
+                continue
+
+            # 4. Final fallback: use IDs if we can't find anything else
+            if o.get("id") and o.get("model"):
+                names.append(f"{o.get('model')} #{o.get('id')}")
 
         return ", ".join(filter(None, names)) or "GRC Team"
 
     def _format_date(self, date_str):
         """Standardizes Eramba dates to ISO format."""
+        dt = self._parse_date_to_dt(date_str)
+        return dt.isoformat() if dt else str(date_str or "")
+
+    def _parse_date_to_dt(self, date_str):
+        """Parses various Eramba date formats into a timezone-aware datetime object."""
         if not date_str:
-            return ""
+            return None
 
         if isinstance(date_str, str) and "T" in date_str:
             try:
                 dt = datetime.fromisoformat(date_str)
-                if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=UTC)
-                return dt.isoformat()
+                return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
             except ValueError:
                 pass
 
         for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
             try:
-                dt = datetime.strptime(str(date_str), fmt).replace(tzinfo=UTC)
-                return dt.isoformat()
+                return datetime.strptime(str(date_str), fmt).replace(tzinfo=UTC)
             except (ValueError, TypeError):
                 continue
 
-        return str(date_str)
+        return None
 
     def check_health(self):
         """Verifies API connectivity and authentication status."""

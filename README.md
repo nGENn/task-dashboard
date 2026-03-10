@@ -105,4 +105,4 @@ Access control is decoupled from services and managed via **Django Groups**.
 
 ### WIP
 
-- **Eramba:** Parallel fetching of Security Incidents, Projects, and Achievements.
+- **Eramba:** Parallel fetching of Security Incidents, Projects, Achievements, and various Review modules. Includes smart future-task filtering and robust departmental group parsing.

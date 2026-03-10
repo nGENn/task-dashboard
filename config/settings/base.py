@@ -350,6 +350,7 @@ SOCIALACCOUNT_LOGIN_ON_GET = True
 # Eramba Integration
 ERAMBA_API_URL = env("ERAMBA_API_URL", default="")
 ERAMBA_API_KEY = env("ERAMBA_API_KEY", default="")
+ERAMBA_OPEN_TASK_FUTURE_WINDOW_DAYS = env.int("ERAMBA_OPEN_TASK_FUTURE_WINDOW_DAYS", default=30)
 
 # EspoCRM Integration
 ESPO_API_URL = env("ESPO_API_URL", default="")
