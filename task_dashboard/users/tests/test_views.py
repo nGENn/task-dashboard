@@ -179,6 +179,109 @@ class TestDashboardView:
         tasks = context["tasks"].object_list
         assert len(tasks) == 0
 
+    def test_name_based_ownership_mapping_failed(self, user: User, rf: RequestFactory):
+        # 1. Setup Data
+        user.name = "John Doe"
+        user.save()
+
+        service_config = ServiceConfiguration.objects.create(
+            name="Zammad",
+            service_type="zammad",
+            is_active=True,
+            default_access_level="OWN",
+        )
+
+        # 2. Create Task with matching name but NO email (failed mapping)
+        test_datetime = timezone.now()
+        Task.objects.create(
+            external_id="ZAM-1",
+            title="My Task",
+            status="open",
+            service=service_config,
+            group="Support",
+            owner_email="",  # FAILED MAPPING
+            owner="John Doe",
+            priority="medium",
+            updated_at=test_datetime,
+        )
+
+        # 3. Request
+        request = rf.get("/")
+        request.user = user
+
+        # 4. Execute View
+        view = DashboardView()
+        view.request = request
+        context = view.get_context_data()
+
+        # 5. Verify Results
+        tasks = context["tasks"].object_list
+        task_ids = [t.external_id for t in tasks]
+
+        # Should match by name even if email is empty
+        assert "ZAM-1" in task_ids
+        assert len(tasks) == 1
+
+    def test_unassigned_logic_requires_both_empty(self, user: User, rf: RequestFactory):
+        # Service with FULL access
+        service_config = ServiceConfiguration.objects.create(
+            name="Zammad",
+            service_type="zammad",
+            is_active=True,
+            default_access_level="FULL",
+        )
+
+        # 1. Task with name but no email (NOT unassigned)
+        Task.objects.create(
+            external_id="ZAM-1",
+            title="Name Only",
+            status="open",
+            service=service_config,
+            owner="John Doe",
+            owner_email="",
+            updated_at=timezone.now(),
+        )
+        # 2. Task with email but no name (NOT unassigned)
+        Task.objects.create(
+            external_id="ZAM-2",
+            title="Email Only",
+            status="open",
+            service=service_config,
+            owner="",
+            owner_email="john@example.com",
+            updated_at=timezone.now(),
+        )
+        # 3. Task with neither (UNASSIGNED)
+        Task.objects.create(
+            external_id="ZAM-3",
+            title="True Unassigned",
+            status="open",
+            service=service_config,
+            owner="",
+            owner_email="",
+            updated_at=timezone.now(),
+        )
+
+        # Execute View
+        request = rf.get("/?view=unassigned")
+        request.user = user
+        view = DashboardView()
+        view.request = request
+        context = view.get_context_data()
+
+        tasks = context["tasks"].object_list
+        task_ids = [t.external_id for t in tasks]
+
+        assert "ZAM-3" in task_ids
+        assert "ZAM-1" not in task_ids
+        assert "ZAM-2" not in task_ids
+        assert len(tasks) == 1
+
+        # Check filter options too
+        assert "Unassigned" in context["filter_options"]["owners"]
+        assert "John Doe" in context["filter_options"]["owners"]
+        assert "john@example.com" in context["filter_options"]["owners"]
+
     def test_own_only_permission(self, user: User, rf: RequestFactory):
         # 1. Setup Data
         group = Group.objects.create(name="Support Group")
@@ -253,3 +356,69 @@ class TestDashboardView:
         assert "ZAM-2" not in task_ids
         assert "ZAM-3" not in task_ids
         assert len(tasks) == 1
+
+    def test_advanced_ownership_mapping(self, user: User, rf: RequestFactory):
+        # Setup: User "John Jackson" with email "jackson@example.com"
+        user.name = "John Jackson"
+        user.email = "jackson@example.com"
+        user.save()
+
+        service_config = ServiceConfiguration.objects.create(
+            name="GitLab",
+            service_type="gitlab",
+            is_active=True,
+            default_access_level="FULL",
+        )
+
+        # 1. Task with Gitlab username "mjackson" (Matches by "jackson" suffix)
+        Task.objects.create(
+            external_id="GL-1",
+            title="Gitlab Task",
+            status="open",
+            service=service_config,
+            owner="mjackson",
+            owner_email="",
+            updated_at=timezone.now(),
+        )
+        
+        # 2. Task with "Jane Smithers" (Matches "smithers@example.com" if that was the filter)
+        Task.objects.create(
+            external_id="GL-2",
+            title="Jane Task",
+            status="open",
+            service=service_config,
+            owner="Jane Smithers",
+            owner_email="",
+            updated_at=timezone.now(),
+        )
+
+        # Request as John
+        request = rf.get("/?view=my")
+        request.user = user
+        view = DashboardView()
+        view.request = request
+        context = view.get_context_data()
+
+        tasks = context["tasks"].object_list
+        task_ids = [t.external_id for t in tasks]
+
+        # John should see GL-1 because "mjackson" matches his last name/email prefix
+        assert "GL-1" in task_ids
+        
+        # Test Filtering by "smithers@example.com" should find "Jane Smithers"
+        # We use view=all so we don't only see "my" tasks
+        request = rf.get("/?view=all&owner=smithers@example.com")
+        request.user = user
+        view = DashboardView()
+        view.request = request
+        context = view.get_context_data()
+        
+        tasks = context["tasks"].object_list
+        task_ids = [t.external_id for t in tasks]
+        assert "GL-2" in task_ids
+        
+        # Check UI Dropdown consolidation
+        owners = context["filter_options"]["owners"]
+        # Both "John Jackson" and "mjackson" should be represented by one "best" name
+        assert "John Jackson" in owners
+        assert "mjackson" not in owners

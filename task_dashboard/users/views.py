@@ -1,6 +1,7 @@
 import datetime
 import json
 import logging
+import re
 from urllib.parse import parse_qs
 from urllib.parse import urlencode
 from urllib.parse import urlparse
@@ -117,7 +118,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         request = self.request
 
         # 1. RETRIEVE TASKS FROM DATABASE
-        all_tasks = (
+        all_tasks = list(
             Task.objects.filter(
                 service__is_active=True,
             )
@@ -131,6 +132,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         allowed_tasks = []
         user_email = request.user.email
+        user_name = getattr(request.user, "name", "")
 
         # RBAC (Role-Based Access Control)
         # Check permissions using TaskPermission and ServiceConfiguration default
@@ -155,11 +157,77 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             ):
                 perm_map[key] = level
 
+        unassigned_markers = {None, "", "-", "None", "Unassigned"}
+
+        # 1. Build Canonical Owner Mapping
+        # This logic handles various owner identifier formats (full names, emails, GitLab usernames)
+        # and groups them by "canonical" last names to unify identities across services.
+        last_names = set()
+
+        def extract_base(val, is_email=False):
+            """
+            Normalizes a string to its base component (email prefix or last name).
+            Example: 'john.doe@example.com' -> 'johndoe', 'John Doe' -> 'doe'
+            """
+            if not val or str(val) in unassigned_markers:
+                return ""
+            v = str(val).lower().strip()
+            if is_email and "@" in v:
+                v = v.split("@")[0]
+            elif " " in v:
+                v = v.split()[-1]
+            # Remove all non-alphanumeric characters
+            return re.sub(r'[^a-z0-9]', '', v)
+
+        # Collect potential last names from current user and all tasks
+        if user_email: last_names.add(extract_base(user_email, True))
+        if user_name: last_names.add(extract_base(user_name))
+
+        for t in all_tasks:
+            ln_email = extract_base(t.owner_email, True)
+            if ln_email: last_names.add(ln_email)
+            ln_owner = extract_base(t.owner)
+            if ln_owner: last_names.add(ln_owner)
+
+        # We filter for strings length >= 4 to avoid matching too many short usernames (like 'm1')
+        # sorting by length ASC means shorter matches take precedence if they fit.
+        sorted_last_names = sorted([ln for ln in last_names if len(ln) >= 4], key=len)
+
+        def get_canonical(val, is_email=False):
+            """
+            Finds the best canonical 'last name' for a given value.
+            Supports GitLab usernames like 'jdoe' matching 'doe'.
+            """
+            base = extract_base(val, is_email)
+            if not base:
+                return ""
+            for ln in sorted_last_names:
+                # Match if base ends with known last name (e.g. jdoe ends with doe)
+                # and the prefix is short (likely initials, max 3 chars)
+                if base.endswith(ln) and len(base) <= len(ln) + 3:
+                    return ln
+            return base
+
+        # Precompute canonical identities for the current user
+        user_canons = set()
+        c_uemail = get_canonical(user_email, True)
+        if c_uemail: user_canons.add(c_uemail)
+        c_uname = get_canonical(user_name)
+        if c_uname: user_canons.add(c_uname)
+
+        # Map every task to its set of canonical owner identities
+        task_canonicals = {}
+        for t in all_tasks:
+            c_email = get_canonical(t.owner_email, True)
+            c_owner = get_canonical(t.owner)
+            canons = set()
+            if c_email: canons.add(c_email)
+            if c_owner: canons.add(c_owner)
+            task_canonicals[t.id] = canons
+
         for t in all_tasks:
             t_origin = t.service.name
             t_group = t.group
-            t_owner_email = t.owner_email
-            t_owner = t.owner
 
             # RBAC: Use mapped permission or fallback to service default
             key = f"{t_origin}|{t_group}"
@@ -168,16 +236,17 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             if level == "FULL":
                 allowed_tasks.append(t)
             elif level == "LIMITED":
-                # Own tasks OR Unassigned
-                is_owner = t_owner_email and t_owner_email == user_email
-                is_unassigned = (
-                    str(t_owner) in ["Unassigned", "-", "", "None"] or t_owner is None
-                )
+                # Own tasks (Canonical match) OR Unassigned
+                t_canons = task_canonicals[t.id]
+                is_owner = bool(user_canons.intersection(t_canons)) if user_canons else False
+                is_unassigned = not t_canons
                 if is_owner or is_unassigned:
                     allowed_tasks.append(t)
             elif level == "OWN":
-                # Only own tasks
-                if t_owner_email and t_owner_email == user_email:
+                # Only own tasks (Canonical match)
+                t_canons = task_canonicals[t.id]
+                is_owner = bool(user_canons.intersection(t_canons)) if user_canons else False
+                if is_owner:
                     allowed_tasks.append(t)
 
         # =========================================================
@@ -185,18 +254,29 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         # =========================================================
 
         current_view = request.GET.get("view", "my")
+
+        # UX IMPROVEMENT: If filtering or searching, default to 'all' view unless view explicitly set
+        # This makes it easier to find tasks across the whole system when a specific filter is applied.
+        filter_params = ["owner", "q", "state", "origin", "customer", "group", "priority", "date_range"]
+        is_filtering = any(request.GET.get(p) for p in filter_params)
+
+        if is_filtering and "view" not in request.GET:
+            current_view = "all"
+
         context["current_view"] = current_view
 
         # Apply Base View Context
         if current_view == "my":
-            filtered_tasks = [t for t in allowed_tasks if t.owner_email == user_email]
-        elif current_view == "unassigned":
-            unassigned_markers = {None, "", "-", "None", "Unassigned"}
             filtered_tasks = [
                 t
                 for t in allowed_tasks
-                if str(t.owner) in unassigned_markers
-                and str(t.owner_email) in unassigned_markers
+                if user_canons and task_canonicals[t.id].intersection(user_canons)
+            ]
+        elif current_view == "unassigned":
+            filtered_tasks = [
+                t
+                for t in allowed_tasks
+                if not task_canonicals[t.id]
             ]
         else:
             filtered_tasks = allowed_tasks
@@ -216,34 +296,22 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         if selected_owners:
             want_unassigned = "Unassigned" in selected_owners
-            specific_targets = set(selected_owners)
-            if want_unassigned:
-                specific_targets.discard("Unassigned")
-
-            unassigned_markers = {None, "", "-", "None", "Unassigned"}
+            
+            canonical_targets = {
+                get_canonical(o, "@" in o)
+                for o in selected_owners if o != "Unassigned"
+            }
 
             new_filtered = []
             for t in filtered_tasks:
+                t_canons = task_canonicals[t.id]
                 is_match = False
-                owner = t.owner
-                email = t.owner_email
-
-                # Check specific targets (Names or Emails)
-                if specific_targets:
-                    if str(owner) in specific_targets or str(email) in specific_targets:
-                        is_match = True
-
-                # Check unassigned (Only match if BOTH owner/email empty)
-                if want_unassigned and not is_match:
-                    owner_empty = (
-                        owner in unassigned_markers or str(owner) in unassigned_markers
-                    )
-                    email_empty = (
-                        email in unassigned_markers or str(email) in unassigned_markers
-                    )
-                    if owner_empty and email_empty:
-                        is_match = True
-
+                
+                if t_canons and t_canons.intersection(canonical_targets):
+                    is_match = True
+                elif not t_canons and want_unassigned:
+                    is_match = True
+                    
                 if is_match:
                     new_filtered.append(t)
             filtered_tasks = new_filtered
@@ -352,29 +420,58 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 },
             )
 
-        # Custom Logic for Owner Options: Prefer Email
-        owner_options = set()
+        # Custom Logic for Owner Options: Group by Canonical Identity
+        canonical_to_best_name = {}
+        # Map canonical identity to the unified email for table display
+        canonical_to_email = {}
         has_unassigned = False
-        unassigned_vals = ["Unassigned", "-", "None", ""]
 
         for t in allowed_tasks:
-            owner = t.owner
-            owner_email = t.owner_email
-
-            # Check if this task is considered unassigned
-            if (
-                not owner
-                or not owner_email
-                or str(owner) in unassigned_vals
-                or str(owner_email) in unassigned_vals
-            ):
+            t_canons = task_canonicals[t.id]
+            if not t_canons:
                 has_unassigned = True
+                continue
 
-            val = owner_email if owner_email else owner
-            if val and str(val) not in unassigned_vals:
-                owner_options.add(str(val))
+            for c in t_canons:
+                # 1. Update best name for the dropdown (PRIORITIZE EMAIL)
+                current_best = canonical_to_best_name.get(c, "")
+                candidates = []
+                
+                # If this canonical identity matches the current user, prefer user model's email/name
+                if user_canons and c in user_canons:
+                    if user_email: candidates.append(user_email)
+                    if user_name: candidates.append(user_name)
 
-        owners = sorted(owner_options)
+                if t.owner_email and str(t.owner_email) not in unassigned_markers:
+                    candidates.append(str(t.owner_email))
+                if t.owner and str(t.owner) not in unassigned_markers:
+                    candidates.append(str(t.owner))
+
+                for cand in candidates:
+                    # Preference: Email (@) > Full Name (space) > Username
+                    if "@" in cand and "@" not in current_best:
+                        current_best = cand
+                    elif " " in cand and "@" not in current_best and " " not in current_best:
+                        current_best = cand
+                    elif not current_best:
+                        current_best = cand
+
+                canonical_to_best_name[c] = current_best
+                
+                # 2. Track canonical email for table display
+                if "@" in current_best:
+                    canonical_to_email[c] = current_best
+
+        # Unify owner display in the table: if a canonical email exists, use it.
+        for t in allowed_tasks:
+            t_canons = task_canonicals[t.id]
+            for c in t_canons:
+                if c in canonical_to_email:
+                    t.owner_email = canonical_to_email[c]
+                    # Also update owner name to empty if we have an email to avoid double display if template handles both
+                    break
+
+        owners = sorted(list(set(canonical_to_best_name.values())))
         if has_unassigned:
             owners.insert(0, "Unassigned")
 
@@ -392,7 +489,8 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         my_count = sum(
             1
             for t in allowed_tasks
-            if t.owner_email == user_email and t.status in ["open", "pending", "new"]
+            if user_canons and task_canonicals[t.id].intersection(user_canons)
+            and t.status in ["open", "pending", "new"]
         )
 
         context["stats"] = {
