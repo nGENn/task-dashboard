@@ -420,6 +420,7 @@ class TestDashboardView:
 
         # Check UI Dropdown consolidation
         owners = context["filter_options"]["owners"]
-        # Both "John Jackson" and "mjackson" should be represented by one "best" name
-        assert "John Jackson" in owners
+        # Both "John Jackson" and "mjackson" should be represented by one email
+        assert "jackson@example.com" in owners
+        assert "John Jackson" not in owners
         assert "mjackson" not in owners
