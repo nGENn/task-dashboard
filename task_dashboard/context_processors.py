@@ -57,12 +57,12 @@ def system_status(request):  # noqa: C901
             # Cache this specific result for 5 minutes
             cache.set(cache_key, health, timeout=300)
 
-        results.append(health)
-
         if health["status"] == "online":
             latencies.append(health["latency"])
-        else:
-            pass
+            if health["latency"] > MAX_HEALTHY_LATENCY_MS:
+                health["status"] = "degraded"
+
+        results.append(health)
 
     # 5. Calculate Global State
     max_latency = max(latencies) if latencies else 0

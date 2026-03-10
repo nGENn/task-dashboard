@@ -119,8 +119,8 @@
                             {% endif %}
                             {{ service.name }}
                           </span>
-                          {% if service.status == 'online' %}
-                            <span class="badge badge-success badge-sm badge-outline">{{ service.latency }}ms</span>
+                          {% if service.status == 'online' or service.status == 'degraded' %}
+                            <span class="badge {% if service.status == 'online' %}badge-success{% else %}badge-warning{% endif %} badge-sm badge-outline">{{ service.latency }}ms</span>
                           {% else %}
                             <div class="tooltip tooltip-left cursor-pointer"
                                  data-tip="{{ service.error }}">
