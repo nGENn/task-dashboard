@@ -29,6 +29,7 @@ from django_q.tasks import async_task
 # Models
 from task_dashboard.users.models import SavedView
 from task_dashboard.users.models import ServiceConfiguration
+from task_dashboard.users.models import ServicePermission
 from task_dashboard.users.models import Task
 from task_dashboard.users.models import TaskPermission
 from task_dashboard.users.models import User
@@ -157,6 +158,21 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             ):
                 perm_map[key] = level
 
+        service_perms = ServicePermission.objects.filter(
+            django_group__in=request.user.groups.all(),
+        ).values(
+            "service__name",
+            "access_level",
+        )
+        service_perm_map = {}
+        for sp in service_perms:
+            s_name = sp["service__name"]
+            level = sp["access_level"]
+            if s_name not in service_perm_map or level_priority.get(
+                level, 0
+            ) > level_priority.get(service_perm_map[s_name], 0):
+                service_perm_map[s_name] = level
+
         unassigned_markers = {None, "", "-", "None", "Unassigned"}
         min_last_name_len = 4
 
@@ -243,9 +259,15 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             t_origin = t.service.name
             t_group = t.group
 
-            # RBAC: Use mapped permission or fallback to service default
+            # RBAC: Use mapped permission, then service mapped,
+            # or fallback to service default
             key = f"{t_origin}|{t_group}"
-            level = perm_map.get(key, t.service.default_access_level)
+            if key in perm_map:
+                level = perm_map[key]
+            elif t_origin in service_perm_map:
+                level = service_perm_map[t_origin]
+            else:
+                level = t.service.default_access_level
 
             if level == "FULL":
                 allowed_tasks.append(t)

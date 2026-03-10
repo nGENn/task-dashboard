@@ -13,6 +13,7 @@ from .forms import UserAdminChangeForm
 from .forms import UserAdminCreationForm
 from .models import ExternalGroup
 from .models import ServiceConfiguration
+from .models import ServicePermission
 from .models import Task
 from .models import TaskPermission
 from .models import User
@@ -96,6 +97,7 @@ class ServiceConfigurationAdmin(admin.ModelAdmin):
     ]
     list_editable = ["is_active", "default_access_level"]
     list_filter = ["service_type", "is_active", "default_access_level"]
+    search_fields = ["name"]
     fieldsets = (
         (
             None,
@@ -123,6 +125,12 @@ class ServiceConfigurationAdmin(admin.ModelAdmin):
 
 
 # 1. Allow managing permissions directly inside the Django Group page
+class ServicePermissionInline(admin.TabularInline):
+    model = ServicePermission
+    extra = 1
+    autocomplete_fields = ["service"]
+
+
 class TaskPermissionInline(admin.TabularInline):
     model = TaskPermission
     extra = 1
@@ -135,7 +143,7 @@ admin.site.unregister(Group)
 
 @admin.register(Group)
 class GroupAdmin(BaseGroupAdmin):
-    inlines = [TaskPermissionInline]
+    inlines = [ServicePermissionInline, TaskPermissionInline]
 
 
 # 2. Manage Discovered Groups (Read Only mostly, as they are auto-created)
@@ -156,6 +164,12 @@ class ExternalGroupAdmin(admin.ModelAdmin):
 
 
 # 3. Direct Permission Management
+@admin.register(ServicePermission)
+class ServicePermissionAdmin(admin.ModelAdmin):
+    list_display = ["django_group", "service"]
+    list_filter = ["django_group", "service"]
+
+
 @admin.register(TaskPermission)
 class TaskPermissionAdmin(admin.ModelAdmin):
     list_display = ["django_group", "allowed_external_group"]

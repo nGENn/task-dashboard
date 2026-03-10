@@ -17,6 +17,7 @@ from django.utils.translation import gettext_lazy as _
 from task_dashboard.users.forms import UserAdminChangeForm
 from task_dashboard.users.models import ExternalGroup
 from task_dashboard.users.models import ServiceConfiguration
+from task_dashboard.users.models import ServicePermission
 from task_dashboard.users.models import Task
 from task_dashboard.users.models import TaskPermission
 from task_dashboard.users.models import User
@@ -424,3 +425,96 @@ class TestDashboardView:
         assert "jackson@example.com" in owners
         assert "John Jackson" not in owners
         assert "mjackson" not in owners
+
+    def test_service_permission_overrides_default_access_level(
+        self, user: User, rf: RequestFactory
+    ):
+        # 1. Setup Service with Global NONE
+        service_config = ServiceConfiguration.objects.create(
+            name="Zammad",
+            service_type="zammad",
+            is_active=True,
+            default_access_level="NONE",
+        )
+
+        Task.objects.create(
+            external_id="ZAM-1",
+            title="My Task",
+            status="open",
+            service=service_config,
+            group="Support",
+            owner_email=user.email,
+        )
+
+        # 2. Assign Group with Service-Level LIMITED
+        group = Group.objects.create(name="Support Team")
+        user.groups.add(group)
+        ServicePermission.objects.create(
+            django_group=group,
+            service=service_config,
+            access_level="LIMITED",
+        )
+
+        # 3. Verify user sees their own task (LIMITED) instead of nothing (NONE)
+        request = rf.get("/?view=all")
+        request.user = user
+        view = DashboardView()
+        view.request = request
+        context = view.get_context_data()
+
+        tasks = context["tasks"].object_list
+        task_ids = [t.external_id for t in tasks]
+        assert "ZAM-1" in task_ids
+
+    def test_task_permission_overrides_service_permission(
+        self, user: User, rf: RequestFactory
+    ):
+        # 1. Setup Service with Service-Level NONE via Group
+        service_config = ServiceConfiguration.objects.create(
+            name="Zammad",
+            service_type="zammad",
+            is_active=True,
+            default_access_level="FULL",
+        )
+
+        group = Group.objects.create(name="Support Team")
+        user.groups.add(group)
+
+        # Service-level NONE
+        ServicePermission.objects.create(
+            django_group=group,
+            service=service_config,
+            access_level="NONE",
+        )
+
+        ext_group = ExternalGroup.objects.create(
+            origin="Zammad",
+            name="Support",
+        )
+
+        # 2. Task-level FULL for specific group
+        TaskPermission.objects.create(
+            django_group=group,
+            allowed_external_group=ext_group,
+            access_level="FULL",
+        )
+
+        Task.objects.create(
+            external_id="ZAM-1",
+            title="Group Task",
+            status="open",
+            service=service_config,
+            group="Support",
+        )
+
+        # 3. Verify user sees the task because TaskPermission
+        # overrides ServicePermission
+        request = rf.get("/?view=all")
+        request.user = user
+        view = DashboardView()
+        view.request = request
+        context = view.get_context_data()
+
+        tasks = context["tasks"].object_list
+        task_ids = [t.external_id for t in tasks]
+        assert "ZAM-1" in task_ids
