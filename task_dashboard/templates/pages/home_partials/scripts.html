@@ -50,15 +50,33 @@
       let hasFilters = false;
 
       // A. Checkboxes
-      document.querySelectorAll(".filter-checkbox:checked").forEach((box) => {
+      const checkedBoxes = Array.from(document.querySelectorAll(".filter-checkbox:checked"));
+
+      if (checkedBoxes.length > 0) {
         hasFilters = true;
-        createBadge(
-          container,
-          box.name,
-          box.value,
-          box.nextElementSibling.innerText
-        );
-      });
+        const groupedFilters = {};
+
+        checkedBoxes.forEach((box) => {
+          if (!groupedFilters[box.name]) {
+            groupedFilters[box.name] = 0;
+          }
+          groupedFilters[box.name]++;
+        });
+
+        Object.keys(groupedFilters).forEach((key) => {
+          const count = groupedFilters[key];
+          // Capitalize key for display text (e.g., 'origin' -> 'Origin')
+          const displayName = key.charAt(0).toUpperCase() + key.slice(1);
+          const displayText = `${displayName} (${count})`;
+
+          createBadge(
+            container,
+            key,
+            'all',
+            displayText
+          );
+        });
+      }
 
       // B. Date Picker
       const dateInput = document.getElementById("date-range-picker");
@@ -132,12 +150,22 @@
         if (dateInput._flatpickr) dateInput._flatpickr.clear();
         dateInput.value = "";
       } else {
-        // Uncheck the specific checkbox
-        const checkbox = document.querySelector(
-          `input[name="${key}"][value="${value}"]`
-        );
-        if (checkbox) {
-          checkbox.checked = false;
+        if (value === 'all') {
+          // Uncheck all checkboxes for this group
+          const checkboxes = document.querySelectorAll(
+            `input[name="${key}"]:checked`
+          );
+          checkboxes.forEach((checkbox) => {
+            checkbox.checked = false;
+          });
+        } else {
+          // Uncheck the specific checkbox
+          const checkbox = document.querySelector(
+            `input[name="${key}"][value="${value}"]`
+          );
+          if (checkbox) {
+            checkbox.checked = false;
+          }
         }
       }
       // Update badges immediately
