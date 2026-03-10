@@ -152,7 +152,7 @@ class TaskPermission(models.Model):
     access_level = models.CharField(
         max_length=10,
         choices=ACCESS_LEVEL_CHOICES,
-        default="FULL",
+        default="NONE",
         help_text=(
             "FULL: View everything. LIMITED: View only unassigned tasks "
             "or those assigned to the user. OWN: View only tasks "
@@ -169,6 +169,42 @@ class TaskPermission(models.Model):
         return (
             f"{self.django_group} -> {self.allowed_external_group} "
             f"({self.get_access_level_display()})"
+        )
+
+
+class ServicePermission(models.Model):
+    """
+    Rules connecting Django Groups to Services.
+    """
+
+    django_group = models.ForeignKey(
+        Group,
+        on_delete=models.CASCADE,
+        related_name="service_permissions",
+    )
+    service = models.ForeignKey(
+        ServiceConfiguration,
+        on_delete=models.CASCADE,
+    )
+    access_level = models.CharField(
+        max_length=10,
+        choices=ACCESS_LEVEL_CHOICES,
+        default="NONE",
+        help_text=(
+            "FULL: View everything. LIMITED: View only unassigned tasks "
+            "or those assigned to the user. OWN: View only tasks "
+            "assigned to the user. NONE: No access."
+        ),
+    )
+
+    class Meta:
+        unique_together = ("django_group", "service")
+        verbose_name = "Service Permission"
+        verbose_name_plural = "Service Permissions"
+
+    def __str__(self):
+        return (
+            f"{self.django_group} -> {self.service} ({self.get_access_level_display()})"
         )
 
 
