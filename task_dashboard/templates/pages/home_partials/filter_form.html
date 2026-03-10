@@ -22,45 +22,47 @@
       </div>
     </div>
   </div>
-
-<div role="tablist" class="tabs mb-2">
-  <!-- All Tasks -->
-  <a role="tab"
-     class="tab {% if current_view == 'all' %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
-     href="?view=all">All Tasks</a>
-  <!-- Default Views -->
-  {% for view in default_views %}
+  <div role="tablist" class="tabs mb-2">
+    <!-- All Tasks -->
     <a role="tab"
-       class="tab {% if current_view == view.view_param %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
-       href="{{ view.url }}">{{ view.name }}</a>
-  {% endfor %}
-  <!-- Saved Views -->
-  {% for view in saved_views %}
-    {% is_active_view request.GET view.params as active %}
-    <div class="relative flex items-center group">
+       class="tab {% if current_view == 'all' %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
+       href="?view=all">All Tasks</a>
+    <!-- Default Views -->
+    {% for view in default_views %}
       <a role="tab"
-         class="tab pr-8 {% if active %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
+         class="tab {% if current_view == view.view_param %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
          href="{{ view.url }}">{{ view.name }}</a>
-      <button type="button"
-              onclick="deleteView({{ view.id }})"
-              class="absolute right-2 z-20 {% if active %}opacity-100{% else %}opacity-0 group-hover:opacity-100{% endif %} hover:text-error transition-all"
-              title="Delete View">
-        <svg xmlns="http://www.w3.org/2000/svg"
-             class="h-4 w-4"
-             fill="none"
-             viewBox="0 0 24 24"
-             stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
-    </div>
-  {% endfor %}
-  <!-- Add View Button -->
-  <button type="button" role="tab" class="tab" onclick="save_view_modal.showModal()">+</button>
-</div>
-<!-- Filter Form Content -->
-{% include "pages/home_partials/filter_form_content.html" %}
-
+    {% endfor %}
+    <!-- Saved Views -->
+    {% for view in saved_views %}
+      {% is_active_view request.GET view.params as active %}
+      <div class="relative flex items-center group">
+        <a role="tab"
+           class="tab pr-8 {% if active %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
+           href="{{ view.url }}">{{ view.name }}</a>
+        <button type="button"
+                onclick="deleteView({{ view.id }})"
+                class="absolute right-2 z-20 {% if active %}opacity-100{% else %}opacity-0 group-hover:opacity-100{% endif %} hover:text-error transition-all"
+                title="Delete View">
+          <svg xmlns="http://www.w3.org/2000/svg"
+               class="h-4 w-4"
+               fill="none"
+               viewBox="0 0 24 24"
+               stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    {% endfor %}
+    <!-- Add View Button -->
+    <button type="button"
+            role="tab"
+            class="tab"
+            onclick="save_view_modal.showModal()">+</button>
+  </div>
+  <!-- Filter Form Content -->
+  {% include "pages/home_partials/filter_form_content.html" %}
+</form>
 <dialog id="save_view_modal" class="modal">
   <div class="modal-box">
     <h3 class="font-bold text-lg text-base-content">Save Current View</h3>
@@ -85,11 +87,12 @@
     <button>close</button>
   </form>
 </dialog>
-
 <dialog id="delete_view_modal" class="modal">
   <div class="modal-box">
     <h3 class="font-bold text-lg text-error">Delete Saved View</h3>
-    <p class="py-2 text-sm text-base-content/60">Are you sure you want to delete this view? This action cannot be undone.</p>
+    <p class="py-2 text-sm text-base-content/60">
+      Are you sure you want to delete this view? This action cannot be undone.
+    </p>
     <div class="modal-action">
       <form method="dialog">
         <button class="btn btn-ghost">Cancel</button>

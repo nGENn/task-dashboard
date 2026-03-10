@@ -380,8 +380,9 @@ class TestDashboardView:
             owner_email="",
             updated_at=timezone.now(),
         )
-        
-        # 2. Task with "Jane Smithers" (Matches "smithers@example.com" if that was the filter)
+
+        # 2. Task with "Jane Smithers"
+        # (Matches "smithers@example.com" if that was the filter)
         Task.objects.create(
             external_id="GL-2",
             title="Jane Task",
@@ -404,7 +405,7 @@ class TestDashboardView:
 
         # John should see GL-1 because "mjackson" matches his last name/email prefix
         assert "GL-1" in task_ids
-        
+
         # Test Filtering by "smithers@example.com" should find "Jane Smithers"
         # We use view=all so we don't only see "my" tasks
         request = rf.get("/?view=all&owner=smithers@example.com")
@@ -412,11 +413,11 @@ class TestDashboardView:
         view = DashboardView()
         view.request = request
         context = view.get_context_data()
-        
+
         tasks = context["tasks"].object_list
         task_ids = [t.external_id for t in tasks]
         assert "GL-2" in task_ids
-        
+
         # Check UI Dropdown consolidation
         owners = context["filter_options"]["owners"]
         # Both "John Jackson" and "mjackson" should be represented by one "best" name

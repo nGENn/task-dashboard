@@ -240,7 +240,7 @@
   window.deleteView = function(viewId) {
     const modal = document.getElementById('delete_view_modal');
     const confirmBtn = document.getElementById('confirm_delete_btn');
-    
+
     // Set up the confirmation button click handler
     confirmBtn.onclick = function() {
       fetch(`/users/saved-views/${viewId}/delete/`, {
@@ -257,7 +257,7 @@
         }
       });
     };
-    
+
     modal.showModal();
   };
 </script>
