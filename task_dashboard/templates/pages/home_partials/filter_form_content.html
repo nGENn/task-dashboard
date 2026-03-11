@@ -4,7 +4,7 @@
 <div class="mb-2 bg-base-100 rounded-box shadow-sm border border-base-300 p-4">
   <div class="flex flex-wrap gap-3 mb-3 w-full">
     <!-- Dropdowns -->
-    <div class="dropdown" style="flex: 1 1 120px; min-width: 0;">
+    <div class="dropdown tooltip tooltip-bottom" data-tip="Source platform" style="flex: 1 1 120px; min-width: 0;">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
@@ -36,7 +36,7 @@
         {% endfor %}
       </ul>
     </div>
-    <div class="dropdown" style="flex: 1 1 120px; min-width: 0;">
+    <div class="dropdown tooltip tooltip-bottom" data-tip="Filter by customer name" style="flex: 1 1 120px; min-width: 0;">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
@@ -68,7 +68,7 @@
         {% endfor %}
       </ul>
     </div>
-    <div class="dropdown" style="flex: 1 1 120px; min-width: 0;">
+    <div class="dropdown tooltip tooltip-bottom" data-tip="Filter by functional group or department" style="flex: 1 1 120px; min-width: 0;">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
@@ -100,7 +100,7 @@
         {% endfor %}
       </ul>
     </div>
-    <div class="dropdown" style="flex: 1 1 120px; min-width: 0;">
+    <div class="dropdown tooltip tooltip-bottom" data-tip="Filter by assigned user in source system" style="flex: 1 1 120px; min-width: 0;">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
@@ -132,7 +132,7 @@
         {% endfor %}
       </ul>
     </div>
-    <div class="dropdown dropdown-end" style="flex: 1 1 120px; min-width: 0;">
+    <div class="dropdown dropdown-end tooltip tooltip-bottom" data-tip="Filter by current task status" style="flex: 1 1 120px; min-width: 0;">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
@@ -164,7 +164,7 @@
         {% endfor %}
       </ul>
     </div>
-    <div class="dropdown dropdown-end" style="flex: 1 1 120px; min-width: 0;">
+    <div class="dropdown dropdown-end tooltip tooltip-bottom" data-tip="Filter by task priority level" style="flex: 1 1 120px; min-width: 0;">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
@@ -198,27 +198,33 @@
     </div>
 
     <!-- Date Ranges using completely static DIVs to prevent text shifting -->
-    <div id="date-range-picker" class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer" style="flex: 1 1 120px; min-width: 0;">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      </svg>
-      <span class="text-base-content/60 text-sm truncate pointer-events-none">Created</span>
+    <div class="tooltip tooltip-bottom" data-tip="Creation date" style="flex: 1 1 120px; min-width: 0;">
+      <div id="date-range-picker" class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer" style="width: 100%;">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <span class="text-base-content/60 text-sm truncate pointer-events-none">Created</span>
+      </div>
     </div>
     <input type="hidden" id="date-range-input" name="date_range" value="{{ request.GET.date_range }}" />
 
-    <div id="updated-range-picker" class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer" style="flex: 1 1 120px; min-width: 0;">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      </svg>
-      <span class="text-base-content/60 text-sm truncate pointer-events-none">Updated</span>
+    <div class="tooltip tooltip-bottom" data-tip="Last modified" style="flex: 1 1 120px; min-width: 0;">
+      <div id="updated-range-picker" class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer" style="width: 100%;">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <span class="text-base-content/60 text-sm truncate pointer-events-none">Updated</span>
+      </div>
     </div>
     <input type="hidden" id="updated-range-input" name="updated_range" value="{{ request.GET.updated_range }}" />
 
-    <div id="due-range-picker" class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer" style="flex: 1 1 120px; min-width: 0;">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      </svg>
-      <span class="text-base-content/60 text-sm truncate pointer-events-none">Due</span>
+    <div class="tooltip tooltip-bottom" data-tip="Due date" style="flex: 1 1 120px; min-width: 0;">
+      <div id="due-range-picker" class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer" style="width: 100%;">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <span class="text-base-content/60 text-sm truncate pointer-events-none">Due</span>
+      </div>
     </div>
     <input type="hidden" id="due-range-input" name="due_range" value="{{ request.GET.due_range }}" />
   </div>
@@ -230,8 +236,11 @@
     </div>
     <div class="flex items-center gap-2 whitespace-nowrap">
       <a href="?view={{ current_view|default:'my' }}"
-         class="btn btn-ghost btn-sm">Reset</a>
-      <button type="submit" class="btn btn-primary btn-sm">Apply Filters</button>
+         class="btn btn-ghost btn-sm tooltip"
+         data-tip="Clear all currently selected filters">Reset</a>
+      <button type="submit"
+              class="btn btn-primary btn-sm tooltip tooltip-left"
+              data-tip="Apply filters">Apply Filters</button>
     </div>
   </div>
 </div>

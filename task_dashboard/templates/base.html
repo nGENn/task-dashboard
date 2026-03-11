@@ -114,6 +114,7 @@
                       </svg>
                       {{ global_system_status.state }}
                     </h3>
+                    <p class="text-[10px] text-base-content/60">Service status and latency.</p>
                     <div class="divider my-1"></div>
                     <p class="text-xs text-base-content/60 uppercase tracking-wider mb-2">Service Health</p>
                     <div class="space-y-2">
@@ -156,7 +157,8 @@
                       <div class="flex items-center gap-2">
                         {% if request.user.is_staff or request.user.is_superuser or perms.users.view_admin_button %}
                           <a href="{% url 'admin:index' %}"
-                             class="btn btn-ghost btn-xs gap-1 text-base-content/60 hover:text-primary normal-case font-medium h-7 min-h-0 px-1">
+                             class="btn btn-ghost btn-xs gap-1 text-base-content/60 hover:text-primary normal-case font-medium h-7 min-h-0 px-1 tooltip tooltip-right"
+                             data-tip="Access administrative settings">
                             <svg xmlns="http://www.w3.org/2000/svg"
                                  class="h-3.5 w-3.5"
                                  fill="none"
@@ -178,7 +180,8 @@
                         {% csrf_token %}
                         <button id="force-refresh-btn"
                                 type="submit"
-                                class="btn btn-ghost btn-xs btn-circle text-base-content/40 transition-colors duration-300"
+                                class="btn btn-ghost btn-xs btn-circle text-base-content/40 transition-colors duration-300 tooltip tooltip-left"
+                                data-tip="Fetch fresh data from all platforms"
                                 title="Force Live Fetch (Clear Cache)">
                           <svg xmlns="http://www.w3.org/2000/svg"
                                class="h-4 w-4"

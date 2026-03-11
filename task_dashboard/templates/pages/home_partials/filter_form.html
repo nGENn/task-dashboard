@@ -9,7 +9,7 @@
     <input type="hidden" name="direction" value="{{ request.GET.direction }}" />
   {% endif %}
   <div class="form-control w-full md:w-1/3 mb-2">
-    <div class="relative">
+    <div class="relative w-full">
       {# djlint:off H026 #}
       <input type="text"
              name="q"
@@ -31,12 +31,14 @@
   <div role="tablist" class="tabs mb-2">
     <!-- All Tasks -->
     <a role="tab"
-       class="tab {% if current_view == 'all' %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
+       class="tab tooltip tooltip-bottom {% if current_view == 'all' %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
+       data-tip="All sources unfiltered"
        href="?view=all">All Tasks</a>
     <!-- Default Views -->
     {% for view in default_views %}
       <a role="tab"
-         class="tab {% if current_view == view.view_param %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
+         class="tab tooltip tooltip-bottom {% if current_view == view.view_param %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
+         data-tip="{{ view.description }}"
          href="{{ view.url }}">{{ view.name }}</a>
     {% endfor %}
     <!-- Saved Views -->
@@ -44,7 +46,8 @@
       {% is_active_view request.GET view.params as active %}
       <div class="relative flex items-center group">
         <a role="tab"
-           class="tab pr-8 {% if active %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
+           class="tab pr-8 tooltip tooltip-bottom {% if active %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
+           data-tip="Custom saved filter: {{ view.name }}"
            href="{{ view.url }}">{{ view.name }}</a>
         <button type="button"
                 onclick="deleteView({{ view.id }})"
@@ -63,7 +66,8 @@
     <!-- Add View Button -->
     <button type="button"
             role="tab"
-            class="tab"
+            class="tab tooltip tooltip-bottom"
+            data-tip="Save current filters as a custom view"
             onclick="save_view_modal.showModal()">+</button>
   </div>
   <!-- Filter Form Content -->
@@ -86,7 +90,9 @@
       <form method="dialog">
         <button class="btn btn-ghost">Cancel</button>
       </form>
-      <button type="button" class="btn btn-primary" onclick="saveView()">Save View</button>
+      <div class="tooltip" data-tip="Click to save these filters">
+        <button type="button" class="btn btn-primary" onclick="saveView()">Save View</button>
+      </div>
     </div>
   </div>
   <form method="dialog" class="modal-backdrop">

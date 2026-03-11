@@ -597,11 +597,13 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 "name": "My Tasks",
                 "view_param": "my",
                 "url": "?view=my",
+                "description": "Tasks assigned to me",
             },
             {
                 "name": "Unassigned",
                 "view_param": "unassigned",
                 "url": "?view=unassigned",
+                "description": "Tasks without an owner",
             },
         ]
 
