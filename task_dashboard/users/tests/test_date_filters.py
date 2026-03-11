@@ -52,6 +52,12 @@ def test_date_range_filters(user, rf):
     assert "T1" in task_ids
     assert "T2" not in task_ids
 
+    # Test created_range (date_range) - single date
+    start_single = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+    task_ids = get_tasks(f"date_range={start_single}")
+    assert "T1" in task_ids
+    assert "T2" not in task_ids
+
     # Test updated_range
     start = (now - timedelta(days=6)).strftime("%Y-%m-%d")
     end = (now - timedelta(days=4)).strftime("%Y-%m-%d")

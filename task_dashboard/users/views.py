@@ -397,9 +397,13 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         # D. Date Ranges
         def apply_date_range(items, param, field):
             dr = request.GET.get(param)
-            if dr and " to " in dr:
+            if dr:
                 try:
-                    start, end = dr.split(" to ")
+                    if " to " in dr:
+                        start, end = dr.split(" to ")
+                    else:
+                        start = end = dr.strip()
+                    
                     return [
                         t
                         for t in items
