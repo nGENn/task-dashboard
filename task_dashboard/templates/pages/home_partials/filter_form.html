@@ -1,6 +1,12 @@
 {% load dashboard_extras %}
 
-<form method="get" action="." class="mb-4">
+<form method="get"
+      action="."
+      class="mb-4"
+      hx-get="."
+      hx-target="#task-results"
+      hx-swap="outerHTML"
+      hx-push-url="true">
   <input type="hidden" name="view" value="all" />
   {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}" />{% endif %}
   {% if request.GET.direction %}<input type="hidden" name="direction" value="{{ request.GET.direction }}" />{% endif %}

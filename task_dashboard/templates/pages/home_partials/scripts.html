@@ -196,63 +196,59 @@
       // Update badges immediately
       updateBadges();
     };
-    const table = document.querySelector("table");
-    const resizers = document.querySelectorAll(".resizer");
-    let currentResizer;
-    let startX = 0;
-    let startWidth = 0;
 
-    resizers.forEach(function(resizer) {
-      resizer.addEventListener("mousedown", function(e) {
-        e.preventDefault(); // Prevent text selection
-        currentResizer = resizer;
+    function initTableResizers() {
+      const resizers = document.querySelectorAll(".resizer");
+      let currentResizer;
+      let startX = 0;
+      let startWidth = 0;
 
-        // Get the parent TH
+      const mouseMoveHandler = function(e) {
+        if (!currentResizer) return;
+        const dx = e.pageX - startX;
         const th = currentResizer.parentElement;
+        if (startWidth + dx > 50) {
+          th.style.width = `${startWidth + dx}px`;
+          th.style.minWidth = `${startWidth + dx}px`;
+        }
+      };
 
-        // Calculate current width
-        startWidth = th.offsetWidth;
-        startX = e.pageX;
+      const mouseUpHandler = function() {
+        if (currentResizer) {
+          currentResizer.classList.remove("resizing");
+          currentResizer = null;
+        }
+        document.removeEventListener("mousemove", mouseMoveHandler);
+        document.removeEventListener("mouseup", mouseUpHandler);
+      };
 
-        // Add visual class
-        currentResizer.classList.add("resizing");
+      resizers.forEach(function(resizer) {
+        // remove old listeners if any
+        const newResizer = resizer.cloneNode(true);
+        resizer.parentNode.replaceChild(newResizer, resizer);
 
-        // Attach listeners to document (so you can drag outside the table)
-        document.addEventListener("mousemove", mouseMoveHandler);
-        document.addEventListener("mouseup", mouseUpHandler);
+        newResizer.addEventListener("mousedown", function(e) {
+          e.preventDefault();
+          currentResizer = newResizer;
+          const th = currentResizer.parentElement;
+          startWidth = th.offsetWidth;
+          startX = e.pageX;
+          currentResizer.classList.add("resizing");
+          document.addEventListener("mousemove", mouseMoveHandler);
+          document.addEventListener("mouseup", mouseUpHandler);
+        });
       });
+    }
+
+    initTableResizers();
+
+    document.body.addEventListener('htmx:afterSwap', function(event) {
+        if (event.detail.target.id === 'task-results') {
+            initTableResizers();
+        }
     });
 
-    const mouseMoveHandler = function(e) {
-      if (!currentResizer) return;
-
-      // Calculate how far we moved
-      const dx = e.pageX - startX;
-      const th = currentResizer.parentElement;
-
-      // Apply new width (prevent making it too small, e.g., < 50px)
-      if (startWidth + dx > 50) {
-        th.style.width = `${startWidth + dx}px`;
-        // Force the table to respect the manual width
-        th.style.minWidth = `${startWidth + dx}px`;
-      }
-    };
-
-    const mouseUpHandler = function() {
-      if (currentResizer) {
-        currentResizer.classList.remove("resizing");
-        currentResizer = null;
-      }
-      document.removeEventListener("mousemove", mouseMoveHandler);
-      document.removeEventListener("mouseup", mouseUpHandler);
-    };
   });
-
-  function changePage(pageNumber) {
-    const url = new URL(window.location.href);
-    url.searchParams.set('page', pageNumber);
-    window.location.href = url.toString();
-  }
 
   window.saveView = function() {
     const viewName = document.getElementById('view_name').value;

@@ -187,6 +187,11 @@ def refresh_single_task_view(request, pk):
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "pages/home.html"
 
+    def get_template_names(self):
+        if getattr(self.request, "htmx", False):
+            return ["pages/home_partials/table_and_pagination.html"]
+        return [self.template_name]
+
     def get(self, request, *args, **kwargs):
         if not request.GET:
             return HttpResponseRedirect(f"{request.path}?view=my")

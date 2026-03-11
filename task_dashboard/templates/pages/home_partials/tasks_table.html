@@ -9,7 +9,11 @@
             {% with request.GET.direction as current_dir %}
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% sort_url 'origin' %}">
+                   href="?{% sort_url 'origin' %}"
+                   hx-get="?{% sort_url 'origin' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>Origin</span>
                   {% if current_sort == 'origin' %}
                     <span class="text-xs">
@@ -25,7 +29,11 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% sort_url 'id' %}">
+                   href="?{% sort_url 'id' %}"
+                   hx-get="?{% sort_url 'id' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>ID</span>
                   {% if current_sort == 'id' %}
                     <span class="text-xs">
@@ -41,7 +49,11 @@
               </th>
               <th class="font-semibold relative group min-w-[200px] cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% sort_url 'title' %}">
+                   href="?{% sort_url 'title' %}"
+                   hx-get="?{% sort_url 'title' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>Title</span>
                   {% if current_sort == 'title' %}
                     <span class="text-xs">
@@ -57,7 +69,11 @@
               </th>
               <th class="font-semibold relative group min-w-[150px] cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% sort_url 'customer' %}">
+                   href="?{% sort_url 'customer' %}"
+                   hx-get="?{% sort_url 'customer' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>Customer</span>
                   {% if current_sort == 'customer' %}
                     <span class="text-xs">
@@ -73,7 +89,11 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% sort_url 'group' %}">
+                   href="?{% sort_url 'group' %}"
+                   hx-get="?{% sort_url 'group' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>Group</span>
                   {% if current_sort == 'group' %}
                     <span class="text-xs">
@@ -89,7 +109,11 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% sort_url 'owner' %}">
+                   href="?{% sort_url 'owner' %}"
+                   hx-get="?{% sort_url 'owner' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>Owner</span>
                   {% if current_sort == 'owner' %}
                     <span class="text-xs">
@@ -105,7 +129,11 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% sort_url 'status' %}">
+                   href="?{% sort_url 'status' %}"
+                   hx-get="?{% sort_url 'status' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>State</span>
                   {% if current_sort == 'status' %}
                     <span class="text-xs">
@@ -121,7 +149,11 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% sort_url 'priority' %}">
+                   href="?{% sort_url 'priority' %}"
+                   hx-get="?{% sort_url 'priority' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>Priority</span>
                   {% if current_sort == 'priority' %}
                     <span class="text-xs">
@@ -137,7 +169,11 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% sort_url 'created_at' %}">
+                   href="?{% sort_url 'created_at' %}"
+                   hx-get="?{% sort_url 'created_at' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>Created</span>
                   {% if current_sort == 'created_at' %}
                     <span class="text-xs">
@@ -153,7 +189,11 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% sort_url 'updated_at' %}">
+                   href="?{% sort_url 'updated_at' %}"
+                   hx-get="?{% sort_url 'updated_at' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>Updated</span>
                   {% if current_sort == 'updated_at' %}
                     <span class="text-xs">
@@ -169,7 +209,11 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% sort_url 'due_date' %}">
+                   href="?{% sort_url 'due_date' %}"
+                   hx-get="?{% sort_url 'due_date' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>Due Date</span>
                   {% if current_sort == 'due_date' %}
                     <span class="text-xs">
