@@ -55,6 +55,35 @@ class OpenProjectService:
                 cache.set(cache_key, normalized_tasks, timeout=300)
                 return normalized_tasks
 
+    def get_single_task(self, task):
+        return asyncio.run(self.get_single_task_async(task))
+
+    async def get_single_task_async(self, task):
+        if not self.api_key or not task.url:
+            return None
+
+        # Extract ID from URL (e.g. /work_packages/123)
+        import re
+        match = re.search(r'work_packages/(\d+)', task.url)
+        if not match:
+            return None
+            
+        task_id = match.group(1)
+        url = f"{self.base_url}/api/v3/work_packages/{task_id}"
+
+        async with httpx.AsyncClient() as client:
+            user_map = await self._get_user_map(client)
+            normalized_tasks = []
+            try:
+                resp = await client.get(url, headers=self._get_headers(), timeout=20.0)
+                resp.raise_for_status()
+                item = resp.json()
+                self._process_work_package(item, normalized_tasks, user_map)
+                return normalized_tasks[0] if normalized_tasks else None
+            except Exception:
+                logger.exception("Error fetching single OpenProject task %s", task_id)
+                return None
+
     async def _get_user_map(self, client: httpx.AsyncClient):
         cache_key = f"op_{self.config.id}_user_map"
         cached_map = cache.get(cache_key)

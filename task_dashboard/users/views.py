@@ -105,6 +105,67 @@ def force_refresh_view(request):
     return HttpResponseRedirect(reverse("users:dashboard"))
 
 
+@login_required
+@require_POST
+def refresh_single_task_view(request, pk):
+    task = get_object_or_404(Task, pk=pk)
+
+    from task_dashboard.users.tasks import SERVICE_CLASSES, _prepare_upsert_data
+    from task_dashboard.users.models import ExternalGroup
+    
+    service_class = SERVICE_CLASSES.get(task.service.service_type)
+    if not service_class:
+        messages.error(request, _("Unknown service type."))
+        return HttpResponseRedirect(request.headers.get("referer") or reverse("users:dashboard"))
+
+    service_instance = service_class(task.service)
+
+    try:
+        if hasattr(service_instance, "get_single_task"):
+            task_data = service_instance.get_single_task(task)
+            if task_data:
+                tasks_to_upsert, groups_to_upsert = _prepare_upsert_data(task.service, [task_data])
+
+                if groups_to_upsert:
+                    ExternalGroup.objects.bulk_create(
+                        groups_to_upsert.values(),
+                        update_conflicts=True,
+                        unique_fields=["origin", "name"],
+                        update_fields=["extra_data", "last_seen"],
+                    )
+
+                if tasks_to_upsert:
+                    Task.objects.bulk_create(
+                        tasks_to_upsert.values(),
+                        update_conflicts=True,
+                        unique_fields=["service", "external_id"],
+                        update_fields=[
+                            "title",
+                            "status",
+                            "priority",
+                            "customer",
+                            "group",
+                            "owner",
+                            "owner_email",
+                            "url",
+                            "created_at",
+                            "updated_at",
+                            "due_date",
+                        ],
+                    )
+                messages.success(request, _("Successfully refreshed task: %(id)s") % {"id": task.external_id})
+            else:
+                messages.warning(request, _("Task %(id)s could not be found or fetched.") % {"id": task.external_id})
+        else:
+            messages.warning(request, _("Single task refresh not supported for this service."))
+    except Exception as e:
+        logger.exception("Failed to refresh single task %s", task.external_id)
+        messages.error(request, _("Error refreshing task: %(error)s") % {"error": str(e)})
+
+    referer = request.headers.get("referer")
+    return HttpResponseRedirect(referer or reverse("users:dashboard"))
+
+
 # --- DASHBOARD VIEW ---
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "pages/home.html"

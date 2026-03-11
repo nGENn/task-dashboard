@@ -87,6 +87,35 @@ class ZammadService:
                 cache.set(cache_key, normalized_tasks, timeout=300)
                 return normalized_tasks
 
+    def get_single_task(self, task):
+        return asyncio.run(self.get_single_task_async(task))
+
+    async def get_single_task_async(self, task):
+        if not self.base_url or not self.token:
+            return None
+
+        # Extract native Zammad ID from URL (e.g. /#ticket/zoom/1234)
+        import re
+        match = re.search(r'#ticket/zoom/(\d+)', task.url)
+        if not match:
+            logger.error("Could not extract Zammad ID from URL: %s", task.url)
+            return None
+            
+        ticket_id = match.group(1)
+        url = f"{self.base_url}/api/v1/tickets/{ticket_id}"
+
+        async with httpx.AsyncClient() as client:
+            user_map = await self._get_user_map(client)
+            try:
+                resp = await client.get(url, headers=self.headers, params={"expand": "true"}, timeout=45.0)
+                resp.raise_for_status()
+                raw_task = resp.json()
+                normalized = self._normalize_tasks([raw_task], user_map)
+                return normalized[0] if normalized else None
+            except Exception:
+                logger.exception("Error fetching single Zammad task %s", ticket_id)
+                return None
+
     async def _fetch_all_tasks_async(self, client: httpx.AsyncClient):
         url = f"{self.base_url}/api/v1/tickets"
         raw_tasks = []
