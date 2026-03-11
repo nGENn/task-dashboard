@@ -1,4 +1,7 @@
+import math
 from django.core.cache import cache
+from django.utils import timezone
+from django_q.models import Schedule
 
 from task_dashboard.services.eramba import ErambaService
 from task_dashboard.services.espocrm import EspoService
@@ -12,14 +15,37 @@ MAX_HEALTHY_LATENCY_MS = 1000
 
 def system_status(request):  # noqa: C901
     """
-    Adds 'services_status' and 'global_system_status' to context.
+    Adds 'services_status', 'global_system_status', and 'next_refresh_seconds' to context.
     - List of services is fetched LIVE from DB (Instant Admin Toggle).
     - Health of each service is CACHED individually (Performance).
     """
     if not request.user.is_authenticated:
         return {}
 
-    # 1. Define Available Services Map (Service Type -> Class)
+    if not (
+        request.user.is_staff
+        or request.user.is_superuser
+        or request.user.has_perm("users.view_system_health")
+        or request.user.has_perm("users.view_admin_button")
+    ):
+        return {}
+
+    # 1. Calculate time until next refresh from Django Q schedule
+    next_refresh_seconds = None
+    refresh_interval = 5  # Default fallback minutes
+    try:
+        schedule = Schedule.objects.filter(name="Fetch All Tasks").first()
+        if schedule:
+            refresh_interval = schedule.minutes or 5
+            if schedule.next_run:
+                diff = (schedule.next_run - timezone.now()).total_seconds()
+                # Only show countdown if the next run is actually in the future
+                if diff > 0:
+                    next_refresh_seconds = math.ceil(diff)
+    except Exception:
+        pass
+
+    # 2. Define Available Services Map (Service Type -> Class)
     service_map = {
         "eramba": ErambaService,
         "espocrm": EspoService,
@@ -96,4 +122,6 @@ def system_status(request):  # noqa: C901
             "color": global_color,
             "max_latency": max_latency,
         },
+        "next_refresh_seconds": next_refresh_seconds,
+        "refresh_interval": refresh_interval,
     }

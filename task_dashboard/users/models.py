@@ -108,6 +108,10 @@ class ServiceConfiguration(models.Model):
         verbose_name = "Service Configuration"
         verbose_name_plural = "Service Configurations"
         ordering = ["name"]
+        permissions = [
+            ("view_system_health", "Can view system health indicator"),
+            ("view_admin_button", "Can view admin panel button"),
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.get_service_type_display()})"
