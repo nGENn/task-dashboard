@@ -9,7 +9,7 @@
             {% with request.GET.direction as current_dir %}
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='origin' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'origin' %}">
                   <span>Origin</span>
                   {% if current_sort == 'origin' %}
                     <span class="text-xs">
@@ -25,7 +25,7 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='id' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'id' %}">
                   <span>ID</span>
                   {% if current_sort == 'id' %}
                     <span class="text-xs">
@@ -41,7 +41,7 @@
               </th>
               <th class="font-semibold relative group min-w-[200px] cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='title' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'title' %}">
                   <span>Title</span>
                   {% if current_sort == 'title' %}
                     <span class="text-xs">
@@ -57,7 +57,7 @@
               </th>
               <th class="font-semibold relative group min-w-[150px] cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='customer' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'customer' %}">
                   <span>Customer</span>
                   {% if current_sort == 'customer' %}
                     <span class="text-xs">
@@ -73,7 +73,7 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='group' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'group' %}">
                   <span>Group</span>
                   {% if current_sort == 'group' %}
                     <span class="text-xs">
@@ -89,7 +89,7 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='owner' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'owner' %}">
                   <span>Owner</span>
                   {% if current_sort == 'owner' %}
                     <span class="text-xs">
@@ -105,7 +105,7 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='status' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'status' %}">
                   <span>State</span>
                   {% if current_sort == 'status' %}
                     <span class="text-xs">
@@ -121,7 +121,7 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='priority' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'priority' %}">
                   <span>Priority</span>
                   {% if current_sort == 'priority' %}
                     <span class="text-xs">
@@ -137,7 +137,7 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='created_at' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'created_at' %}">
                   <span>Created</span>
                   {% if current_sort == 'created_at' %}
                     <span class="text-xs">
@@ -153,7 +153,7 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='updated_at' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'updated_at' %}">
                   <span>Updated</span>
                   {% if current_sort == 'updated_at' %}
                     <span class="text-xs">
@@ -169,7 +169,7 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='due_date' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'due_date' %}">
                   <span>Due Date</span>
                   {% if current_sort == 'due_date' %}
                     <span class="text-xs">

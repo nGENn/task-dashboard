@@ -241,8 +241,10 @@
 
     // Use a Set to iterate through unique keys and get all their values
     [...new Set(urlParams.keys())].forEach(key => {
-      const values = urlParams.getAll(key);
-      queryParams[key] = values.length > 1 ? values : values[0];
+      if (key !== 'page') {
+        const values = urlParams.getAll(key);
+        queryParams[key] = values.length > 1 ? values : values[0];
+      }
     });
 
     fetch('/users/saved-views/save/', {

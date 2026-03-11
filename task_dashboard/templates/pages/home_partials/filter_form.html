@@ -2,6 +2,12 @@
 
 <form method="get" action="." class="mb-4">
   <input type="hidden" name="view" value="all" />
+  {% if request.GET.sort %}
+    <input type="hidden" name="sort" value="{{ request.GET.sort }}" />
+  {% endif %}
+  {% if request.GET.direction %}
+    <input type="hidden" name="direction" value="{{ request.GET.direction }}" />
+  {% endif %}
   <div class="form-control w-full md:w-1/3 mb-2">
     <div class="relative">
       {# djlint:off H026 #}
