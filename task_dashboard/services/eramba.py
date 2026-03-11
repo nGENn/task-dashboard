@@ -194,6 +194,7 @@ class ErambaService:
 
         # follow_redirects=False ensures we fail fast if authentication is rejected
         async with httpx.AsyncClient(follow_redirects=False) as client:
+            await self._fetch_groups(client)
             tasks = [
                 self._fetch_module(client, module, future_limit)
                 for module in self.FETCH_CONFIG
@@ -211,6 +212,75 @@ class ErambaService:
 
             cache.set(cache_key, all_tasks, timeout=300)
             return all_tasks
+
+    async def _fetch_groups(self, client):
+        """Fetches Eramba groups and maps their members (excluding API users)."""
+        if hasattr(self, "group_members_map"):
+            return
+            
+        self.group_members_map = {}
+        page = 1
+        has_next = True
+        url = f"{self.base_url}/api/groups/index"
+        
+        while has_next:
+            try:
+                resp = await client.get(
+                    url,
+                    headers=self.headers,
+                    params={"page": page},
+                    timeout=10.0,
+                )
+                if resp.status_code != HTTPStatus.OK:
+                    break
+                    
+                data = resp.json()
+                
+                # Handle both {success: true, data: [...]} and direct list responses
+                groups_list = []
+                pagination = {}
+                
+                if isinstance(data, dict):
+                    groups_list = data.get("data") or []
+                    pagination = data.get("pagination", {})
+                elif isinstance(data, list):
+                    groups_list = data
+                    
+                for group in groups_list:
+                    if not isinstance(group, dict):
+                        continue
+                        
+                    group_id = group.get("id")
+                    users = group.get("users", [])
+                    members = []
+                    for user in users:
+                        if not isinstance(user, dict):
+                            continue
+                        name = str(user.get("name", "")).lower()
+                        surname = str(user.get("surname", "")).lower()
+                        login = str(user.get("login", "")).lower()
+                        email = str(user.get("email", "")).lower()
+                        
+                        # Exclude API and system/task users based on naming conventions
+                        if any(x in name or x in surname or x in login or x in email for x in ["api", "task"]):
+                            continue                            
+                        if user.get("email"):
+                            members.append(user["email"])
+                        else:
+                            full_name = f"{user.get('name', '')} {user.get('surname', '')}".strip()
+                            if full_name:
+                                members.append(full_name)
+                                
+                    self.group_members_map[group_id] = members
+                
+                has_next = pagination.get("has_next_page", False)
+                if has_next:
+                    page += 1
+                else:
+                    break
+            except Exception as e:
+                logger.warning("Failed to fetch Eramba groups for %s: %s", self.config.name, e)
+                break
 
     async def _fetch_module(self, client, module_config, future_limit):
         """Fetches a specific module with full pagination support."""
@@ -333,10 +403,24 @@ class ErambaService:
         )
         view_url = f"{self.base_url}/{web_path}/view/{model_class}/{item_id}"
 
-        # Combine possible owner/reviewer/task_owner fields
-        owners_raw = (
-            item.get("owners") or item.get("reviewers") or item.get("task_owners") or []
-        )
+        # Combine all possible owner/reviewer fields to avoid missing data
+        # Eramba modules use different field names for ownership/review.
+        owners_raw = []
+        possible_fields = [
+            "owners",
+            "reviewers",
+            "task_owners",
+            "audit_reviewers",
+            "service_auditors",
+            "audit_evidence_owners",
+            "audit_owners",
+        ]
+        for f in possible_fields:
+            val = item.get(f)
+            if isinstance(val, list):
+                owners_raw.extend(val)
+            elif val and isinstance(val, (dict, str)):
+                owners_raw.append(val)
 
         return {
             "id": f"ERA-{group_label[:3].upper()}-{item_id}",
@@ -389,7 +473,7 @@ class ErambaService:
     def _parse_owners(self, owners_field):
         """Extracts names, emails, or group names from various owner object formats."""
         if not isinstance(owners_field, list) or not owners_field:
-            return "GRC Team"
+            return "-"
 
         names = []
         for o in owners_field:
@@ -405,14 +489,26 @@ class ErambaService:
                 names.append(email or full_name)
                 continue
 
-            # 2. Try to find a nested 'group' object
+            # 2. Try to find a nested 'group' object or 'Group' object_model
             group = o.get("group")
-            if isinstance(group, dict):
-                names.append(
-                    group.get("name")
-                    or group.get("slug")
-                    or f"Group #{group.get('id')}"
-                )
+            obj_model = str(o.get("object_model", "")).lower()
+            obj_id = o.get("object_id")
+            
+            if isinstance(group, dict) or obj_model == "group":
+                g_id = group.get("id") if isinstance(group, dict) else obj_id
+                
+                # Expand to group members if available
+                if hasattr(self, "group_members_map") and g_id in self.group_members_map:
+                    members = self.group_members_map[g_id]
+                    if members:
+                        names.extend(members)
+                        continue
+                
+                # Fallback to group name if expansion failed
+                g_name = (
+                    group.get("name") if isinstance(group, dict) else None
+                ) or f"Group #{g_id}"
+                names.append(g_name)
                 continue
 
             # 3. Fallback: check for 'name' or 'email' at the top level
@@ -425,7 +521,7 @@ class ErambaService:
             if o.get("id") and o.get("model"):
                 names.append(f"{o.get('model')} #{o.get('id')}")
 
-        return ", ".join(filter(None, names)) or "GRC Team"
+        return ", ".join(filter(None, names)) or "-"
 
     def _format_date(self, date_str):
         """Standardizes Eramba dates to ISO format."""

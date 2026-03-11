@@ -185,17 +185,53 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         def extract_base(val, *, is_email=False):
             """
             Normalizes a string to its base component (email prefix or last name).
-            Example: 'john.doe@example.com' -> 'johndoe', 'John Doe' -> 'doe'
+            Example: 'first.last@example.com' -> 'last', 'First Last' -> 'last', 'Last, First' -> 'last'
             """
             if not val or str(val) in unassigned_markers:
                 return ""
             v = str(val).lower().strip()
-            if is_email and "@" in v:
+            
+            # Always strip domain if it looks like an email to avoid '.net' etc. becoming the base
+            if "@" in v:
                 v = v.split("@")[0]
-            elif " " in v:
-                v = v.split()[-1]
+            
+            # Handle 'Lastname, Firstname' format
+            if "," in v:
+                v = v.split(",")[0]
+            
+            # Use the last part of a name or email prefix as the likely last name.
+            # Handles 'First Last' -> 'last', 'f.last' -> 'last', 'f-last' -> 'last'
+            for sep in [" ", ".", "-", "_"]:
+                if sep in v:
+                    parts = [p for p in v.split(sep) if p]
+                    if parts:
+                        v = parts[-1]
+            
             # Remove all non-alphanumeric characters
-            return re.sub(r"[^a-z0-9]", "", v)
+            return re.sub(r"[^a-z0-9]", "", v.strip())
+
+        def get_canonical(val, *, is_email=False):
+            """
+            Finds the best canonical 'last name' for a given value.
+            Supports GitLab usernames like 'flast' matching 'last'.
+            """
+            base = extract_base(val, is_email=is_email)
+            if not base:
+                return ""
+                
+            for ln in sorted_last_names:
+                # Match if base ends with known last name
+                # (e.g. 'flast' ends with 'last') and the
+                # prefix is short (likely initials, max 3 chars)
+                if base.endswith(ln) and len(base) <= len(ln) + 3:
+                    return ln
+            return base
+
+        def iter_owners(val):
+            """Splits a comma-separated list of owners into individual stripped strings."""
+            if not val or str(val) in unassigned_markers:
+                return []
+            return [o.strip() for o in str(val).split(",") if o.strip()]
 
         # Collect potential last names from current user and all tasks
         if user_email:
@@ -204,12 +240,14 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             last_names.add(extract_base(user_name))
 
         for t in all_tasks:
-            ln_email = extract_base(t.owner_email, is_email=True)
-            if ln_email:
-                last_names.add(ln_email)
-            ln_owner = extract_base(t.owner)
-            if ln_owner:
-                last_names.add(ln_owner)
+            for o in iter_owners(t.owner_email):
+                ln_email = extract_base(o, is_email=True)
+                if ln_email:
+                    last_names.add(ln_email)
+            for o in iter_owners(t.owner):
+                ln_owner = extract_base(o, is_email="@" in o)
+                if ln_owner:
+                    last_names.add(ln_owner)
 
         # We filter for strings length >= 4 to avoid matching too many
         # short usernames (like 'm1'). Sorting by length ASC means
@@ -217,22 +255,6 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         sorted_last_names = sorted(
             [ln for ln in last_names if len(ln) >= min_last_name_len], key=len
         )
-
-        def get_canonical(val, *, is_email=False):
-            """
-            Finds the best canonical 'last name' for a given value.
-            Supports GitLab usernames like 'jdoe' matching 'doe'.
-            """
-            base = extract_base(val, is_email=is_email)
-            if not base:
-                return ""
-            for ln in sorted_last_names:
-                # Match if base ends with known last name
-                # (e.g. mjackson ends with jackson) and the
-                # prefix is short (likely initials, max 3 chars)
-                if base.endswith(ln) and len(base) <= len(ln) + 3:
-                    return ln
-            return base
 
         # Precompute canonical identities for the current user
         user_canons = set()
@@ -246,13 +268,15 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         # Map every task to its set of canonical owner identities
         task_canonicals = {}
         for t in all_tasks:
-            c_email = get_canonical(t.owner_email, is_email=True)
-            c_owner = get_canonical(t.owner)
             canons = set()
-            if c_email:
-                canons.add(c_email)
-            if c_owner:
-                canons.add(c_owner)
+            for o in iter_owners(t.owner_email):
+                c_email = get_canonical(o, is_email=True)
+                if c_email:
+                    canons.add(c_email)
+            for o in iter_owners(t.owner):
+                c_owner = get_canonical(o)
+                if c_owner:
+                    canons.add(c_owner)
             task_canonicals[t.id] = canons
 
         for t in all_tasks:
@@ -374,6 +398,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 or query in str(t.external_id or "").lower()
                 or query in str(t.customer or "").lower()
                 or query in str(t.owner or "").lower()
+                or query in str(t.owner_email or "").lower()
             ]
 
         # C. Dropdowns
@@ -504,13 +529,18 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                     if user_name:
                         candidates.append(user_name)
 
-                if t.owner_email and str(t.owner_email) not in unassigned_markers:
-                    candidates.append(str(t.owner_email))
-                if t.owner and str(t.owner) not in unassigned_markers:
-                    candidates.append(str(t.owner))
+                for o in iter_owners(t.owner_email):
+                    if str(o) not in unassigned_markers and get_canonical(o, is_email=True) == c:
+                        candidates.append(str(o))
+                for o in iter_owners(t.owner):
+                    if str(o) not in unassigned_markers and get_canonical(o) == c:
+                        candidates.append(str(o))
+
+                # Preference: Email (@) > Full Name (space) > Username
+                # Also prefer shorter strings within each category to avoid aliases
+                candidates.sort(key=lambda x: ("@" not in x, " " not in x, len(x)))
 
                 for cand in candidates:
-                    # Preference: Email (@) > Full Name (space) > Username
                     if (
                         ("@" in cand and "@" not in current_best)
                         or (
@@ -519,6 +549,11 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                             and " " not in current_best
                         )
                         or not current_best
+                        or (
+                            "@" in cand
+                            and "@" in current_best
+                            and len(cand) < len(current_best)
+                        )
                     ):
                         current_best = cand
 
@@ -528,15 +563,23 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 if "@" in current_best:
                     canonical_to_email[c] = current_best
 
-        # Unify owner display in the table: if a canonical email exists, use it.
+        # Unify owner display in the table: if multiple canonical identities exist, show all.
         for t in allowed_tasks:
             t_canons = task_canonicals[t.id]
-            for c in t_canons:
+            best_emails = []
+            best_names = []
+            
+            # Sort for deterministic display order
+            for c in sorted(t_canons):
                 if c in canonical_to_email:
-                    t.owner_email = canonical_to_email[c]
-                    # Also update owner name to empty if we have an email
-                    # to avoid double display if template handles both
-                    break
+                    best_emails.append(canonical_to_email[c])
+                else:
+                    best_names.append(canonical_to_best_name.get(c, c))
+
+            display_parts = best_emails + best_names
+            if display_parts:
+                t.owner_email = ", ".join(display_parts)
+                t.owner = ""
 
         owners = sorted(set(canonical_to_best_name.values()))
         if has_unassigned:

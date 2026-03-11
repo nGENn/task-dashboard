@@ -182,7 +182,7 @@ class TestDashboardView:
 
     def test_name_based_ownership_mapping_failed(self, user: User, rf: RequestFactory):
         # 1. Setup Data
-        user.name = "John Doe"
+        user.name = "Test User"
         user.save()
 
         service_config = ServiceConfiguration.objects.create(
@@ -201,7 +201,7 @@ class TestDashboardView:
             service=service_config,
             group="Support",
             owner_email="",  # FAILED MAPPING
-            owner="John Doe",
+            owner="Test User",
             priority="medium",
             updated_at=test_datetime,
         )
@@ -238,7 +238,7 @@ class TestDashboardView:
             title="Name Only",
             status="open",
             service=service_config,
-            owner="John Doe",
+            owner="Test User",
             owner_email="",
             updated_at=timezone.now(),
         )
@@ -249,7 +249,7 @@ class TestDashboardView:
             status="open",
             service=service_config,
             owner="",
-            owner_email="john@example.com",
+            owner_email="test@example.com",
             updated_at=timezone.now(),
         )
         # 3. Task with neither (UNASSIGNED)
@@ -280,8 +280,8 @@ class TestDashboardView:
 
         # Check filter options too
         assert "Unassigned" in context["filter_options"]["owners"]
-        assert "John Doe" in context["filter_options"]["owners"]
-        assert "john@example.com" in context["filter_options"]["owners"]
+        assert "Test User" in context["filter_options"]["owners"]
+        assert "test@example.com" in context["filter_options"]["owners"]
 
     def test_own_only_permission(self, user: User, rf: RequestFactory):
         # 1. Setup Data
@@ -359,9 +359,9 @@ class TestDashboardView:
         assert len(tasks) == 1
 
     def test_advanced_ownership_mapping(self, user: User, rf: RequestFactory):
-        # Setup: User "John Jackson" with email "jackson@example.com"
-        user.name = "John Jackson"
-        user.email = "jackson@example.com"
+        # Setup: User "First Last" with email "last@example.com"
+        user.name = "First Last"
+        user.email = "last@example.com"
         user.save()
 
         service_config = ServiceConfiguration.objects.create(
@@ -371,13 +371,13 @@ class TestDashboardView:
             default_access_level="FULL",
         )
 
-        # 1. Task with Gitlab username "mjackson" (Matches by "jackson" suffix)
+        # 1. Task with Gitlab username "flast" (Matches by "last" suffix)
         Task.objects.create(
             external_id="GL-1",
             title="Gitlab Task",
             status="open",
             service=service_config,
-            owner="mjackson",
+            owner="flast",
             owner_email="",
             updated_at=timezone.now(),
         )
@@ -394,7 +394,7 @@ class TestDashboardView:
             updated_at=timezone.now(),
         )
 
-        # Request as John
+        # Request as test user
         request = rf.get("/?view=my")
         request.user = user
         view = DashboardView()
@@ -404,7 +404,7 @@ class TestDashboardView:
         tasks = context["tasks"].object_list
         task_ids = [t.external_id for t in tasks]
 
-        # John should see GL-1 because "mjackson" matches his last name/email prefix
+        # User should see GL-1 because "flast" matches his last name/email prefix
         assert "GL-1" in task_ids
 
         # Test Filtering by "smithers@example.com" should find "Jane Smithers"
@@ -421,10 +421,10 @@ class TestDashboardView:
 
         # Check UI Dropdown consolidation
         owners = context["filter_options"]["owners"]
-        # Both "John Jackson" and "mjackson" should be represented by one email
-        assert "jackson@example.com" in owners
-        assert "John Jackson" not in owners
-        assert "mjackson" not in owners
+        # Both "First Last" and "flast" should be represented by one email
+        assert "last@example.com" in owners
+        assert "First Last" not in owners
+        assert "flast" not in owners
 
     def test_service_permission_overrides_default_access_level(
         self, user: User, rf: RequestFactory

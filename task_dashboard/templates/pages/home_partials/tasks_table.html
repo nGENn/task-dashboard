@@ -200,7 +200,7 @@
             </td>
             <td class="text-sm min-w-[150px] max-w-[250px] whitespace-normal break-all">{{ task.customer }}</td>
             <td class="text-sm whitespace-nowrap">{{ task.group }}</td>
-            <td class="text-sm font-medium whitespace-nowrap">
+            <td class="text-sm font-medium max-w-[200px] whitespace-normal break-words">
               {% if task.owner_email %}
                 <span class="text-primary">{{ task.owner_email }}</span>
               {% else %}
