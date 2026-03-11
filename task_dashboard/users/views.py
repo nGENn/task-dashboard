@@ -185,20 +185,22 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         def extract_base(val, *, is_email=False):
             """
             Normalizes a string to its base component (email prefix or last name).
-            Example: 'first.last@example.com' -> 'last', 'First Last' -> 'last', 'Last, First' -> 'last'
+            Example: 'first.last@example.com' -> 'last', 'First Last' -> 'last',
+            'Last, First' -> 'last'
             """
             if not val or str(val) in unassigned_markers:
                 return ""
             v = str(val).lower().strip()
-            
-            # Always strip domain if it looks like an email to avoid '.net' etc. becoming the base
+
+            # Always strip domain if it looks like an email to avoid
+            # '.net' etc. becoming the base
             if "@" in v:
                 v = v.split("@")[0]
-            
+
             # Handle 'Lastname, Firstname' format
             if "," in v:
                 v = v.split(",")[0]
-            
+
             # Use the last part of a name or email prefix as the likely last name.
             # Handles 'First Last' -> 'last', 'f.last' -> 'last', 'f-last' -> 'last'
             for sep in [" ", ".", "-", "_"]:
@@ -206,7 +208,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                     parts = [p for p in v.split(sep) if p]
                     if parts:
                         v = parts[-1]
-            
+
             # Remove all non-alphanumeric characters
             return re.sub(r"[^a-z0-9]", "", v.strip())
 
@@ -218,7 +220,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             base = extract_base(val, is_email=is_email)
             if not base:
                 return ""
-                
+
             for ln in sorted_last_names:
                 # Match if base ends with known last name
                 # (e.g. 'flast' ends with 'last') and the
@@ -228,7 +230,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             return base
 
         def iter_owners(val):
-            """Splits a comma-separated list of owners into individual stripped strings."""
+            """Splits comma-separated list of owners into stripped strings."""
             if not val or str(val) in unassigned_markers:
                 return []
             return [o.strip() for o in str(val).split(",") if o.strip()]
@@ -428,11 +430,12 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                         start, end = dr.split(" to ")
                     else:
                         start = end = dr.strip()
-                    
+
                     return [
                         t
                         for t in items
-                        if getattr(t, field) and start <= str(getattr(t, field))[:10] <= end
+                        if getattr(t, field)
+                        and start <= str(getattr(t, field))[:10] <= end
                     ]
                 except (ValueError, TypeError):
                     pass
@@ -529,12 +532,21 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                     if user_name:
                         candidates.append(user_name)
 
-                for o in iter_owners(t.owner_email):
-                    if str(o) not in unassigned_markers and get_canonical(o, is_email=True) == c:
-                        candidates.append(str(o))
-                for o in iter_owners(t.owner):
-                    if str(o) not in unassigned_markers and get_canonical(o) == c:
-                        candidates.append(str(o))
+                candidates.extend(
+                    [
+                        str(o)
+                        for o in iter_owners(t.owner_email)
+                        if str(o) not in unassigned_markers
+                        and get_canonical(o, is_email=True) == c
+                    ]
+                )
+                candidates.extend(
+                    [
+                        str(o)
+                        for o in iter_owners(t.owner)
+                        if str(o) not in unassigned_markers and get_canonical(o) == c
+                    ]
+                )
 
                 # Preference: Email (@) > Full Name (space) > Username
                 # Also prefer shorter strings within each category to avoid aliases
@@ -563,12 +575,13 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 if "@" in current_best:
                     canonical_to_email[c] = current_best
 
-        # Unify owner display in the table: if multiple canonical identities exist, show all.
+        # Unify owner display in the table: if multiple canonical identities exist,
+        # show all.
         for t in allowed_tasks:
             t_canons = task_canonicals[t.id]
             best_emails = []
             best_names = []
-            
+
             # Sort for deterministic display order
             for c in sorted(t_canons):
                 if c in canonical_to_email:

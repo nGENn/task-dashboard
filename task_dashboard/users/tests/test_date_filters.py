@@ -1,8 +1,12 @@
+from datetime import timedelta
+
 import pytest
 from django.utils import timezone
-from datetime import timedelta
-from task_dashboard.users.models import Task, ServiceConfiguration
+
+from task_dashboard.users.models import ServiceConfiguration
+from task_dashboard.users.models import Task
 from task_dashboard.users.views import DashboardView
+
 
 @pytest.mark.django_db
 def test_date_range_filters(user, rf):
@@ -14,9 +18,9 @@ def test_date_range_filters(user, rf):
     )
 
     now = timezone.now()
-    
+
     # Task 1: Created yesterday, updated today, due tomorrow
-    t1 = Task.objects.create(
+    Task.objects.create(
         external_id="T1",
         title="Task 1",
         status="open",
@@ -25,9 +29,9 @@ def test_date_range_filters(user, rf):
         updated_at=now,
         due_date=now + timedelta(days=1),
     )
-    
+
     # Task 2: Created 10 days ago, updated 5 days ago, due yesterday
-    t2 = Task.objects.create(
+    Task.objects.create(
         external_id="T2",
         title="Task 2",
         status="open",

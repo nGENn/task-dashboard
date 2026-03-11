@@ -217,13 +217,12 @@ class ErambaService:
         """Fetches Eramba groups and maps their members (excluding API users)."""
         if hasattr(self, "group_members_map"):
             return
-            
+
         self.group_members_map = {}
         page = 1
-        has_next = True
         url = f"{self.base_url}/api/groups/index"
-        
-        while has_next:
+
+        while True:
             try:
                 resp = await client.get(
                     url,
@@ -233,54 +232,56 @@ class ErambaService:
                 )
                 if resp.status_code != HTTPStatus.OK:
                     break
-                    
+
                 data = resp.json()
-                
-                # Handle both {success: true, data: [...]} and direct list responses
-                groups_list = []
-                pagination = {}
-                
-                if isinstance(data, dict):
-                    groups_list = data.get("data") or []
-                    pagination = data.get("pagination", {})
-                elif isinstance(data, list):
-                    groups_list = data
-                    
+                groups_list, pagination = self._extract_groups_and_pagination(data)
+
                 for group in groups_list:
-                    if not isinstance(group, dict):
-                        continue
-                        
-                    group_id = group.get("id")
-                    users = group.get("users", [])
-                    members = []
-                    for user in users:
-                        if not isinstance(user, dict):
-                            continue
-                        name = str(user.get("name", "")).lower()
-                        surname = str(user.get("surname", "")).lower()
-                        login = str(user.get("login", "")).lower()
-                        email = str(user.get("email", "")).lower()
-                        
-                        # Exclude API and system/task users based on naming conventions
-                        if any(x in name or x in surname or x in login or x in email for x in ["api", "task"]):
-                            continue                            
-                        if user.get("email"):
-                            members.append(user["email"])
-                        else:
-                            full_name = f"{user.get('name', '')} {user.get('surname', '')}".strip()
-                            if full_name:
-                                members.append(full_name)
-                                
-                    self.group_members_map[group_id] = members
-                
-                has_next = pagination.get("has_next_page", False)
-                if has_next:
-                    page += 1
-                else:
+                    if isinstance(group, dict):
+                        group_id = group.get("id")
+                        self.group_members_map[group_id] = self._process_group_users(
+                            group.get("users", [])
+                        )
+
+                if not pagination.get("has_next_page"):
                     break
-            except Exception as e:
-                logger.warning("Failed to fetch Eramba groups for %s: %s", self.config.name, e)
+                page += 1
+            except (httpx.HTTPError, ValueError) as e:
+                logger.warning(
+                    "Failed to fetch Eramba groups for %s: %s", self.config.name, e
+                )
                 break
+
+    def _extract_groups_and_pagination(self, data):
+        """Helper to extract groups list and pagination from response data."""
+        if isinstance(data, dict):
+            return data.get("data") or [], data.get("pagination", {})
+        if isinstance(data, list):
+            return data, {}
+        return [], {}
+
+    def _process_group_users(self, users):
+        """Filters and extracts member identifiers from a list of group users."""
+        members = []
+        for user in users:
+            if not isinstance(user, dict):
+                continue
+
+            # Exclude API and system/task users based on naming conventions
+            u_info = [
+                str(user.get(k, "")).lower()
+                for k in ["name", "surname", "login", "email"]
+            ]
+            if any("api" in x or "task" in x for x in u_info):
+                continue
+
+            if user.get("email"):
+                members.append(user["email"])
+            else:
+                full_name = f"{user.get('name', '')} {user.get('surname', '')}".strip()
+                if full_name:
+                    members.append(full_name)
+        return members
 
     async def _fetch_module(self, client, module_config, future_limit):
         """Fetches a specific module with full pagination support."""
@@ -360,15 +361,7 @@ class ErambaService:
             return None
 
         # Handle Eramba's nested item wrapping (e.g. {"Projects": {...}})
-        item = entry
-        first_key = next(iter(entry.keys())) if entry else None
-        if (
-            len(entry) == 1
-            and first_key in self.POSSIBLE_WRAPPERS
-            and isinstance(entry[first_key], dict)
-        ):
-            item = entry[first_key]
-
+        item = self._unwrap_entry(entry)
         item_id = item.get("id")
         if item_id is None:
             return None
@@ -378,33 +371,53 @@ class ErambaService:
 
         # Filtering logic: Only keep open tasks that are due within the window
         if status == "open":
-            due_date_raw = (
-                item.get("planned_date")
-                or item.get("deadline")
-                or item.get("end")
-                or item.get("planned_end")
-            )
-            due_dt = self._parse_date_to_dt(due_date_raw)
+            due_dt = self._parse_date_to_dt(self._get_due_date_raw(item))
             if due_dt and due_dt > future_limit:
                 return None
 
-        # Asset Reviews use foreign keys to determine the asset type title
-        title = None
-        if "AssetReview" in model_class:
-            fk = item.get("foreign_key")
-            if isinstance(fk, int):
-                title = ASSET_TYPE_MAP.get(fk)
-
-        title = (
-            title
-            or item.get("title")
-            or item.get("name")
-            or f"{group_label} #{item_id}"
-        )
+        title = self._get_item_title(item, model_class, group_label, item_id)
         view_url = f"{self.base_url}/{web_path}/view/{model_class}/{item_id}"
 
-        # Combine all possible owner/reviewer fields to avoid missing data
-        # Eramba modules use different field names for ownership/review.
+        return {
+            "id": f"ERA-{group_label[:3].upper()}-{item_id}",
+            "title": str(title)[:250],
+            "status": status,
+            "priority": self._determine_priority(item),
+            "origin": self.config.name,
+            "customer": "Internal",
+            "group": group_label,
+            "owner": self._parse_owners(self._get_owners_raw(item))[:250],
+            "created_at": self._format_date(
+                item.get("created") or item.get("open_date") or item.get("start")
+            ),
+            "updated_at": self._format_date(item.get("modified")),
+            "due_date": self._format_date(self._get_due_date_raw(item)),
+            "url": view_url[:500],
+            "extra_info": {"module": model_class},
+        }
+
+    def _unwrap_entry(self, entry):
+        """Unwraps a nested Eramba entry if it's wrapped by model class name."""
+        first_key = next(iter(entry.keys())) if entry else None
+        if (
+            len(entry) == 1
+            and first_key in self.POSSIBLE_WRAPPERS
+            and isinstance(entry[first_key], dict)
+        ):
+            return entry[first_key]
+        return entry
+
+    def _get_due_date_raw(self, item):
+        """Extracts the first available due date field from an Eramba item."""
+        return (
+            item.get("planned_date")
+            or item.get("deadline")
+            or item.get("end")
+            or item.get("planned_end")
+        )
+
+    def _get_owners_raw(self, item):
+        """Collects all potential owner/reviewer data from an Eramba item."""
         owners_raw = []
         possible_fields = [
             "owners",
@@ -421,29 +434,22 @@ class ErambaService:
                 owners_raw.extend(val)
             elif val and isinstance(val, (dict, str)):
                 owners_raw.append(val)
+        return owners_raw
 
-        return {
-            "id": f"ERA-{group_label[:3].upper()}-{item_id}",
-            "title": str(title)[:250],
-            "status": status,
-            "priority": self._determine_priority(item),
-            "origin": self.config.name,
-            "customer": "Internal",
-            "group": group_label,
-            "owner": self._parse_owners(owners_raw)[:250],
-            "created_at": self._format_date(
-                item.get("created") or item.get("open_date") or item.get("start")
-            ),
-            "updated_at": self._format_date(item.get("modified")),
-            "due_date": self._format_date(
-                item.get("planned_date")
-                or item.get("deadline")
-                or item.get("end")
-                or item.get("planned_end")
-            ),
-            "url": view_url[:500],
-            "extra_info": {"module": model_class},
-        }
+    def _get_item_title(self, item, model_class, group_label, item_id):
+        """Determines the display title for an Eramba item."""
+        title = None
+        if "AssetReview" in model_class:
+            fk = item.get("foreign_key")
+            if isinstance(fk, int):
+                title = ASSET_TYPE_MAP.get(fk)
+
+        return (
+            title
+            or item.get("title")
+            or item.get("name")
+            or f"{group_label} #{item_id}"
+        )
 
     def _determine_status(self, item):
         """Maps Eramba status fields and magic numbers to dashboard statuses."""
@@ -493,17 +499,20 @@ class ErambaService:
             group = o.get("group")
             obj_model = str(o.get("object_model", "")).lower()
             obj_id = o.get("object_id")
-            
+
             if isinstance(group, dict) or obj_model == "group":
                 g_id = group.get("id") if isinstance(group, dict) else obj_id
-                
+
                 # Expand to group members if available
-                if hasattr(self, "group_members_map") and g_id in self.group_members_map:
+                if (
+                    hasattr(self, "group_members_map")
+                    and g_id in self.group_members_map
+                ):
                     members = self.group_members_map[g_id]
                     if members:
                         names.extend(members)
                         continue
-                
+
                 # Fallback to group name if expansion failed
                 g_name = (
                     group.get("name") if isinstance(group, dict) else None

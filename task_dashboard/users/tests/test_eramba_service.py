@@ -34,7 +34,11 @@ async def test_get_tasks_async_fetches_all_modules(eramba_service):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         if "api/groups" in url:
-            mock_resp.json.return_value = {"success": True, "data": [], "pagination": {}}
+            mock_resp.json.return_value = {
+                "success": True,
+                "data": [],
+                "pagination": {},
+            }
         else:
             mock_resp.json.return_value = [{"id": 1, "title": "Test Task"}]
         return mock_resp
@@ -73,7 +77,7 @@ async def test_pagination_works(eramba_service):
     empty_resp = MagicMock()
     empty_resp.status_code = 200
     empty_resp.json.return_value = []
-    
+
     groups_resp = MagicMock()
     groups_resp.status_code = 200
     groups_resp.json.return_value = {"success": True, "data": [], "pagination": {}}
@@ -110,20 +114,28 @@ async def test_group_member_mapping(eramba_service):
                 "id": 10,
                 "name": "Admin",
                 "users": [
-                    {"id": 1, "name": "Real", "surname": "User", "email": "real@example.com", "login": "realuser"},
-                    {"id": 2, "name": "API", "surname": "User", "email": "api@example.com", "login": "apiuser"},
-                ]
+                    {
+                        "id": 1,
+                        "name": "Real",
+                        "surname": "User",
+                        "email": "real@example.com",
+                        "login": "realuser",
+                    },
+                    {
+                        "id": 2,
+                        "name": "API",
+                        "surname": "User",
+                        "email": "api@example.com",
+                        "login": "apiuser",
+                    },
+                ],
             }
         ],
-        "pagination": {"has_next_page": False}
+        "pagination": {"has_next_page": False},
     }
-    
+
     tasks_data = [
-        {
-            "id": 1,
-            "title": "Task 1",
-            "owners": [{"group": {"id": 10, "name": "Admin"}}]
-        }
+        {"id": 1, "title": "Task 1", "owners": [{"group": {"id": 10, "name": "Admin"}}]}
     ]
 
     def side_effect(url, **kwargs):
@@ -137,10 +149,10 @@ async def test_group_member_mapping(eramba_service):
 
     with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
         mock_get.side_effect = side_effect
-        
+
         tasks = await eramba_service.get_tasks_async(force_refresh=True)
-        
-        # Admin group had 1 real user and 1 api user. 
+
+        # Admin group had 1 real user and 1 api user.
         # Only the real user should be mapped.
         assert tasks[0]["owner"] == "real@example.com"
 
@@ -153,16 +165,18 @@ async def test_empty_owner_returns_empty_string(eramba_service):
     mock_response.json.return_value = [
         {"id": 1, "title": "No Owner", "owners": []},
     ]
-    
+
     groups_resp = MagicMock()
     groups_resp.status_code = 200
     groups_resp.json.return_value = {"success": True, "data": [], "pagination": {}}
 
     with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+
         def side_effect(url, **kwargs):
             if "api/groups" in url:
                 return groups_resp
             return mock_response
+
         mock_get.side_effect = side_effect
 
         tasks = await eramba_service.get_tasks_async(force_refresh=True)
@@ -190,16 +204,18 @@ async def test_owner_mapping_variations(eramba_service):
             ],
         },
     ]
-    
+
     groups_resp = MagicMock()
     groups_resp.status_code = 200
     groups_resp.json.return_value = {"success": True, "data": [], "pagination": {}}
 
     with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+
         def side_effect(url, **kwargs):
             if "api/groups" in url:
                 return groups_resp
             return mock_response
+
         mock_get.side_effect = side_effect
 
         # To avoid noise from MODULE_COUNT modules, let's just check one result set
@@ -217,16 +233,18 @@ async def test_view_url_correctness(eramba_service):
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = [{"id": 42, "title": "URL Test"}]
-    
+
     groups_resp = MagicMock()
     groups_resp.status_code = 200
     groups_resp.json.return_value = {"success": True, "data": [], "pagination": {}}
 
     with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+
         def side_effect(url, **kwargs):
             if "api/groups" in url:
                 return groups_resp
             return mock_response
+
         mock_get.side_effect = side_effect
 
         tasks = await eramba_service.get_tasks_async(force_refresh=True)
@@ -275,16 +293,18 @@ async def test_future_task_filtering(eramba_service):
             "deadline": outside_window,
         },
     ]
-    
+
     groups_resp = MagicMock()
     groups_resp.status_code = 200
     groups_resp.json.return_value = {"success": True, "data": [], "pagination": {}}
 
     with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+
         def side_effect(url, **kwargs):
             if "api/groups" in url:
                 return groups_resp
             return mock_response
+
         mock_get.side_effect = side_effect
         tasks = await eramba_service.get_tasks_async(force_refresh=True)
 

@@ -15,7 +15,7 @@
     datePickersConfigList.forEach(picker => {
       const box = document.getElementById(picker.boxId);
       const hiddenInput = document.getElementById(picker.inputId);
-      
+
       let defaultDate = null;
       if (hiddenInput && hiddenInput.value) {
         defaultDate = hiddenInput.value.includes(" to ") ? hiddenInput.value.split(" to ") : hiddenInput.value;

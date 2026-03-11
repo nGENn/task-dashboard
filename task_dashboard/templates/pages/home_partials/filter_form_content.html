@@ -4,7 +4,8 @@
 <div class="mb-2 bg-base-100 rounded-box shadow-sm border border-base-300 p-4">
   <div class="flex flex-wrap gap-3 mb-3 w-full">
     <!-- Dropdowns -->
-    <div class="dropdown tooltip tooltip-bottom" data-tip="Source platform" style="flex: 1 1 120px; min-width: 0;">
+    <div class="dropdown tooltip tooltip-bottom filter-dropdown-container"
+         data-tip="Source platform">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
@@ -36,7 +37,8 @@
         {% endfor %}
       </ul>
     </div>
-    <div class="dropdown tooltip tooltip-bottom" data-tip="Filter by customer name" style="flex: 1 1 120px; min-width: 0;">
+    <div class="dropdown tooltip tooltip-bottom filter-dropdown-container"
+         data-tip="Filter by customer name">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
@@ -68,7 +70,8 @@
         {% endfor %}
       </ul>
     </div>
-    <div class="dropdown tooltip tooltip-bottom" data-tip="Filter by functional group or department" style="flex: 1 1 120px; min-width: 0;">
+    <div class="dropdown tooltip tooltip-bottom filter-dropdown-container"
+         data-tip="Filter by functional group or department">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
@@ -100,7 +103,8 @@
         {% endfor %}
       </ul>
     </div>
-    <div class="dropdown tooltip tooltip-bottom" data-tip="Filter by assigned user in source system" style="flex: 1 1 120px; min-width: 0;">
+    <div class="dropdown tooltip tooltip-bottom filter-dropdown-container"
+         data-tip="Filter by assigned user in source system">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
@@ -132,7 +136,8 @@
         {% endfor %}
       </ul>
     </div>
-    <div class="dropdown dropdown-end tooltip tooltip-bottom" data-tip="Filter by current task status" style="flex: 1 1 120px; min-width: 0;">
+    <div class="dropdown dropdown-end tooltip tooltip-bottom filter-dropdown-container"
+         data-tip="Filter by current task status">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
@@ -164,7 +169,8 @@
         {% endfor %}
       </ul>
     </div>
-    <div class="dropdown dropdown-end tooltip tooltip-bottom" data-tip="Filter by task priority level" style="flex: 1 1 120px; min-width: 0;">
+    <div class="dropdown dropdown-end tooltip tooltip-bottom filter-dropdown-container"
+         data-tip="Filter by task priority level">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
@@ -196,37 +202,61 @@
         {% endfor %}
       </ul>
     </div>
-
     <!-- Date Ranges using completely static DIVs to prevent text shifting -->
-    <div class="tooltip tooltip-bottom" data-tip="Creation date" style="flex: 1 1 120px; min-width: 0;">
-      <div id="date-range-picker" class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer" style="width: 100%;">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <div class="tooltip tooltip-bottom filter-dropdown-container"
+         data-tip="Creation date">
+      <div id="date-range-picker"
+           class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer w-full">
+        <svg xmlns="http://www.w3.org/2000/svg"
+             class="h-4 w-4 opacity-50 flex-shrink-0"
+             fill="none"
+             viewBox="0 0 24 24"
+             stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
         <span class="text-base-content/60 text-sm truncate pointer-events-none">Created</span>
       </div>
     </div>
-    <input type="hidden" id="date-range-input" name="date_range" value="{{ request.GET.date_range }}" />
-
-    <div class="tooltip tooltip-bottom" data-tip="Last modified" style="flex: 1 1 120px; min-width: 0;">
-      <div id="updated-range-picker" class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer" style="width: 100%;">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <input type="hidden"
+           id="date-range-input"
+           name="date_range"
+           value="{{ request.GET.date_range }}" />
+    <div class="tooltip tooltip-bottom filter-dropdown-container"
+         data-tip="Last modified">
+      <div id="updated-range-picker"
+           class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer w-full">
+        <svg xmlns="http://www.w3.org/2000/svg"
+             class="h-4 w-4 opacity-50 flex-shrink-0"
+             fill="none"
+             viewBox="0 0 24 24"
+             stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
         <span class="text-base-content/60 text-sm truncate pointer-events-none">Updated</span>
       </div>
     </div>
-    <input type="hidden" id="updated-range-input" name="updated_range" value="{{ request.GET.updated_range }}" />
-
-    <div class="tooltip tooltip-bottom" data-tip="Due date" style="flex: 1 1 120px; min-width: 0;">
-      <div id="due-range-picker" class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer" style="width: 100%;">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <input type="hidden"
+           id="updated-range-input"
+           name="updated_range"
+           value="{{ request.GET.updated_range }}" />
+    <div class="tooltip tooltip-bottom filter-dropdown-container"
+         data-tip="Due date">
+      <div id="due-range-picker"
+           class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer w-full">
+        <svg xmlns="http://www.w3.org/2000/svg"
+             class="h-4 w-4 opacity-50 flex-shrink-0"
+             fill="none"
+             viewBox="0 0 24 24"
+             stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
         <span class="text-base-content/60 text-sm truncate pointer-events-none">Due</span>
       </div>
     </div>
-    <input type="hidden" id="due-range-input" name="due_range" value="{{ request.GET.due_range }}" />
+    <input type="hidden"
+           id="due-range-input"
+           name="due_range"
+           value="{{ request.GET.due_range }}" />
   </div>
   <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-t border-base-200 pt-4">
     <div id="active-filters-container"

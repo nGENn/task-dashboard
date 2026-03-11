@@ -92,7 +92,6 @@ ACCOUNT_EMAIL_SUBJECT_PREFIX = EMAIL_SUBJECT_PREFIX
 # ------------------------------------------------------------------------------
 # Django Admin URL regex.
 # Already defined in base.py with a default.
-# ADMIN_URL = env("DJANGO_ADMIN_URL")
 
 # Anymail
 # ------------------------------------------------------------------------------

@@ -26,7 +26,9 @@ class TestSystemStatusContextProcessor:
         assert context["global_system_status"]["state"] == "No Services"
         assert context["services_status"] == []
 
-    def test_authenticated_non_staff_no_perm(self, user: UserFactory, rf: RequestFactory):
+    def test_authenticated_non_staff_no_perm(
+        self, user: UserFactory, rf: RequestFactory
+    ):
         request = rf.get("/")
         user.is_staff = False
         user.is_superuser = False
@@ -41,7 +43,9 @@ class TestSystemStatusContextProcessor:
         request.user = user
 
         with patch.object(user, "has_perm") as mock_has_perm:
-            mock_has_perm.side_effect = lambda perm, obj=None: perm == "users.view_system_health"
+            mock_has_perm.side_effect = (
+                lambda perm, obj=None: perm == "users.view_system_health"
+            )
             context = system_status(request)
 
         # It should return the context (even if empty results) since user has permission
