@@ -114,8 +114,9 @@ class EspoService:
                     url, headers=self.headers, params=request_params, timeout=15.0
                 )
                 if resp2.status_code == HTTPStatus.OK:
+                    data2 = resp2.json()
                     self._process_items(
-                        resp2.json().get("list", []),
+                        data2.get("list", []),
                         entity_type,
                         ctx["target"],
                         ctx["user_map"],
@@ -130,7 +131,9 @@ class EspoService:
             owner_email = user_map.get(owner_id)
             target_list.append(
                 {
-                    "id": (f"ESPO-{entity_type[0]}-{item.get('number')}"),
+                    "id": (
+                        f"ESPO-{entity_type[0]}-{item.get('number') or item.get('id')}"
+                    ),
                     "title": item.get("name"),
                     "status": self._map_status(item.get("status")),
                     "priority": self._map_priority(item.get("priority", "Medium")),

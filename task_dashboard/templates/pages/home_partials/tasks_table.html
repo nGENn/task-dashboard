@@ -194,7 +194,9 @@
             <td>
               <span class="badge badge-ghost text-xs">{{ task.service.name }}</span>
             </td>
-            <td class="font-mono text-sm font-bold whitespace-nowrap">{{ task.external_id }}</td>
+            <td class="font-mono text-sm font-bold {% if task.external_id|length > 16 %}whitespace-normal break-all{% else %}whitespace-nowrap{% endif %} min-w-[100px] max-w-[200px]">
+              {{ task.external_id }}
+            </td>
             <td class="min-w-[200px] max-w-[400px]">
               <span class="truncate block font-medium" title="{{ task.title }}">{{ task.title }}</span>
             </td>
