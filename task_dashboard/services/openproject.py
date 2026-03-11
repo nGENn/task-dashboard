@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import logging
+import re
 from http import HTTPStatus
 
 import httpx
@@ -63,11 +64,10 @@ class OpenProjectService:
             return None
 
         # Extract ID from URL (e.g. /work_packages/123)
-        import re
-        match = re.search(r'work_packages/(\d+)', task.url)
+        match = re.search(r"work_packages/(\d+)", task.url)
         if not match:
             return None
-            
+
         task_id = match.group(1)
         url = f"{self.base_url}/api/v3/work_packages/{task_id}"
 

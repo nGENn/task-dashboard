@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import logging
 from http import HTTPStatus
+from urllib.parse import quote
 from urllib.parse import urlparse
 
 import httpx
@@ -76,9 +77,8 @@ class GitLabService:
 
         # Parse project path and IID from URL
         # e.g., /group/project/-/issues/24
-        from urllib.parse import urlparse, quote
         path = urlparse(task.url).path
-        
+
         if "/-/issues/" in path:
             parts = path.split("/-/issues/")
             item_type = "Issue"
@@ -90,7 +90,8 @@ class GitLabService:
         else:
             return None
 
-        if len(parts) != 2:
+        expected_parts = 2
+        if len(parts) != expected_parts:
             return None
 
         project_path = parts[0].strip("/")
@@ -103,26 +104,28 @@ class GitLabService:
             user_map = await self._get_user_map(client)
             normalized_items = []
             ctx = {"target": normalized_items, "user_map": user_map}
-            
+
             try:
-                # We need a slightly custom fetch because _fetch_and_normalize expects a list
+                # We need a slightly custom fetch because _fetch_and_normalize
+                # expects a list
                 resp = await client.get(url, headers=self.headers, timeout=15.0)
                 resp.raise_for_status()
-                
+
                 item = resp.json()
-                # Mock a list wrapper to reuse _fetch_and_normalize logic if we wanted, 
-                # but it's simpler to just do what it does inline, or monkey patch the response:
+                # Mock a list wrapper to reuse _fetch_and_normalize logic if we
+                # wanted, but it's simpler to just do what it does inline,
+                # or monkey patch the response:
                 # To reuse code, we can just process this single item:
-                
+
                 assignee = item.get("assignee") or {}
                 if not assignee and item.get("assignees"):
                     assignee = item.get("assignees")[0]
 
                 author = item.get("author", {})
                 owner_name = assignee.get("name") or author.get("name") or "-"
-                owner_email = ctx["user_map"].get(
-                    assignee.get("id") or author.get("id")
-                ) or ""
+                owner_email = (
+                    ctx["user_map"].get(assignee.get("id") or author.get("id")) or ""
+                )
 
                 group_name = project_path
 

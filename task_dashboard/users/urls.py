@@ -16,7 +16,9 @@ urlpatterns = [
     path("<int:pk>/", view=user_detail_view, name="detail"),
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
     path("force-refresh/", force_refresh_view, name="force-refresh"),
-    path("tasks/<int:pk>/refresh/", refresh_single_task_view, name="refresh-single-task"),
+    path(
+        "tasks/<int:pk>/refresh/", refresh_single_task_view, name="refresh-single-task"
+    ),
     path("saved-views/save/", save_view, name="save_view"),
     path(
         "saved-views/<int:pk>/delete/",

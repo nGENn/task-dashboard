@@ -27,12 +27,17 @@ from django.views.generic import UpdateView
 from django_q.tasks import async_task
 
 # Models
+from task_dashboard.users.models import ExternalGroup
 from task_dashboard.users.models import SavedView
 from task_dashboard.users.models import ServiceConfiguration
 from task_dashboard.users.models import ServicePermission
 from task_dashboard.users.models import Task
 from task_dashboard.users.models import TaskPermission
 from task_dashboard.users.models import User
+
+# Tasks
+from task_dashboard.users.tasks import SERVICE_CLASSES
+from task_dashboard.users.tasks import _prepare_upsert_data
 
 logger = logging.getLogger(__name__)
 
@@ -110,13 +115,12 @@ def force_refresh_view(request):
 def refresh_single_task_view(request, pk):
     task = get_object_or_404(Task, pk=pk)
 
-    from task_dashboard.users.tasks import SERVICE_CLASSES, _prepare_upsert_data
-    from task_dashboard.users.models import ExternalGroup
-    
     service_class = SERVICE_CLASSES.get(task.service.service_type)
     if not service_class:
         messages.error(request, _("Unknown service type."))
-        return HttpResponseRedirect(request.headers.get("referer") or reverse("users:dashboard"))
+        return HttpResponseRedirect(
+            request.headers.get("referer") or reverse("users:dashboard")
+        )
 
     service_instance = service_class(task.service)
 
@@ -124,7 +128,9 @@ def refresh_single_task_view(request, pk):
         if hasattr(service_instance, "get_single_task"):
             task_data = service_instance.get_single_task(task)
             if task_data:
-                tasks_to_upsert, groups_to_upsert = _prepare_upsert_data(task.service, [task_data])
+                tasks_to_upsert, groups_to_upsert = _prepare_upsert_data(
+                    task.service, [task_data]
+                )
 
                 if groups_to_upsert:
                     ExternalGroup.objects.bulk_create(
@@ -153,14 +159,25 @@ def refresh_single_task_view(request, pk):
                             "due_date",
                         ],
                     )
-                messages.success(request, _("Successfully refreshed task: %(id)s") % {"id": task.external_id})
+                messages.success(
+                    request,
+                    _("Successfully refreshed task: %(id)s") % {"id": task.external_id},
+                )
             else:
-                messages.warning(request, _("Task %(id)s could not be found or fetched.") % {"id": task.external_id})
+                messages.warning(
+                    request,
+                    _("Task %(id)s could not be found or fetched.")
+                    % {"id": task.external_id},
+                )
         else:
-            messages.warning(request, _("Single task refresh not supported for this service."))
+            messages.warning(
+                request, _("Single task refresh not supported for this service.")
+            )
     except Exception as e:
         logger.exception("Failed to refresh single task %s", task.external_id)
-        messages.error(request, _("Error refreshing task: %(error)s") % {"error": str(e)})
+        messages.error(
+            request, _("Error refreshing task: %(error)s") % {"error": str(e)}
+        )
 
     referer = request.headers.get("referer")
     return HttpResponseRedirect(referer or reverse("users:dashboard"))

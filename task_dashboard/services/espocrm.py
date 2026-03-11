@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from http import HTTPStatus
 
 import httpx
@@ -72,11 +73,10 @@ class EspoService:
             return None
 
         # Extract entity type and ID from URL (e.g. /#Task/view/123)
-        import re
-        match = re.search(r'#([^/]+)/view/([^/]+)', task.url)
+        match = re.search(r"#([^/]+)/view/([^/]+)", task.url)
         if not match:
             return None
-            
+
         entity_type = match.group(1)
         task_id = match.group(2)
         url = f"{self.base_url}/api/v1/{entity_type}/{task_id}"
@@ -84,7 +84,7 @@ class EspoService:
         async with httpx.AsyncClient() as client:
             user_map = await self._get_user_map(client)
             normalized_tasks = []
-            
+
             try:
                 resp = await client.get(url, headers=self.headers, timeout=15.0)
                 resp.raise_for_status()

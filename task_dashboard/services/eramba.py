@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import logging
+import re
 from datetime import UTC
 from datetime import datetime
 from http import HTTPStatus
@@ -220,17 +221,19 @@ class ErambaService:
         if "Authorization" not in self.headers or not task.url:
             return None
 
-        # Extract web_path and ID from URL (e.g. /security-incidents/view/SecurityIncidents/12)
-        import re
-        match = re.search(r'/([^/]+)/view/[^/]+/(\d+)', task.url)
+        # Extract web_path and ID from URL
+        # e.g. /security-incidents/view/SecurityIncidents/12
+        match = re.search(r"/([^/]+)/view/[^/]+/(\d+)", task.url)
         if not match:
             return None
-            
+
         web_path = match.group(1)
         task_id = match.group(2)
-        
+
         # Find matching module configuration
-        module_config = next((m for m in self.FETCH_CONFIG if m["web"] == web_path), None)
+        module_config = next(
+            (m for m in self.FETCH_CONFIG if m["web"] == web_path), None
+        )
         if not module_config:
             return None
 
@@ -250,7 +253,7 @@ class ErambaService:
             try:
                 resp = await client.get(url, headers=self.headers, timeout=20.0)
                 resp.raise_for_status()
-                
+
                 # Similar to _extract_items but for a single item
                 data = resp.json()
                 item_data = data.get("data") or data.get("items") or data
@@ -258,12 +261,13 @@ class ErambaService:
                     item_data = item_data[0] if item_data else None
 
                 if item_data:
-                    parsed = self._parse_item(item_data, model_class, label, web_path, future_limit)
-                    return parsed
-                return None
+                    return self._parse_item(
+                        item_data, model_class, label, web_path, future_limit
+                    )
             except Exception:
                 logger.exception("Error fetching single Eramba task %s", task_id)
-                return None
+
+        return None
 
     async def _fetch_groups(self, client):
         """Fetches Eramba groups and maps their members (excluding API users)."""
