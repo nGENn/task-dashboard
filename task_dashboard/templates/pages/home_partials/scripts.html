@@ -4,23 +4,44 @@
     // 1. Initialize Flatpickr
     const isMobile = window.innerWidth < 768;
 
-    flatpickr("#date-range-picker", {
-      mode: "range",
-      dateFormat: "Y-m-d",
-      altInput: true,
-      altFormat: "d.m.Y",
-      theme: "dark",
-      static: false, // Allow positioning logic to work
-      position: isMobile ? "auto right" : "auto left",
-      onChange: function(selectedDates, dateStr, instance) {
-        updateBadges(); // Update badges when date changes
-      },
+    const datePickersConfigList = [
+      { boxId: "date-range-picker", inputId: "date-range-input", name: "date_range", label: "Created" },
+      { boxId: "updated-range-picker", inputId: "updated-range-input", name: "updated_range", label: "Updated" },
+      { boxId: "due-range-picker", inputId: "due-range-input", name: "due_range", label: "Due" },
+    ];
+
+    window.datePickersConfigList = datePickersConfigList; // Expose for updateBadges
+
+    datePickersConfigList.forEach(picker => {
+      const box = document.getElementById(picker.boxId);
+      const hiddenInput = document.getElementById(picker.inputId);
+      
+      let defaultDate = null;
+      if (hiddenInput && hiddenInput.value) {
+        defaultDate = hiddenInput.value.includes(" to ") ? hiddenInput.value.split(" to ") : hiddenInput.value;
+      }
+
+      if (box) {
+        box._flatpickr = flatpickr(box, {
+          mode: "range",
+          dateFormat: "Y-m-d",
+          defaultDate: defaultDate,
+          theme: "dark",
+          position: isMobile ? "auto right" : "auto left",
+          onChange: function(selectedDates, dateStr, instance) {
+            if (hiddenInput) {
+              hiddenInput.value = dateStr;
+            }
+            updateBadges();
+          },
+        });
+      }
     });
 
     // 2. Initial Setup: Check boxes based on URL params
     const urlParams = new URLSearchParams(window.location.search);
     urlParams.forEach((value, key) => {
-      if (key === "date_range") return; // Date handled by value="" attribute in HTML
+      if (["date_range", "updated_range", "due_range"].includes(key)) return;
       // Find checkbox and check it
       const checkbox = document.querySelector(
         `input[name="${key}"][value="${value}"]`
@@ -78,25 +99,26 @@
         });
       }
 
-      // B. Date Picker
-      const dateInput = document.getElementById("date-range-picker");
-      // We use the flatpickr instance value if available, or the input value
-      if (dateInput.value) {
-        hasFilters = true;
-        // Format: "2024-12-01 to 2024-12-31" -> "01.12.2024 - 31.12.2024"
-        const formattedDate = dateInput.value
-          .replace(/(\d{4})-(\d{2})-(\d{2})/g, "$3.$2.$1")
-          .replace(" to ", " - ");
-        createBadge(
-          container,
-          "date_range",
-          dateInput.value,
-          formattedDate,
-          "badge-neutral"
-        );
-      }
+      // B. Date Pickers
+      window.datePickersConfigList.forEach(picker => {
+        const input = document.getElementById(picker.inputId);
+        if (input && input.value) {
+          hasFilters = true;
+          const formattedDate = input.value
+            .replace(/(\d{4})-(\d{2})-(\d{2})/g, "$3.$2.$1")
+            .replace(" to ", " - ");
+          createBadge(
+            container,
+            picker.name,
+            input.value,
+            `${picker.label}: ${formattedDate}`,
+            "badge-neutral"
+          );
+        }
+      });
 
-      // Toggle Label visibility
+
+    // Toggle Label visibility
       if (hasFilters) {
         label.classList.remove("hidden");
         // Add Clear All link
@@ -144,11 +166,14 @@
 
     // Global function for the onclick event in the badge
     window.removeBadge = function(key, value) {
-      if (key === "date_range") {
-        const dateInput = document.getElementById("date-range-picker");
-        // Clear Flatpickr
-        if (dateInput._flatpickr) dateInput._flatpickr.clear();
-        dateInput.value = "";
+      if (["date_range", "updated_range", "due_range"].includes(key)) {
+        const pickerConfig = window.datePickersConfigList.find(p => p.name === key);
+        if (pickerConfig) {
+          const hiddenInput = document.getElementById(pickerConfig.inputId);
+          if (hiddenInput) hiddenInput.value = "";
+          const box = document.getElementById(pickerConfig.boxId);
+          if (box && box._flatpickr) box._flatpickr.clear();
+        }
       } else {
         if (value === 'all') {
           // Uncheck all checkboxes for this group

@@ -307,6 +307,8 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             "group",
             "priority",
             "date_range",
+            "updated_range",
+            "due_range",
         ]
         is_filtering = any(request.GET.get(p) for p in filter_params)
 
@@ -392,18 +394,24 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         # Note: We already handled "owner" specially above!
         filtered_tasks = apply_dropdown(filtered_tasks, "priority", "priority")
 
-        # D. Date Range
-        dr = request.GET.get("date_range")
-        if dr and " to " in dr:
-            try:
-                start, end = dr.split(" to ")
-                filtered_tasks = [
-                    t
-                    for t in filtered_tasks
-                    if t.created_at and start <= str(t.created_at)[:10] <= end
-                ]
-            except ValueError:
-                pass
+        # D. Date Ranges
+        def apply_date_range(items, param, field):
+            dr = request.GET.get(param)
+            if dr and " to " in dr:
+                try:
+                    start, end = dr.split(" to ")
+                    return [
+                        t
+                        for t in items
+                        if getattr(t, field) and start <= str(getattr(t, field))[:10] <= end
+                    ]
+                except (ValueError, TypeError):
+                    pass
+            return items
+
+        filtered_tasks = apply_date_range(filtered_tasks, "date_range", "created_at")
+        filtered_tasks = apply_date_range(filtered_tasks, "updated_range", "updated_at")
+        filtered_tasks = apply_date_range(filtered_tasks, "due_range", "due_date")
 
         # E. Sorting
         custom_sort = request.GET.get("sort")
