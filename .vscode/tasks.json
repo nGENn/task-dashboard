@@ -37,7 +37,7 @@
         {
             "label": "Pre-commit (Staged)",
             "type": "shell",
-            "command": "uv run pre-commit run --show-diff-on-failure --color=always",
+            "command": "uv run pre-commit run --color=always",
             "group": "test",
             "presentation": {
                 "reveal": "silent",
@@ -48,7 +48,7 @@
         {
             "label": "Pre-commit (All Files)",
             "type": "shell",
-            "command": "uv run pre-commit run --all-files --show-diff-on-failure --color=always",
+            "command": "uv run pre-commit run --all-files --color=always",
             "group": "test",
             "presentation": {
                 "reveal": "always",

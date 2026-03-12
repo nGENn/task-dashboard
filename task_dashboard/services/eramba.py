@@ -11,6 +11,8 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone as django_timezone
 
+from task_dashboard.users.models import GlobalSetting
+
 logger = logging.getLogger(__name__)
 
 ASSET_TYPE_MAP = {
@@ -188,6 +190,9 @@ class ErambaService:
         if "Authorization" not in self.headers:
             return []
 
+        global_setting = await GlobalSetting.objects.afirst()
+        company_name = global_setting.company_name if global_setting else "Internal"
+
         # Calculate future limit once for this sync run
         future_limit = django_timezone.now() + django_timezone.timedelta(
             days=OPEN_TASK_FUTURE_WINDOW_DAYS
@@ -197,7 +202,11 @@ class ErambaService:
         async with httpx.AsyncClient(follow_redirects=False) as client:
             await self._fetch_groups(client)
             tasks = [
-                self._fetch_module(client, module, future_limit)
+                self._fetch_module(
+                    client,
+                    module,
+                    {"future_limit": future_limit, "company_name": company_name},
+                )
                 for module in self.FETCH_CONFIG
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -220,6 +229,9 @@ class ErambaService:
     async def get_single_task_async(self, task):
         if "Authorization" not in self.headers or not task.url:
             return None
+
+        global_setting = await GlobalSetting.objects.afirst()
+        company_name = global_setting.company_name if global_setting else "Internal"
 
         # Extract web_path and ID from URL
         # e.g. /security-incidents/view/SecurityIncidents/12
@@ -262,7 +274,14 @@ class ErambaService:
 
                 if item_data:
                     return self._parse_item(
-                        item_data, model_class, label, web_path, future_limit
+                        item_data,
+                        {
+                            "model_class": model_class,
+                            "group_label": label,
+                            "web_path": web_path,
+                            "future_limit": future_limit,
+                            "company_name": company_name,
+                        },
                     )
             except Exception:
                 logger.exception("Error fetching single Eramba task %s", task_id)
@@ -339,7 +358,7 @@ class ErambaService:
                     members.append(full_name)
         return members
 
-    async def _fetch_module(self, client, module_config, future_limit):
+    async def _fetch_module(self, client, module_config, ctx):
         """Fetches a specific module with full pagination support."""
         api_path = module_config["path"]
         model_class = module_config["model"]
@@ -384,7 +403,14 @@ class ErambaService:
 
                 for entry in items:
                     parsed = self._parse_item(
-                        entry, model_class, label, web_path, future_limit
+                        entry,
+                        {
+                            "model_class": model_class,
+                            "group_label": label,
+                            "web_path": web_path,
+                            "future_limit": ctx["future_limit"],
+                            "company_name": ctx["company_name"],
+                        },
                     )
                     if parsed:
                         normalized_list.append(parsed)
@@ -411,10 +437,21 @@ class ErambaService:
             return data.get("data") or data.get("items") or []
         return []
 
-    def _parse_item(self, entry, model_class, group_label, web_path, future_limit):
+    def _parse_item(
+        self,
+        entry,
+        ctx,
+    ):
         """Parses a single Eramba item into the dashboard task format."""
         if not isinstance(entry, dict):
             return None
+
+        # Extract values from context
+        model_class = ctx["model_class"]
+        group_label = ctx["group_label"]
+        web_path = ctx["web_path"]
+        future_limit = ctx["future_limit"]
+        company_name = ctx["company_name"]
 
         # Handle Eramba's nested item wrapping (e.g. {"Projects": {...}})
         item = self._unwrap_entry(entry)
@@ -440,7 +477,7 @@ class ErambaService:
             "status": status,
             "priority": self._determine_priority(item),
             "origin": self.config.name,
-            "customer": "Internal",
+            "customer": company_name,
             "group": group_label,
             "owner": self._parse_owners(self._get_owners_raw(item))[:250],
             "created_at": self._format_date(

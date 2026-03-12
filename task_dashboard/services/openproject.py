@@ -9,6 +9,8 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone as django_timezone
 
+from task_dashboard.users.models import GlobalSetting
+
 logger = logging.getLogger(__name__)
 
 
@@ -43,14 +45,21 @@ class OpenProjectService:
         if not self.api_key:
             return []
 
+        # Fetch global setting for fallback customer name
+        global_setting = await GlobalSetting.objects.afirst()
+        company_name = global_setting.company_name if global_setting else "Internal"
+
         async with httpx.AsyncClient() as client:
             user_map = await self._get_user_map(client)
             normalized_tasks = []
 
             try:
-                await self._fetch_work_packages(client, normalized_tasks, user_map)
+                # Fetch all open work packages
+                await self._fetch_work_packages(
+                    client, normalized_tasks, user_map, company_name
+                )
             except httpx.HTTPError:
-                logger.exception("Error fetching OpenProject packages")
+                logger.exception("Error fetching OpenProject data")
                 return []
             else:
                 cache.set(cache_key, normalized_tasks, timeout=300)
@@ -71,6 +80,10 @@ class OpenProjectService:
         task_id = match.group(1)
         url = f"{self.base_url}/api/v3/work_packages/{task_id}"
 
+        # Fetch global setting for fallback customer name
+        global_setting = await GlobalSetting.objects.afirst()
+        company_name = global_setting.company_name if global_setting else "Internal"
+
         async with httpx.AsyncClient() as client:
             user_map = await self._get_user_map(client)
             normalized_tasks = []
@@ -78,7 +91,9 @@ class OpenProjectService:
                 resp = await client.get(url, headers=self._get_headers(), timeout=20.0)
                 resp.raise_for_status()
                 item = resp.json()
-                self._process_work_package(item, normalized_tasks, user_map)
+                self._process_work_package(
+                    item, normalized_tasks, user_map, company_name
+                )
                 return normalized_tasks[0] if normalized_tasks else None
             except Exception:
                 logger.exception("Error fetching single OpenProject task %s", task_id)
@@ -115,7 +130,9 @@ class OpenProjectService:
             logger.warning("OpenProject User Map failed: %s", e)
         return user_map
 
-    async def _fetch_work_packages(self, client, normalized_tasks, user_map):
+    async def _fetch_work_packages(
+        self, client, normalized_tasks, user_map, company_name
+    ):
         url = f"{self.base_url}/api/v3/work_packages"
         page_size = 100
 
@@ -136,7 +153,7 @@ class OpenProjectService:
             return
 
         for item in elements:
-            self._process_work_package(item, normalized_tasks, user_map)
+            self._process_work_package(item, normalized_tasks, user_map, company_name)
 
         # Fetch page 2 concurrently if page 1 was full
         if len(elements) == page_size:
@@ -147,9 +164,11 @@ class OpenProjectService:
             if resp2.status_code == HTTPStatus.OK:
                 elements2 = resp2.json().get("_embedded", {}).get("elements", [])
                 for item in elements2:
-                    self._process_work_package(item, normalized_tasks, user_map)
+                    self._process_work_package(
+                        item, normalized_tasks, user_map, company_name
+                    )
 
-    def _process_work_package(self, item, normalized_tasks, user_map):
+    def _process_work_package(self, item, normalized_tasks, user_map, company_name):
         links = item.get("_links", {})
 
         assignee_link = links.get("assignee", {})
@@ -171,8 +190,8 @@ class OpenProjectService:
         project_title = project_link.get("title", "Project")
         project_href = project_link.get("href", "")
 
-        customer_name = "all"
-        group_name = "all"
+        customer_name = company_name
+        group_name = f"{company_name}/{project_title}"
         project_only = project_title
 
         if " ⏳ " in project_title:

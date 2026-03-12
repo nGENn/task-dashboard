@@ -27,6 +27,18 @@ def eramba_service(eramba_config):
     return ErambaService(eramba_config)
 
 
+@pytest.fixture(autouse=True)
+def mock_global_setting():
+    with patch(
+        "task_dashboard.services.eramba.GlobalSetting.objects.afirst",
+        new_callable=AsyncMock,
+    ) as mock:
+        mock_setting = MagicMock()
+        mock_setting.company_name = "Internal"
+        mock.return_value = mock_setting
+        yield mock
+
+
 @pytest.mark.anyio
 async def test_get_tasks_async_fetches_all_modules(eramba_service):
     # Mock httpx.AsyncClient.get

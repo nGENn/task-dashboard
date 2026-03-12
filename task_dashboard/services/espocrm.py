@@ -7,6 +7,8 @@ import httpx
 from django.core.cache import cache
 from django.utils import timezone as django_timezone
 
+from task_dashboard.users.models import GlobalSetting
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,6 +35,9 @@ class EspoService:
         if not self.api_key:
             return []
 
+        global_setting = await GlobalSetting.objects.afirst()
+        company_name = global_setting.company_name if global_setting else "Internal"
+
         async with httpx.AsyncClient() as client:
             user_map = await self._get_user_map(client)
             normalized_tasks = []
@@ -41,7 +46,11 @@ class EspoService:
                 # Fetch Cases and Tasks in parallel
                 base_params = {"orderBy": "createdAt", "order": "desc"}
                 # Use a context dictionary to keep argument count down (PLR0913)
-                ctx = {"target": normalized_tasks, "user_map": user_map}
+                ctx = {
+                    "target": normalized_tasks,
+                    "user_map": user_map,
+                    "company_name": company_name,
+                }
                 await asyncio.gather(
                     self._fetch_entity(
                         client,
@@ -72,6 +81,9 @@ class EspoService:
         if not self.api_key or not task.url:
             return None
 
+        global_setting = await GlobalSetting.objects.afirst()
+        company_name = global_setting.company_name if global_setting else "Internal"
+
         # Extract entity type and ID from URL (e.g. /#Task/view/123)
         match = re.search(r"#([^/]+)/view/([^/]+)", task.url)
         if not match:
@@ -89,7 +101,9 @@ class EspoService:
                 resp = await client.get(url, headers=self.headers, timeout=15.0)
                 resp.raise_for_status()
                 item = resp.json()
-                self._process_items([item], entity_type, normalized_tasks, user_map)
+                self._process_items(
+                    [item], entity_type, normalized_tasks, user_map, company_name
+                )
                 return normalized_tasks[0] if normalized_tasks else None
             except Exception:
                 logger.exception("Error fetching single EspoCRM task %s", task_id)
@@ -136,7 +150,13 @@ class EspoService:
             if not items:
                 return
 
-            self._process_items(items, entity_type, ctx["target"], ctx["user_map"])
+            self._process_items(
+                items,
+                entity_type,
+                ctx["target"],
+                ctx["user_map"],
+                ctx["company_name"],
+            )
 
             # If page 1 was full, fetch page 2 concurrently
             if len(items) == max_size:
@@ -151,12 +171,13 @@ class EspoService:
                         entity_type,
                         ctx["target"],
                         ctx["user_map"],
+                        ctx["company_name"],
                     )
 
         except httpx.HTTPError as e:
             logger.warning("Failed to fetch Espo %s: %s", entity_type, e)
 
-    def _process_items(self, items, entity_type, target_list, user_map):
+    def _process_items(self, items, entity_type, target_list, user_map, company_name):
         for item in items:
             owner_id = item.get("assignedUserId")
             owner_email = user_map.get(owner_id)
@@ -169,7 +190,7 @@ class EspoService:
                     "status": self._map_status(item.get("status")),
                     "priority": self._map_priority(item.get("priority", "Medium")),
                     "origin": self.config.name,
-                    "customer": item.get("accountName", ""),
+                    "customer": item.get("accountName") or company_name,
                     "group": entity_type,
                     "owner": item.get("assignedUserName", "-"),
                     "owner_email": owner_email,

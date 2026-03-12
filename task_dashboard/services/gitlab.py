@@ -9,6 +9,8 @@ import httpx
 from django.core.cache import cache
 from django.utils import timezone as django_timezone
 
+from task_dashboard.users.models import GlobalSetting
+
 logger = logging.getLogger(__name__)
 
 
@@ -32,6 +34,9 @@ class GitLabService:
         if not self.token:
             return []
 
+        global_setting = await GlobalSetting.objects.afirst()
+        company_name = global_setting.company_name if global_setting else "Internal"
+
         async with httpx.AsyncClient() as client:
             user_map = await self._get_user_map(client)
             normalized_items = []
@@ -44,7 +49,11 @@ class GitLabService:
                     "order_by": "updated_at",
                 }
                 # Use context dict for PLR0913
-                ctx = {"target": normalized_items, "user_map": user_map}
+                ctx = {
+                    "target": normalized_items,
+                    "user_map": user_map,
+                    "company_name": company_name,
+                }
                 await asyncio.gather(
                     self._fetch_and_normalize(
                         client,
@@ -74,6 +83,9 @@ class GitLabService:
     async def get_single_task_async(self, task):
         if not self.token or not task.url:
             return None
+
+        global_setting = await GlobalSetting.objects.afirst()
+        company_name = global_setting.company_name if global_setting else "Internal"
 
         # Parse project path and IID from URL
         # e.g., /group/project/-/issues/24
@@ -135,7 +147,7 @@ class GitLabService:
                     "status": "open" if item.get("state") == "opened" else "resolved",
                     "priority": "Medium",
                     "origin": self.config.name,
-                    "customer": "Internal",
+                    "customer": company_name,
                     "group": group_name,
                     "owner": owner_name,
                     "owner_email": owner_email,
@@ -220,7 +232,7 @@ class GitLabService:
                         "status": "open",
                         "priority": "Medium",
                         "origin": self.config.name,
-                        "customer": "Internal",
+                        "customer": ctx["company_name"],
                         "group": group_name,
                         "owner": owner_name,
                         "owner_email": owner_email,

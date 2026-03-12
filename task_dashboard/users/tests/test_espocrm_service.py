@@ -22,6 +22,18 @@ def espo_service(espo_config):
     return EspoService(espo_config)
 
 
+@pytest.fixture(autouse=True)
+def mock_global_setting():
+    with patch(
+        "task_dashboard.services.espocrm.GlobalSetting.objects.afirst",
+        new_callable=AsyncMock,
+    ) as mock:
+        mock_setting = MagicMock()
+        mock_setting.company_name = "Internal"
+        mock.return_value = mock_setting
+        yield mock
+
+
 @pytest.mark.anyio
 async def test_get_tasks_async_uses_id_when_number_is_missing(espo_service):
     # Mock data for Case (has number) and Task (no number)
@@ -85,3 +97,55 @@ async def test_get_tasks_async_parallel_fetching(espo_service):
         assert any("api/v1/User" in url for url in urls)
         assert any("api/v1/Case" in url for url in urls)
         assert any("api/v1/Task" in url for url in urls)
+
+
+@pytest.mark.anyio
+async def test_get_tasks_async_uses_global_setting_for_customer_fallback(espo_service):
+    # Mock GlobalSetting
+    mock_global_setting = MagicMock()
+    mock_global_setting.company_name = "My Test Company"
+
+    case_data = {
+        "list": [
+            {
+                "id": "case-1",
+                "number": 1,
+                "name": "Case with Customer",
+                "status": "New",
+                "accountName": "Existing Customer",
+            },
+            {
+                "id": "case-2",
+                "number": 2,
+                "name": "Case without Customer",
+                "status": "New",
+                "accountName": None,
+            },
+        ]
+    }
+
+    with patch(
+        "task_dashboard.services.espocrm.GlobalSetting.objects.afirst",
+        new_callable=AsyncMock,
+    ) as mock_afirst:
+        mock_afirst.return_value = mock_global_setting
+
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.json = MagicMock(
+                side_effect=[
+                    {"list": []},  # User map
+                    case_data,  # Cases
+                    {"list": []},  # Tasks
+                ]
+            )
+            mock_get.return_value = mock_resp
+
+            tasks = await espo_service.get_tasks_async(force_refresh=True)
+
+            assert len(tasks) == 2  # noqa: PLR2004
+            # First task should keep its customer
+            assert tasks[0]["customer"] == "Existing Customer"
+            # Second task should use the global fallback
+            assert tasks[1]["customer"] == "My Test Company"
