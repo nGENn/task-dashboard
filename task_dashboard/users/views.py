@@ -579,15 +579,22 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         # 7. GENERATE OPTIONS (FIXED: Extract Emails for Owners)
         def get_options(field):
             if field == "origin":
-                return sorted({t.service.name for t in allowed_tasks if t.service})
+                return sorted(
+                    {t.service.name for t in allowed_tasks if t.service},
+                    key=lambda x: str(x).lower(),
+                )
             if field == "status":
-                return sorted({t.status for t in allowed_tasks if t.status})
+                return sorted(
+                    {t.status for t in allowed_tasks if t.status},
+                    key=lambda x: str(x).lower(),
+                )
             return sorted(
                 {
                     str(getattr(t, field, ""))
                     for t in allowed_tasks
                     if getattr(t, field, "")
                 },
+                key=lambda x: x.lower(),
             )
 
         # Custom Logic for Owner Options: Group by Canonical Identity
@@ -677,7 +684,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 t.owner_email = ", ".join(display_parts)
                 t.owner = ""
 
-        owners = sorted(set(canonical_to_best_name.values()))
+        owners = sorted(set(canonical_to_best_name.values()), key=lambda x: x.lower())
         if has_unassigned:
             owners.insert(0, "Unassigned")
 
