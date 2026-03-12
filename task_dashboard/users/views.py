@@ -275,6 +275,14 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 return ""
             v = str(val).lower().strip()
 
+            # Transliterate German umlauts before regex removal
+            v = (
+                v.replace("ö", "oe")
+                .replace("ä", "ae")
+                .replace("ü", "ue")
+                .replace("ß", "ss")
+            )
+
             # Always strip domain if it looks like an email to avoid
             # '.net' etc. becoming the base
             if "@" in v:
@@ -304,12 +312,31 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             if not base:
                 return ""
 
+            # Fallback for reversed names like "Landefeld Klaus". If multi-word,
+            # check if any word matches a known email base (which is highly reliable).
+            # Placed before suffix matching to prioritize exact email base matches.
+            if not is_email and "@" not in str(val) and " " in str(val):
+                words = (
+                    str(val)
+                    .lower()
+                    .replace("ö", "oe")
+                    .replace("ä", "ae")
+                    .replace("ü", "ue")
+                    .replace("ß", "ss")
+                    .split()
+                )
+                for word in words:
+                    cleaned = re.sub(r"[^a-z0-9]", "", word)
+                    if cleaned and cleaned in email_last_names:
+                        return cleaned
+
             for ln in sorted_last_names:
                 # Match if base ends with known last name
                 # (e.g. 'flast' ends with 'last') and the
                 # prefix is short (likely initials, max 3 chars)
                 if base.endswith(ln) and len(base) <= len(ln) + 3:
                     return ln
+
             return base
 
         def iter_owners(val):
@@ -319,8 +346,11 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             return [o.strip() for o in str(val).split(",") if o.strip()]
 
         # Collect potential last names from current user and all tasks
+        email_last_names = set()
         if user_email:
-            last_names.add(extract_base(user_email, is_email=True))
+            base = extract_base(user_email, is_email=True)
+            last_names.add(base)
+            email_last_names.add(base)
         if user_name:
             last_names.add(extract_base(user_name))
 
@@ -329,10 +359,14 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 ln_email = extract_base(o, is_email=True)
                 if ln_email:
                     last_names.add(ln_email)
+                    email_last_names.add(ln_email)
             for o in iter_owners(t.owner):
-                ln_owner = extract_base(o, is_email="@" in o)
+                is_em = "@" in o
+                ln_owner = extract_base(o, is_email=is_em)
                 if ln_owner:
                     last_names.add(ln_owner)
+                    if is_em:
+                        email_last_names.add(ln_owner)
 
         # We filter for strings length >= 4 to avoid matching too many
         # short usernames (like 'm1'). Sorting by length ASC means
@@ -642,22 +676,48 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 # Also prefer shorter strings within each category to avoid aliases
                 candidates.sort(key=lambda x: ("@" not in x, " " not in x, len(x)))
 
+                def is_valid_email_candidate(s):
+                    if "@" not in s:
+                        return False
+                    domain = s.split("@")[-1]
+                    domain_parts = domain.split(".")
+                    min_domain_parts = 2
+                    return len(domain_parts) >= min_domain_parts and all(domain_parts)
+
                 for cand in candidates:
+                    if not current_best:
+                        current_best = cand
+                        continue
+
+                    cand_is_email = is_valid_email_candidate(cand)
+                    curr_is_email = is_valid_email_candidate(current_best)
+
                     if (
-                        ("@" in cand and "@" not in current_best)
+                        (cand_is_email and not curr_is_email)
+                        or (
+                            "@" in cand
+                            and "@" not in current_best
+                            and not curr_is_email
+                        )
                         or (
                             " " in cand
                             and "@" not in current_best
                             and " " not in current_best
                         )
-                        or not current_best
-                        or (
-                            "@" in cand
-                            and "@" in current_best
-                            and len(cand) < len(current_best)
-                        )
                     ):
                         current_best = cand
+                    elif (
+                        "@" in cand
+                        and "@" in current_best
+                        and (cand_is_email == curr_is_email)
+                    ):
+                        if cand_is_email:
+                            # For emails, prefer longer to avoid truncated domains
+                            if len(cand) > len(current_best):
+                                current_best = cand
+                        # For non-emails, prefer shorter to avoid aliases
+                        elif len(cand) < len(current_best):
+                            current_best = cand
 
                 canonical_to_best_name[c] = current_best
 
@@ -743,13 +803,13 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 "name": "My Tasks",
                 "view_param": "my",
                 "url": "?view=my",
-                "description": "Tasks assigned to me",
+                "description": "Open tasks assigned to me",
             },
             {
                 "name": "Unassigned",
                 "view_param": "unassigned",
                 "url": "?view=unassigned",
-                "description": "Tasks without an owner",
+                "description": "Open tasks without an owner",
             },
         ]
 

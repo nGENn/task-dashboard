@@ -79,22 +79,31 @@
 
         checkedBoxes.forEach((box) => {
           if (!groupedFilters[box.name]) {
-            groupedFilters[box.name] = 0;
+            groupedFilters[box.name] = [];
           }
-          groupedFilters[box.name]++;
+          let labelText = box.value;
+          const nextSpan = box.nextElementSibling;
+          if (nextSpan && nextSpan.tagName.toLowerCase() === 'span') {
+             labelText = nextSpan.textContent.trim();
+          }
+          groupedFilters[box.name].push(labelText);
         });
 
         Object.keys(groupedFilters).forEach((key) => {
-          const count = groupedFilters[key];
+          const items = groupedFilters[key];
+          const count = items.length;
           // Capitalize key for display text (e.g., 'origin' -> 'Origin')
           const displayName = key.charAt(0).toUpperCase() + key.slice(1);
           const displayText = `${displayName} (${count})`;
+          const tooltipText = items.join(', ');
 
           createBadge(
             container,
             key,
             'all',
-            displayText
+            displayText,
+            "badge-primary",
+            tooltipText
           );
         });
       }
@@ -143,10 +152,18 @@
       key,
       value,
       displayText,
-      colorClass = "badge-primary"
+      colorClass = "badge-primary",
+      tooltipText = ""
     ) {
       const badge = document.createElement("div");
-      badge.className = `badge ${colorClass} gap-1 pr-0 py-3`;
+      let classes = `badge ${colorClass} gap-1 pr-0 py-3`;
+      if (tooltipText) {
+          classes += ' tooltip tooltip-bottom before:text-xs before:max-w-xs before:whitespace-normal';
+      }
+      badge.className = classes;
+      if (tooltipText) {
+          badge.setAttribute('data-tip', tooltipText);
+      }
       badge.innerHTML = `
                 ${displayText}
                 <button type="button" class="btn btn-ghost btn-xs text-primary-content hover:bg-transparent" onclick="removeBadge('${key}', '${value}')">

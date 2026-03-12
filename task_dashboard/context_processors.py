@@ -14,7 +14,7 @@ from task_dashboard.users.models import ServiceConfiguration
 
 logger = logging.getLogger(__name__)
 
-MAX_HEALTHY_LATENCY_MS = 1000
+MAX_HEALTHY_LATENCY_MS = 2000
 
 
 def system_status(request):
