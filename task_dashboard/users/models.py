@@ -108,9 +108,43 @@ class ServiceConfiguration(models.Model):
         verbose_name = "Service Configuration"
         verbose_name_plural = "Service Configurations"
         ordering = ["name"]
+        permissions = [
+            ("view_system_health", "Can view system health indicator"),
+            ("view_admin_button", "Can view admin panel button"),
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.get_service_type_display()})"
+
+
+class GlobalSetting(models.Model):
+    """
+    Singleton model for global dashboard settings.
+    """
+
+    company_name = models.CharField(
+        max_length=100,
+        default="Internal",
+        help_text=(
+            "Used as fallback customer name across services if none is specified."
+        ),
+    )
+
+    class Meta:
+        verbose_name = "Global Setting"
+        verbose_name_plural = "Global Settings"
+
+    def __str__(self):
+        return "Global Setting"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
 
 
 class ExternalGroup(models.Model):

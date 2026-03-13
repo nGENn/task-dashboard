@@ -1,11 +1,14 @@
 import asyncio
 import logging
+import re
 from datetime import datetime
 from http import HTTPStatus
 
 import httpx
 from django.core.cache import cache
 from django.utils import timezone as django_timezone
+
+from task_dashboard.users.models import GlobalSetting
 
 logger = logging.getLogger(__name__)
 
@@ -69,12 +72,18 @@ class ZammadService:
             logger.warning("Zammad credentials not found.")
             return []
 
+        # Fetch global setting for fallback customer name
+        global_setting = await GlobalSetting.objects.afirst()
+        company_name = global_setting.company_name if global_setting else "Internal"
+
         async with httpx.AsyncClient() as client:
             user_map = await self._get_user_map(client)
 
             try:
                 raw_tasks = await self._fetch_all_tasks_async(client)
-                normalized_tasks = self._normalize_tasks(raw_tasks, user_map)
+                normalized_tasks = self._normalize_tasks(
+                    raw_tasks, user_map, company_name
+                )
             except httpx.HTTPError:
                 logger.exception("Error fetching Zammad tasks")
                 # Instead of returning [], we raise so fetch_service_tasks knows it
@@ -86,6 +95,40 @@ class ZammadService:
             else:
                 cache.set(cache_key, normalized_tasks, timeout=300)
                 return normalized_tasks
+
+    def get_single_task(self, task):
+        return asyncio.run(self.get_single_task_async(task))
+
+    async def get_single_task_async(self, task):
+        if not self.base_url or not self.token:
+            return None
+
+        # Extract native Zammad ID from URL (e.g. /#ticket/zoom/1234)
+        match = re.search(r"#ticket/zoom/(\d+)", task.url)
+        if not match:
+            logger.error("Could not extract Zammad ID from URL: %s", task.url)
+            return None
+
+        ticket_id = match.group(1)
+        url = f"{self.base_url}/api/v1/tickets/{ticket_id}"
+
+        # Fetch global setting for fallback customer name
+        global_setting = await GlobalSetting.objects.afirst()
+        company_name = global_setting.company_name if global_setting else "Internal"
+
+        async with httpx.AsyncClient() as client:
+            user_map = await self._get_user_map(client)
+            try:
+                resp = await client.get(
+                    url, headers=self.headers, params={"expand": "true"}, timeout=45.0
+                )
+                resp.raise_for_status()
+                raw_task = resp.json()
+                normalized = self._normalize_tasks([raw_task], user_map, company_name)
+                return normalized[0] if normalized else None
+            except Exception:
+                logger.exception("Error fetching single Zammad task %s", ticket_id)
+                return None
 
     async def _fetch_all_tasks_async(self, client: httpx.AsyncClient):
         url = f"{self.base_url}/api/v1/tickets"
@@ -145,7 +188,7 @@ class ZammadService:
 
         return raw_tasks
 
-    def _normalize_tasks(self, raw_tasks, user_map):
+    def _normalize_tasks(self, raw_tasks, user_map, company_name):
         normalized_tasks = []
         for task in raw_tasks:
             owner_id = task.get("owner_id")
@@ -160,7 +203,7 @@ class ZammadService:
                     "status": self._map_status(task.get("state")),
                     "priority": self._map_priority(task.get("priority")),
                     "origin": self.config.name,
-                    "customer": task.get("customer", "Unknown"),
+                    "customer": task.get("customer") or company_name,
                     "group": task.get("group", "Support"),
                     "owner": owner_name,
                     "owner_email": owner_email,

@@ -27,20 +27,41 @@ def eramba_service(eramba_config):
     return ErambaService(eramba_config)
 
 
+@pytest.fixture(autouse=True)
+def mock_global_setting():
+    with patch(
+        "task_dashboard.services.eramba.GlobalSetting.objects.afirst",
+        new_callable=AsyncMock,
+    ) as mock:
+        mock_setting = MagicMock()
+        mock_setting.company_name = "Internal"
+        mock.return_value = mock_setting
+        yield mock
+
+
 @pytest.mark.anyio
 async def test_get_tasks_async_fetches_all_modules(eramba_service):
     # Mock httpx.AsyncClient.get
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = [{"id": 1, "title": "Test Task"}]
+    def side_effect(url, **kwargs):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        if "api/groups" in url:
+            mock_resp.json.return_value = {
+                "success": True,
+                "data": [],
+                "pagination": {},
+            }
+        else:
+            mock_resp.json.return_value = [{"id": 1, "title": "Test Task"}]
+        return mock_resp
 
     with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
-        mock_get.return_value = mock_response
+        mock_get.side_effect = side_effect
 
         tasks = await eramba_service.get_tasks_async(force_refresh=True)
 
-        # MODULE_COUNT modules are defined in the service
-        assert mock_get.call_count == MODULE_COUNT
+        # 1 (groups) + MODULE_COUNT modules = 10
+        assert mock_get.call_count == 1 + MODULE_COUNT
         # Each module returns 1 task
         assert len(tasks) == MODULE_COUNT
         assert tasks[0]["title"] == "Test Task"
@@ -69,9 +90,15 @@ async def test_pagination_works(eramba_service):
     empty_resp.status_code = 200
     empty_resp.json.return_value = []
 
+    groups_resp = MagicMock()
+    groups_resp.status_code = 200
+    groups_resp.json.return_value = {"success": True, "data": [], "pagination": {}}
+
     with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
 
         def side_effect(url, **kwargs):
+            if "api/groups" in url:
+                return groups_resp
             params = kwargs.get("params", {})
             page = params.get("page", 1)
             if "api/projects" in url:
@@ -87,6 +114,85 @@ async def test_pagination_works(eramba_service):
 
         # Projects should have contributed total_expected tasks
         assert len(tasks) == total_expected
+
+
+@pytest.mark.anyio
+async def test_group_member_mapping(eramba_service):
+    # Test that groups are expanded to their human members and API users are ignored
+    groups_data = {
+        "success": True,
+        "data": [
+            {
+                "id": 10,
+                "name": "Admin",
+                "users": [
+                    {
+                        "id": 1,
+                        "name": "Real",
+                        "surname": "User",
+                        "email": "real@example.com",
+                        "login": "realuser",
+                    },
+                    {
+                        "id": 2,
+                        "name": "API",
+                        "surname": "User",
+                        "email": "api@example.com",
+                        "login": "apiuser",
+                    },
+                ],
+            }
+        ],
+        "pagination": {"has_next_page": False},
+    }
+
+    tasks_data = [
+        {"id": 1, "title": "Task 1", "owners": [{"group": {"id": 10, "name": "Admin"}}]}
+    ]
+
+    def side_effect(url, **kwargs):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        if "api/groups" in url:
+            mock_resp.json.return_value = groups_data
+        else:
+            mock_resp.json.return_value = tasks_data
+        return mock_resp
+
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+        mock_get.side_effect = side_effect
+
+        tasks = await eramba_service.get_tasks_async(force_refresh=True)
+
+        # Admin group had 1 real user and 1 api user.
+        # Only the real user should be mapped.
+        assert tasks[0]["owner"] == "real@example.com"
+
+
+@pytest.mark.anyio
+async def test_empty_owner_returns_empty_string(eramba_service):
+    # Test that no owners result in an empty string (Unassigned)
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = [
+        {"id": 1, "title": "No Owner", "owners": []},
+    ]
+
+    groups_resp = MagicMock()
+    groups_resp.status_code = 200
+    groups_resp.json.return_value = {"success": True, "data": [], "pagination": {}}
+
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+
+        def side_effect(url, **kwargs):
+            if "api/groups" in url:
+                return groups_resp
+            return mock_response
+
+        mock_get.side_effect = side_effect
+
+        tasks = await eramba_service.get_tasks_async(force_refresh=True)
+        assert tasks[0]["owner"] == "-"
 
 
 @pytest.mark.anyio
@@ -111,8 +217,18 @@ async def test_owner_mapping_variations(eramba_service):
         },
     ]
 
+    groups_resp = MagicMock()
+    groups_resp.status_code = 200
+    groups_resp.json.return_value = {"success": True, "data": [], "pagination": {}}
+
     with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
-        mock_get.return_value = mock_response
+
+        def side_effect(url, **kwargs):
+            if "api/groups" in url:
+                return groups_resp
+            return mock_response
+
+        mock_get.side_effect = side_effect
 
         # To avoid noise from MODULE_COUNT modules, let's just check one result set
         tasks = await eramba_service.get_tasks_async(force_refresh=True)
@@ -130,8 +246,18 @@ async def test_view_url_correctness(eramba_service):
     mock_response.status_code = 200
     mock_response.json.return_value = [{"id": 42, "title": "URL Test"}]
 
+    groups_resp = MagicMock()
+    groups_resp.status_code = 200
+    groups_resp.json.return_value = {"success": True, "data": [], "pagination": {}}
+
     with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
-        mock_get.return_value = mock_response
+
+        def side_effect(url, **kwargs):
+            if "api/groups" in url:
+                return groups_resp
+            return mock_response
+
+        mock_get.side_effect = side_effect
 
         tasks = await eramba_service.get_tasks_async(force_refresh=True)
 
@@ -180,8 +306,18 @@ async def test_future_task_filtering(eramba_service):
         },
     ]
 
+    groups_resp = MagicMock()
+    groups_resp.status_code = 200
+    groups_resp.json.return_value = {"success": True, "data": [], "pagination": {}}
+
     with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
-        mock_get.return_value = mock_response
+
+        def side_effect(url, **kwargs):
+            if "api/groups" in url:
+                return groups_resp
+            return mock_response
+
+        mock_get.side_effect = side_effect
         tasks = await eramba_service.get_tasks_async(force_refresh=True)
 
         # Expected:

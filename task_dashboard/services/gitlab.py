@@ -2,11 +2,14 @@ import asyncio
 import datetime
 import logging
 from http import HTTPStatus
+from urllib.parse import quote
 from urllib.parse import urlparse
 
 import httpx
 from django.core.cache import cache
 from django.utils import timezone as django_timezone
+
+from task_dashboard.users.models import GlobalSetting
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +34,9 @@ class GitLabService:
         if not self.token:
             return []
 
+        global_setting = await GlobalSetting.objects.afirst()
+        company_name = global_setting.company_name if global_setting else "Internal"
+
         async with httpx.AsyncClient() as client:
             user_map = await self._get_user_map(client)
             normalized_items = []
@@ -43,7 +49,11 @@ class GitLabService:
                     "order_by": "updated_at",
                 }
                 # Use context dict for PLR0913
-                ctx = {"target": normalized_items, "user_map": user_map}
+                ctx = {
+                    "target": normalized_items,
+                    "user_map": user_map,
+                    "company_name": company_name,
+                }
                 await asyncio.gather(
                     self._fetch_and_normalize(
                         client,
@@ -66,6 +76,94 @@ class GitLabService:
             else:
                 cache.set(cache_key, normalized_items, timeout=300)
                 return normalized_items
+
+    def get_single_task(self, task):
+        return asyncio.run(self.get_single_task_async(task))
+
+    async def get_single_task_async(self, task):
+        if not self.token or not task.url:
+            return None
+
+        global_setting = await GlobalSetting.objects.afirst()
+        company_name = global_setting.company_name if global_setting else "Internal"
+
+        # Parse project path and IID from URL
+        # e.g., /group/project/-/issues/24
+        path = urlparse(task.url).path
+
+        if "/-/issues/" in path:
+            parts = path.split("/-/issues/")
+            item_type = "Issue"
+            api_type = "issues"
+        elif "/-/merge_requests/" in path:
+            parts = path.split("/-/merge_requests/")
+            item_type = "MR"
+            api_type = "merge_requests"
+        else:
+            return None
+
+        expected_parts = 2
+        if len(parts) != expected_parts:
+            return None
+
+        project_path = parts[0].strip("/")
+        iid = parts[1].strip("/")
+        encoded_project = quote(project_path, safe="")
+
+        url = f"{self.base_url}/api/v4/projects/{encoded_project}/{api_type}/{iid}"
+
+        async with httpx.AsyncClient() as client:
+            user_map = await self._get_user_map(client)
+            normalized_items = []
+            ctx = {"target": normalized_items, "user_map": user_map}
+
+            try:
+                # We need a slightly custom fetch because _fetch_and_normalize
+                # expects a list
+                resp = await client.get(url, headers=self.headers, timeout=15.0)
+                resp.raise_for_status()
+
+                item = resp.json()
+                # Mock a list wrapper to reuse _fetch_and_normalize logic if we
+                # wanted, but it's simpler to just do what it does inline,
+                # or monkey patch the response:
+                # To reuse code, we can just process this single item:
+
+                assignee = item.get("assignee") or {}
+                if not assignee and item.get("assignees"):
+                    assignee = item.get("assignees")[0]
+
+                author = item.get("author", {})
+                owner_name = assignee.get("name") or author.get("name") or "-"
+                owner_email = (
+                    ctx["user_map"].get(assignee.get("id") or author.get("id")) or ""
+                )
+
+                group_name = project_path
+
+                return {
+                    "id": f"GL-{item_type[0]}-{item.get('iid')}",
+                    "title": item.get("title"),
+                    "status": "open" if item.get("state") == "opened" else "resolved",
+                    "priority": "Medium",
+                    "origin": self.config.name,
+                    "customer": company_name,
+                    "group": group_name,
+                    "owner": owner_name,
+                    "owner_email": owner_email,
+                    "created_at": self._format_date(item.get("created_at")),
+                    "updated_at": self._format_date(item.get("updated_at")),
+                    "due_date": None,
+                    "url": item.get("web_url", task.url),
+                    "extra_info": {
+                        "gitlab_id": item.get("id"),
+                        "project_id": item.get("project_id"),
+                        "type": item_type,
+                    },
+                }
+            except Exception:
+                logger.exception("Error fetching single GitLab task %s", task.url)
+                return None
 
     async def _get_user_map(self, client: httpx.AsyncClient):
         cache_key = f"gitlab_{self.config.id}_user_map"
@@ -134,7 +232,7 @@ class GitLabService:
                         "status": "open",
                         "priority": "Medium",
                         "origin": self.config.name,
-                        "customer": "Internal",
+                        "customer": ctx["company_name"],
                         "group": group_name,
                         "owner": owner_name,
                         "owner_email": owner_email,

@@ -83,6 +83,7 @@ THIRD_PARTY_APPS = [
     "allauth.mfa",
     "allauth.socialaccount",
     "django_q",
+    "django_htmx",
 ]
 
 LOCAL_APPS = [
@@ -145,6 +146,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    "django_htmx.middleware.HtmxMiddleware",
 ]
 
 # STATIC
@@ -231,7 +233,7 @@ EMAIL_TIMEOUT = 5
 # ADMIN
 # ------------------------------------------------------------------------------
 # Django Admin URL.
-ADMIN_URL = "admin/"
+ADMIN_URL = env("DJANGO_ADMIN_URL", default="explicit-declared-follow/")
 # https://docs.djangoproject.com/en/dev/ref/settings/#admins
 ADMINS = [("""Justus Jäger""", "jaeger@ngenn.net")]
 # https://docs.djangoproject.com/en/dev/ref/settings/#managers

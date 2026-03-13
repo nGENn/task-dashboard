@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import logging
+import re
 from datetime import UTC
 from datetime import datetime
 from http import HTTPStatus
@@ -9,6 +10,8 @@ import httpx
 from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone as django_timezone
+
+from task_dashboard.users.models import GlobalSetting
 
 logger = logging.getLogger(__name__)
 
@@ -187,6 +190,9 @@ class ErambaService:
         if "Authorization" not in self.headers:
             return []
 
+        global_setting = await GlobalSetting.objects.afirst()
+        company_name = global_setting.company_name if global_setting else "Internal"
+
         # Calculate future limit once for this sync run
         future_limit = django_timezone.now() + django_timezone.timedelta(
             days=OPEN_TASK_FUTURE_WINDOW_DAYS
@@ -194,8 +200,13 @@ class ErambaService:
 
         # follow_redirects=False ensures we fail fast if authentication is rejected
         async with httpx.AsyncClient(follow_redirects=False) as client:
+            await self._fetch_groups(client)
             tasks = [
-                self._fetch_module(client, module, future_limit)
+                self._fetch_module(
+                    client,
+                    module,
+                    {"future_limit": future_limit, "company_name": company_name},
+                )
                 for module in self.FETCH_CONFIG
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -212,7 +223,142 @@ class ErambaService:
             cache.set(cache_key, all_tasks, timeout=300)
             return all_tasks
 
-    async def _fetch_module(self, client, module_config, future_limit):
+    def get_single_task(self, task):
+        return asyncio.run(self.get_single_task_async(task))
+
+    async def get_single_task_async(self, task):
+        if "Authorization" not in self.headers or not task.url:
+            return None
+
+        global_setting = await GlobalSetting.objects.afirst()
+        company_name = global_setting.company_name if global_setting else "Internal"
+
+        # Extract web_path and ID from URL
+        # e.g. /security-incidents/view/SecurityIncidents/12
+        match = re.search(r"/([^/]+)/view/[^/]+/(\d+)", task.url)
+        if not match:
+            return None
+
+        web_path = match.group(1)
+        task_id = match.group(2)
+
+        # Find matching module configuration
+        module_config = next(
+            (m for m in self.FETCH_CONFIG if m["web"] == web_path), None
+        )
+        if not module_config:
+            return None
+
+        api_path = module_config["path"]
+        model_class = module_config["model"]
+        label = module_config["label"]
+
+        # Postman collection shows the pattern is simply /api/{module}/{id}
+        url = f"{self.base_url}/{api_path}/{task_id}"
+
+        future_limit = django_timezone.now() + django_timezone.timedelta(
+            days=OPEN_TASK_FUTURE_WINDOW_DAYS
+        )
+
+        async with httpx.AsyncClient(follow_redirects=False) as client:
+            await self._fetch_groups(client)
+            try:
+                resp = await client.get(url, headers=self.headers, timeout=20.0)
+                resp.raise_for_status()
+
+                # Similar to _extract_items but for a single item
+                data = resp.json()
+                item_data = data.get("data") or data.get("items") or data
+                if isinstance(item_data, list):
+                    item_data = item_data[0] if item_data else None
+
+                if item_data:
+                    return self._parse_item(
+                        item_data,
+                        {
+                            "model_class": model_class,
+                            "group_label": label,
+                            "web_path": web_path,
+                            "future_limit": future_limit,
+                            "company_name": company_name,
+                        },
+                    )
+            except Exception:
+                logger.exception("Error fetching single Eramba task %s", task_id)
+
+        return None
+
+    async def _fetch_groups(self, client):
+        """Fetches Eramba groups and maps their members (excluding API users)."""
+        if hasattr(self, "group_members_map"):
+            return
+
+        self.group_members_map = {}
+        page = 1
+        url = f"{self.base_url}/api/groups/index"
+
+        while True:
+            try:
+                resp = await client.get(
+                    url,
+                    headers=self.headers,
+                    params={"page": page},
+                    timeout=10.0,
+                )
+                if resp.status_code != HTTPStatus.OK:
+                    break
+
+                data = resp.json()
+                groups_list, pagination = self._extract_groups_and_pagination(data)
+
+                for group in groups_list:
+                    if isinstance(group, dict):
+                        group_id = group.get("id")
+                        self.group_members_map[group_id] = self._process_group_users(
+                            group.get("users", [])
+                        )
+
+                if not pagination.get("has_next_page"):
+                    break
+                page += 1
+            except (httpx.HTTPError, ValueError) as e:
+                logger.warning(
+                    "Failed to fetch Eramba groups for %s: %s", self.config.name, e
+                )
+                break
+
+    def _extract_groups_and_pagination(self, data):
+        """Helper to extract groups list and pagination from response data."""
+        if isinstance(data, dict):
+            return data.get("data") or [], data.get("pagination", {})
+        if isinstance(data, list):
+            return data, {}
+        return [], {}
+
+    def _process_group_users(self, users):
+        """Filters and extracts member identifiers from a list of group users."""
+        members = []
+        for user in users:
+            if not isinstance(user, dict):
+                continue
+
+            # Exclude API and system/task users based on naming conventions
+            u_info = [
+                str(user.get(k, "")).lower()
+                for k in ["name", "surname", "login", "email"]
+            ]
+            if any("api" in x or "task" in x for x in u_info):
+                continue
+
+            if user.get("email"):
+                members.append(user["email"])
+            else:
+                full_name = f"{user.get('name', '')} {user.get('surname', '')}".strip()
+                if full_name:
+                    members.append(full_name)
+        return members
+
+    async def _fetch_module(self, client, module_config, ctx):
         """Fetches a specific module with full pagination support."""
         api_path = module_config["path"]
         model_class = module_config["model"]
@@ -257,7 +403,14 @@ class ErambaService:
 
                 for entry in items:
                     parsed = self._parse_item(
-                        entry, model_class, label, web_path, future_limit
+                        entry,
+                        {
+                            "model_class": model_class,
+                            "group_label": label,
+                            "web_path": web_path,
+                            "future_limit": ctx["future_limit"],
+                            "company_name": ctx["company_name"],
+                        },
                     )
                     if parsed:
                         normalized_list.append(parsed)
@@ -284,21 +437,24 @@ class ErambaService:
             return data.get("data") or data.get("items") or []
         return []
 
-    def _parse_item(self, entry, model_class, group_label, web_path, future_limit):
+    def _parse_item(
+        self,
+        entry,
+        ctx,
+    ):
         """Parses a single Eramba item into the dashboard task format."""
         if not isinstance(entry, dict):
             return None
 
-        # Handle Eramba's nested item wrapping (e.g. {"Projects": {...}})
-        item = entry
-        first_key = next(iter(entry.keys())) if entry else None
-        if (
-            len(entry) == 1
-            and first_key in self.POSSIBLE_WRAPPERS
-            and isinstance(entry[first_key], dict)
-        ):
-            item = entry[first_key]
+        # Extract values from context
+        model_class = ctx["model_class"]
+        group_label = ctx["group_label"]
+        web_path = ctx["web_path"]
+        future_limit = ctx["future_limit"]
+        company_name = ctx["company_name"]
 
+        # Handle Eramba's nested item wrapping (e.g. {"Projects": {...}})
+        item = self._unwrap_entry(entry)
         item_id = item.get("id")
         if item_id is None:
             return None
@@ -308,35 +464,12 @@ class ErambaService:
 
         # Filtering logic: Only keep open tasks that are due within the window
         if status == "open":
-            due_date_raw = (
-                item.get("planned_date")
-                or item.get("deadline")
-                or item.get("end")
-                or item.get("planned_end")
-            )
-            due_dt = self._parse_date_to_dt(due_date_raw)
+            due_dt = self._parse_date_to_dt(self._get_due_date_raw(item))
             if due_dt and due_dt > future_limit:
                 return None
 
-        # Asset Reviews use foreign keys to determine the asset type title
-        title = None
-        if "AssetReview" in model_class:
-            fk = item.get("foreign_key")
-            if isinstance(fk, int):
-                title = ASSET_TYPE_MAP.get(fk)
-
-        title = (
-            title
-            or item.get("title")
-            or item.get("name")
-            or f"{group_label} #{item_id}"
-        )
+        title = self._get_item_title(item, model_class, group_label, item_id)
         view_url = f"{self.base_url}/{web_path}/view/{model_class}/{item_id}"
-
-        # Combine possible owner/reviewer/task_owner fields
-        owners_raw = (
-            item.get("owners") or item.get("reviewers") or item.get("task_owners") or []
-        )
 
         return {
             "id": f"ERA-{group_label[:3].upper()}-{item_id}",
@@ -344,22 +477,72 @@ class ErambaService:
             "status": status,
             "priority": self._determine_priority(item),
             "origin": self.config.name,
-            "customer": "Internal",
+            "customer": company_name,
             "group": group_label,
-            "owner": self._parse_owners(owners_raw)[:250],
+            "owner": self._parse_owners(self._get_owners_raw(item))[:250],
             "created_at": self._format_date(
                 item.get("created") or item.get("open_date") or item.get("start")
             ),
             "updated_at": self._format_date(item.get("modified")),
-            "due_date": self._format_date(
-                item.get("planned_date")
-                or item.get("deadline")
-                or item.get("end")
-                or item.get("planned_end")
-            ),
+            "due_date": self._format_date(self._get_due_date_raw(item)),
             "url": view_url[:500],
             "extra_info": {"module": model_class},
         }
+
+    def _unwrap_entry(self, entry):
+        """Unwraps a nested Eramba entry if it's wrapped by model class name."""
+        first_key = next(iter(entry.keys())) if entry else None
+        if (
+            len(entry) == 1
+            and first_key in self.POSSIBLE_WRAPPERS
+            and isinstance(entry[first_key], dict)
+        ):
+            return entry[first_key]
+        return entry
+
+    def _get_due_date_raw(self, item):
+        """Extracts the first available due date field from an Eramba item."""
+        return (
+            item.get("planned_date")
+            or item.get("deadline")
+            or item.get("end")
+            or item.get("planned_end")
+        )
+
+    def _get_owners_raw(self, item):
+        """Collects all potential owner/reviewer data from an Eramba item."""
+        owners_raw = []
+        possible_fields = [
+            "owners",
+            "reviewers",
+            "task_owners",
+            "audit_reviewers",
+            "service_auditors",
+            "audit_evidence_owners",
+            "audit_owners",
+        ]
+        for f in possible_fields:
+            val = item.get(f)
+            if isinstance(val, list):
+                owners_raw.extend(val)
+            elif val and isinstance(val, (dict, str)):
+                owners_raw.append(val)
+        return owners_raw
+
+    def _get_item_title(self, item, model_class, group_label, item_id):
+        """Determines the display title for an Eramba item."""
+        title = None
+        if "AssetReview" in model_class:
+            fk = item.get("foreign_key")
+            if isinstance(fk, int):
+                title = ASSET_TYPE_MAP.get(fk)
+
+        return (
+            title
+            or item.get("title")
+            or item.get("name")
+            or f"{group_label} #{item_id}"
+        )
 
     def _determine_status(self, item):
         """Maps Eramba status fields and magic numbers to dashboard statuses."""
@@ -389,7 +572,7 @@ class ErambaService:
     def _parse_owners(self, owners_field):
         """Extracts names, emails, or group names from various owner object formats."""
         if not isinstance(owners_field, list) or not owners_field:
-            return "GRC Team"
+            return "-"
 
         names = []
         for o in owners_field:
@@ -405,14 +588,29 @@ class ErambaService:
                 names.append(email or full_name)
                 continue
 
-            # 2. Try to find a nested 'group' object
+            # 2. Try to find a nested 'group' object or 'Group' object_model
             group = o.get("group")
-            if isinstance(group, dict):
-                names.append(
-                    group.get("name")
-                    or group.get("slug")
-                    or f"Group #{group.get('id')}"
-                )
+            obj_model = str(o.get("object_model", "")).lower()
+            obj_id = o.get("object_id")
+
+            if isinstance(group, dict) or obj_model == "group":
+                g_id = group.get("id") if isinstance(group, dict) else obj_id
+
+                # Expand to group members if available
+                if (
+                    hasattr(self, "group_members_map")
+                    and g_id in self.group_members_map
+                ):
+                    members = self.group_members_map[g_id]
+                    if members:
+                        names.extend(members)
+                        continue
+
+                # Fallback to group name if expansion failed
+                g_name = (
+                    group.get("name") if isinstance(group, dict) else None
+                ) or f"Group #{g_id}"
+                names.append(g_name)
                 continue
 
             # 3. Fallback: check for 'name' or 'email' at the top level
@@ -425,7 +623,7 @@ class ErambaService:
             if o.get("id") and o.get("model"):
                 names.append(f"{o.get('model')} #{o.get('id')}")
 
-        return ", ".join(filter(None, names)) or "GRC Team"
+        return ", ".join(filter(None, names)) or "-"
 
     def _format_date(self, date_str):
         """Standardizes Eramba dates to ISO format."""

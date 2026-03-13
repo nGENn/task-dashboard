@@ -9,7 +9,11 @@
             {% with request.GET.direction as current_dir %}
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='origin' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'origin' %}"
+                   hx-get="?{% sort_url 'origin' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>Origin</span>
                   {% if current_sort == 'origin' %}
                     <span class="text-xs">
@@ -25,7 +29,11 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='id' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'id' %}"
+                   hx-get="?{% sort_url 'id' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>ID</span>
                   {% if current_sort == 'id' %}
                     <span class="text-xs">
@@ -41,7 +49,11 @@
               </th>
               <th class="font-semibold relative group min-w-[200px] cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='title' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'title' %}"
+                   hx-get="?{% sort_url 'title' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>Title</span>
                   {% if current_sort == 'title' %}
                     <span class="text-xs">
@@ -57,7 +69,11 @@
               </th>
               <th class="font-semibold relative group min-w-[150px] cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='customer' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'customer' %}"
+                   hx-get="?{% sort_url 'customer' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>Customer</span>
                   {% if current_sort == 'customer' %}
                     <span class="text-xs">
@@ -73,7 +89,11 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='group' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'group' %}"
+                   hx-get="?{% sort_url 'group' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>Group</span>
                   {% if current_sort == 'group' %}
                     <span class="text-xs">
@@ -89,7 +109,11 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='owner' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'owner' %}"
+                   hx-get="?{% sort_url 'owner' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>Owner</span>
                   {% if current_sort == 'owner' %}
                     <span class="text-xs">
@@ -105,7 +129,11 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='status' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'status' %}"
+                   hx-get="?{% sort_url 'status' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>State</span>
                   {% if current_sort == 'status' %}
                     <span class="text-xs">
@@ -121,7 +149,11 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='priority' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'priority' %}"
+                   hx-get="?{% sort_url 'priority' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>Priority</span>
                   {% if current_sort == 'priority' %}
                     <span class="text-xs">
@@ -137,7 +169,11 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='created_at' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'created_at' %}"
+                   hx-get="?{% sort_url 'created_at' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>Created</span>
                   {% if current_sort == 'created_at' %}
                     <span class="text-xs">
@@ -153,7 +189,11 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='updated_at' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'updated_at' %}"
+                   hx-get="?{% sort_url 'updated_at' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>Updated</span>
                   {% if current_sort == 'updated_at' %}
                     <span class="text-xs">
@@ -169,7 +209,11 @@
               </th>
               <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
-                   href="?{% url_replace sort='due_date' direction=current_dir|toggle_direction %}">
+                   href="?{% sort_url 'due_date' %}"
+                   hx-get="?{% sort_url 'due_date' %}"
+                   hx-target="#task-results"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
                   <span>Due Date</span>
                   {% if current_sort == 'due_date' %}
                     <span class="text-xs">
@@ -194,13 +238,35 @@
             <td>
               <span class="badge badge-ghost text-xs">{{ task.service.name }}</span>
             </td>
-            <td class="font-mono text-sm font-bold whitespace-nowrap">{{ task.id }}</td>
+            <td class="font-mono text-sm font-bold {% if task.external_id|length > 16 %}whitespace-normal break-all{% else %}whitespace-nowrap{% endif %} min-w-[100px] max-w-[200px]">
+              <div class="flex items-center gap-1">
+                <span>{{ task.external_id }}</span>
+                <form action="{% url 'users:refresh-single-task' task.id %}"
+                      method="post"
+                      onclick="event.stopPropagation();"
+                      class="inline m-0 p-0">
+                  {% csrf_token %}
+                  <button type="submit"
+                          class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:text-primary"
+                          title="Refresh this ticket">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         fill="none"
+                         viewBox="0 0 24 24"
+                         stroke-width="2"
+                         stroke="currentColor"
+                         class="w-3.5 h-3.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                  </button>
+                </form>
+              </div>
+            </td>
             <td class="min-w-[200px] max-w-[400px]">
               <span class="truncate block font-medium" title="{{ task.title }}">{{ task.title }}</span>
             </td>
             <td class="text-sm min-w-[150px] max-w-[250px] whitespace-normal break-all">{{ task.customer }}</td>
             <td class="text-sm whitespace-nowrap">{{ task.group }}</td>
-            <td class="text-sm font-medium whitespace-nowrap">
+            <td class="text-sm font-medium max-w-[200px] whitespace-normal break-words">
               {% if task.owner_email %}
                 <span class="text-primary">{{ task.owner_email }}</span>
               {% else %}

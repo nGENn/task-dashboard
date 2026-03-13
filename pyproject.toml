@@ -157,7 +157,7 @@ dev = [
 
 [project]
 name = "task_dashboard"
-version = "0.1.28"
+version = "0.1.29"
 description = "Awsome Task Dashboard"
 readme = "README.md"
 
@@ -184,4 +184,5 @@ dependencies = [
     "whitenoise==6.11.0",
     "django-q2==1.9.0",
     "django-debug-toolbar>=6.1.0",
+    "django-htmx>=1.27.0",
 ]

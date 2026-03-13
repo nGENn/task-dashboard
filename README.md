@@ -85,6 +85,12 @@ Manage services in **Admin > Users > Service Configurations**.
 - **Security:** API Tokens are encrypted at rest.
 - **Optimization:** Disabled services are skipped.
 
+### Admin Access & System Health
+
+- **Obfuscated Admin URL:** The default admin URL is obfuscated to `explicit-declared-follow/`. This can be customized via the `DJANGO_ADMIN_URL` environment variable.
+- **Dashboard Access:** Staff, superusers, and users with the `view_admin_button` permission can access the **"Admin Panel"** via a button inside the System Health dropdown in the top navigation.
+- **System Health:** A system status indicator in the top navigation shows the health and latency of all active services. Visibility is restricted to staff, superusers, and users with the `view_system_health` (for status) or `view_admin_button` (for admin access) permissions.
+
 ### Permissions (RBAC)
 
 Access control is decoupled from services and managed via **Django Groups**.

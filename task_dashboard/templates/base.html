@@ -51,6 +51,8 @@
       <!-- Your stuff: Third-party javascript libraries go here -->
       <!-- place project specific Javascript in this file -->
       <script defer src="{% static 'js/project.js' %}"></script>
+      <!-- HTMX -->
+      <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     {% endblock javascript %}
   </head>
   <body class="{% block bodyclass %}{% endblock bodyclass %}">
@@ -87,7 +89,7 @@
           <!-- Right: Status, Theme, User -->
           <div class="navbar-end gap-2">
             <!-- System Status Indicator -->
-            {% if request.user.is_authenticated %}
+            {% if request.user.is_staff or request.user.is_superuser or perms.users.view_system_health or perms.users.view_admin_button %}
               <div class="dropdown dropdown-end">
                 <div tabindex="0"
                      role="button"
@@ -114,6 +116,7 @@
                       </svg>
                       {{ global_system_status.state }}
                     </h3>
+                    <p class="text-[10px] text-base-content/60">Service status and latency.</p>
                     <div class="divider my-1"></div>
                     <p class="text-xs text-base-content/60 uppercase tracking-wider mb-2">Service Health</p>
                     <div class="space-y-2">
@@ -153,12 +156,35 @@
                     </div>
                     <div class="divider my-1"></div>
                     <div class="flex justify-between items-center mt-2 px-1">
-                      <p class="text-xs text-base-content/60">Auto-refresh: 5m</p>
+                      <div class="flex items-center gap-2">
+                        {% if request.user.is_staff or request.user.is_superuser or perms.users.view_admin_button %}
+                          <a href="{% url 'admin:index' %}"
+                             class="btn btn-ghost btn-xs gap-1 text-base-content/60 hover:text-primary normal-case font-medium h-7 min-h-0 px-1 tooltip tooltip-right"
+                             data-tip="Access administrative settings">
+                            <svg xmlns="http://www.w3.org/2000/svg"
+                                 class="h-3.5 w-3.5"
+                                 fill="none"
+                                 viewBox="0 0 24 24"
+                                 stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            Admin
+                          </a>
+                        {% endif %}
+                        {% if next_refresh_seconds %}
+                          <p id="next-refresh-timer"
+                             class="text-[10px] text-base-content/40 uppercase tracking-tight">Next-Refresh: --:--</p>
+                        {% else %}
+                          <p class="text-[10px] text-base-content/40 uppercase tracking-tight">Auto-Refresh: {{ refresh_interval }}m</p>
+                        {% endif %}
+                      </div>
                       <form method="post" action="{% url 'users:force-refresh' %}">
                         {% csrf_token %}
                         <button id="force-refresh-btn"
                                 type="submit"
-                                class="btn btn-ghost btn-xs btn-circle text-base-content/40 transition-colors duration-300"
+                                class="btn btn-ghost btn-xs btn-circle text-base-content/40 transition-colors duration-300 tooltip tooltip-left"
+                                data-tip="Fetch fresh data from all platforms"
                                 title="Force Live Fetch (Clear Cache)">
                           <svg xmlns="http://www.w3.org/2000/svg"
                                class="h-4 w-4"
@@ -313,6 +339,28 @@
             refreshBtn.addEventListener('click', function() {
               refreshBtn.classList.add('animate-spin', 'text-success');
             });
+          }
+
+          // Countdown timer logic for refresh
+          const timerElement = document.getElementById('next-refresh-timer');
+          if (timerElement) {
+            let timeLeft = parseInt("{{ next_refresh_seconds|default:0 }}");
+            const interval = parseInt("{{ refresh_interval|default:5 }}") * 60;
+
+            const updateTimer = () => {
+              if (timeLeft <= 0) {
+                timeLeft = interval;
+              }
+
+              const minutes = Math.floor(timeLeft / 60);
+              const seconds = timeLeft % 60;
+              timerElement.textContent = `Next-Refresh: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+              timeLeft--;
+            };
+
+            // Start immediately
+            updateTimer();
+            setInterval(updateTimer, 1000);
           }
 
           function showToast(message, type = 'success') {

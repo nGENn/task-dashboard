@@ -1,6 +1,12 @@
-/*! tailwindcss v4.1.18 | MIT License | https://tailwindcss.com */
-@layer properties;
-@layer theme, base, components, utilities;
+/* ------------------------------------------------------------------------------ */
+/* Custom Task Dashboard Styles */
+/* ------------------------------------------------------------------------------ */
+
+.filter-dropdown-container {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+
 @layer theme {
   :root, :host {
     --font-sans: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',

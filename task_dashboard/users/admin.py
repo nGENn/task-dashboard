@@ -12,6 +12,7 @@ from django.utils.translation import gettext_lazy as _
 from .forms import UserAdminChangeForm
 from .forms import UserAdminCreationForm
 from .models import ExternalGroup
+from .models import GlobalSetting
 from .models import ServiceConfiguration
 from .models import ServicePermission
 from .models import Task
@@ -182,3 +183,17 @@ class TaskAdmin(admin.ModelAdmin):
     list_filter = ["service", "status", "priority", "group"]
     search_fields = ["title", "external_id", "customer", "owner", "owner_email"]
     ordering = ["-updated_at"]
+
+
+@admin.register(GlobalSetting)
+class GlobalSettingAdmin(admin.ModelAdmin):
+    list_display = ["company_name"]
+
+    def has_add_permission(self, request):
+        # Allow adding only if no setting exists yet
+        if GlobalSetting.objects.exists():
+            return False
+        return super().has_add_permission(request)
+
+    def has_delete_permission(self, request, obj=None):
+        return False
