@@ -27,7 +27,7 @@
                 </a>
                 <div class="resizer"></div>
               </th>
-              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
+              <th class="font-semibold relative group w-[100px] max-w-[100px] overflow-hidden cursor-pointer hover:bg-base-300 transition-colors">
                 <a class="flex items-center justify-between w-full h-full px-2"
                    href="?{% sort_url 'id' %}"
                    hx-get="?{% sort_url 'id' %}"
@@ -238,13 +238,13 @@
             <td>
               <span class="badge badge-ghost text-xs">{{ task.service.name }}</span>
             </td>
-            <td class="font-mono text-sm font-bold {% if task.external_id|length > 16 %}whitespace-normal break-all{% else %}whitespace-nowrap{% endif %} min-w-[100px] max-w-[200px]">
-              <div class="flex items-center gap-1">
-                <span>{{ task.external_id }}</span>
+            <td class="font-mono text-sm font-bold w-[100px] max-w-[100px] overflow-hidden">
+              <div class="flex items-center gap-1 w-full overflow-hidden">
+                <span class="truncate flex-1 min-w-0" title="{{ task.external_id }}">{{ task.external_id }}</span>
                 <form action="{% url 'users:refresh-single-task' task.id %}"
                       method="post"
                       onclick="event.stopPropagation();"
-                      class="inline m-0 p-0">
+                      class="inline m-0 p-0 flex-shrink-0">
                   {% csrf_token %}
                   <button type="submit"
                           class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:text-primary"
