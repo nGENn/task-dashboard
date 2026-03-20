@@ -94,7 +94,7 @@
           const count = items.length;
           // Capitalize key for display text (e.g., 'origin' -> 'Origin')
           const displayName = key.charAt(0).toUpperCase() + key.slice(1);
-          const displayText = `${displayName} (${count})`;
+          const displayText = `${displayName} <span class="badge badge-xs bg-primary-content text-primary border-none ml-1">${count}</span>`;
           const tooltipText = items.join(', ');
 
           createBadge(
@@ -156,7 +156,7 @@
       tooltipText = ""
     ) {
       const badge = document.createElement("div");
-      let classes = `badge ${colorClass} gap-1 pr-0 py-3`;
+      let classes = `badge ${colorClass} gap-1 pr-0 py-1`;
       if (tooltipText) {
           classes += ' tooltip tooltip-bottom before:text-xs before:max-w-xs before:whitespace-normal';
       }
