@@ -224,7 +224,8 @@
         if (!currentResizer) return;
         const dx = e.pageX - startX;
         const th = currentResizer.parentElement;
-        if (startWidth + dx > 50) {
+        const minWidth = parseInt(th.getAttribute("data-min-width")) || 20;
+        if (startWidth + dx > minWidth) {
           th.style.width = `${startWidth + dx}px`;
           th.style.minWidth = `${startWidth + dx}px`;
         }

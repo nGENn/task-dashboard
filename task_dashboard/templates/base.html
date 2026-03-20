@@ -402,6 +402,9 @@
             }, 3000);
           }
 
+          // Expose showToast to window
+          window.showToast = showToast;
+
           // Updated Click-to-Copy Function
           window.copyError = function(text) {
             if (!text || text === 'None') return;
@@ -411,6 +414,17 @@
             }).catch(err => {
               console.error('Failed to copy: ', err);
               showToast("Failed to copy to clipboard", "error");
+            });
+          }
+
+          // Generic Copy to Clipboard Function
+          window.copyToClipboard = function(text, message = "Copied to clipboard!") {
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(() => {
+              showToast(message);
+            }).catch(err => {
+              console.error('Failed to copy: ', err);
+              showToast("Failed to copy", "error");
             });
           }
 
