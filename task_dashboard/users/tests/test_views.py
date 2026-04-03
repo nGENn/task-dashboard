@@ -110,6 +110,43 @@ class TestUserDetailView:
 
 
 class TestDashboardView:
+    def test_priority_sorting(self, user: User, rf: RequestFactory):
+        service = ServiceConfiguration.objects.create(
+            name="Test Service", service_type="zammad", is_active=True, default_access_level="FULL"
+        )
+        priorities = ["Low", "Medium", "High", "Critical"]
+        for i, p in enumerate(priorities):
+            Task.objects.create(
+                external_id=f"TASK-{i}",
+                title=f"Task {p}",
+                status="open",
+                service=service,
+                priority=p,
+                updated_at=timezone.now(),
+            )
+
+        # ASC: Critical, High, Medium, Low
+        request = rf.get("/?sort=priority&direction=asc&view=all")
+        request.user = user
+        view = DashboardView()
+        view.request = request
+        context = view.get_context_data()
+        tasks = context["tasks"]
+        
+        task_priorities = [t.priority for t in tasks]
+        assert task_priorities == ["Critical", "High", "Medium", "Low"]
+
+        # DESC: Low, Medium, High, Critical
+        request = rf.get("/?sort=priority&direction=desc&view=all")
+        request.user = user
+        view = DashboardView()
+        view.request = request
+        context = view.get_context_data()
+        tasks = context["tasks"]
+        
+        task_priorities = [t.priority for t in tasks]
+        assert task_priorities == ["Low", "Medium", "High", "Critical"]
+
     def test_default_access_level_permission(self, user: User, rf: RequestFactory):
         # Service with default access level FULL
         service_config = ServiceConfiguration.objects.create(

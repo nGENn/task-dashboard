@@ -598,6 +598,19 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 if val is None:
                     # For due_date (or any other sort), None values go to the end
                     return "zzzzzzzzzz" if not reverse else ""
+                
+                # Special sorting for priority
+                if actual_field == "priority":
+                    p_val = str(val).lower()
+                    ranks = {
+                        "critical": "0",
+                        "high": "1",
+                        "medium": "2",
+                        "normal": "2",
+                        "low": "3"
+                    }
+                    return f"{ranks.get(p_val, '4')}_{p_val}"
+
                 return str(val).lower()
 
             filtered_tasks.sort(key=sort_key, reverse=reverse)
