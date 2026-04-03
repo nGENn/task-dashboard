@@ -151,7 +151,10 @@ class GlobalSetting(models.Model):
     default_task_states = models.CharField(
         max_length=255,
         default="open,pending",
-        help_text="Comma-separated list of default task states to show in the table (e.g., open,pending,new).",
+        help_text=(
+            "Comma-separated list of default task states to show in the table "
+            "(e.g., open,pending,new)."
+        ),
     )
 
     class Meta:

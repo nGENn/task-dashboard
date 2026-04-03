@@ -603,7 +603,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 if val is None:
                     # For due_date (or any other sort), None values go to the end
                     return "zzzzzzzzzz" if not reverse else ""
-                
+
                 # Special sorting for priority
                 if actual_field == "priority":
                     p_val = str(val).lower()
@@ -612,7 +612,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                         "high": "1",
                         "medium": "2",
                         "normal": "2",
-                        "low": "3"
+                        "low": "3",
                     }
                     return f"{ranks.get(p_val, '4')}_{p_val}"
 

@@ -228,59 +228,58 @@ class GitLabService:
                     break
 
                 for item in elements:
-                    assignee = item.get("assignee") or {}
-                    if not assignee and item.get("assignees"):
-                        assignee = item.get("assignees")[0]
-
-                    author = item.get("author", {})
-                    owner_name = assignee.get("name") or author.get("name") or "-"
-                    owner_email = ctx["user_map"].get(
-                        assignee.get("id") or author.get("id")
-                    )
-
-                    group_name = item_type
-                    references = item.get("references")
-                    if references and "full" in references:
-                        full_ref = references["full"]
-                        if "#" in full_ref:
-                            group_name = full_ref.split("#")[0]
-                        elif "!" in full_ref:
-                            group_name = full_ref.split("!")[0]
-                    else:
-                        web_url = item.get("web_url", "")
-                        if web_url:
-                            path = urlparse(web_url).path
-                            if "/-/issues/" in path:
-                                group_name = path.split("/-/issues/")[0].strip("/")
-                            elif "/-/merge_requests/" in path:
-                                group_name = path.split("/-/merge_requests/")[0].strip("/")
-
-                    ctx["target"].append(
-                        {
-                            "id": f"GL-{item_type[0]}-{item.get('iid')}",
-                            "title": item.get("title"),
-                            "status": "open",
-                            "priority": "Medium",
-                            "origin": self.config.name,
-                            "customer": ctx["company_name"],
-                            "group": group_name,
-                            "owner": owner_name,
-                            "owner_email": owner_email,
-                            "created_at": self._format_date(item.get("created_at")),
-                            "updated_at": self._format_date(item.get("updated_at")),
-                            "due_date": self._format_date(item.get("due_date")),
-                            "url": item.get("web_url"),
-                            "extra_info": {
-                                "project_id": item.get("project_id"),
-                            },
-                        }
-                    )
+                    ctx["target"].append(self._normalize_item(item, item_type, ctx))
 
                 if len(elements) < per_page:
                     break
                 page += 1
         except httpx.HTTPError as e:
             logger.warning("Failed to fetch GitLab %s: %s", item_type, e)
+
+    def _normalize_item(self, item, item_type, ctx):
+        assignee = item.get("assignee") or {}
+        if not assignee and item.get("assignees"):
+            assignee = item.get("assignees")[0]
+
+        author = item.get("author", {})
+        owner_name = assignee.get("name") or author.get("name") or "-"
+        owner_email = ctx["user_map"].get(assignee.get("id") or author.get("id"))
+
+        group_name = item_type
+        references = item.get("references")
+        if references and "full" in references:
+            full_ref = references["full"]
+            if "#" in full_ref:
+                group_name = full_ref.split("#")[0]
+            elif "!" in full_ref:
+                group_name = full_ref.split("!")[0]
+        else:
+            web_url = item.get("web_url", "")
+            if web_url:
+                path = urlparse(web_url).path
+                if "/-/issues/" in path:
+                    group_name = path.split("/-/issues/")[0].strip("/")
+                elif "/-/merge_requests/" in path:
+                    group_name = path.split("/-/merge_requests/")[0].strip("/")
+
+        return {
+            "id": f"GL-{item_type[0]}-{item.get('iid')}",
+            "title": item.get("title"),
+            "status": "open",
+            "priority": "Medium",
+            "origin": self.config.name,
+            "customer": ctx["company_name"],
+            "group": group_name,
+            "owner": owner_name,
+            "owner_email": owner_email,
+            "created_at": self._format_date(item.get("created_at")),
+            "updated_at": self._format_date(item.get("updated_at")),
+            "due_date": self._format_date(item.get("due_date")),
+            "url": item.get("web_url"),
+            "extra_info": {
+                "project_id": item.get("project_id"),
+            },
+        }
 
     def _format_date(self, dt_str):
         if not dt_str:

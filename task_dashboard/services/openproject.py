@@ -130,7 +130,7 @@ class OpenProjectService:
                         if uid:
                             final_email = email if email else f"{login}@placeholder"
                             user_map[uid] = final_email
-                    
+
                     if len(elements) < page_size:
                         break
                     offset += 1

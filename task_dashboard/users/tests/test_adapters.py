@@ -5,6 +5,7 @@ from django.contrib.auth.models import Group
 from django.test import RequestFactory
 
 from task_dashboard.users.adapters import SocialAccountAdapter
+from task_dashboard.users.models import SSOGroup
 from task_dashboard.users.models import User
 
 pytestmark = pytest.mark.django_db
@@ -15,7 +16,6 @@ def test_pre_social_login_keycloak_group_sync(rf: RequestFactory, db):
     Test that Keycloak groups are synced to the Django user,
     but manually assigned groups are NOT removed.
     """
-    from task_dashboard.users.models import SSOGroup
 
     adapter = SocialAccountAdapter()
     request = rf.get("/")

@@ -171,51 +171,57 @@ class ZammadService:
         raw_tasks.extend(first_page_tasks)
 
         # If we have a full first page, fetch subsequent pages.
-        # SAFEGUARD: Use a Semaphore to limit concurrency and avoid overwhelming Zammad
         if len(first_page_tasks) == per_page:
-            semaphore = asyncio.Semaphore(2)  # Max 2 concurrent page requests
-
-            async def fetch_page(page_num):
-                async with semaphore:
-                    params = {**first_page_params, "page": page_num}
-                    r = await client.get(
-                        url, headers=self.headers, params=params, timeout=45.0
-                    )
-                    r.raise_for_status()
-                    p_data = r.json()
-                    return (
-                        p_data.get("tickets", [])
-                        if isinstance(p_data, dict)
-                        else p_data
-                    )
-
-            current_page = 2
-            while True:
-                # Fetch in batches of 5 to avoid creating too many tasks if there are thousands
-                batch_size = 5
-                batch_tasks = [
-                    fetch_page(p) for p in range(current_page, current_page + batch_size)
-                ]
-                responses = await asyncio.gather(*batch_tasks, return_exceptions=True)
-
-                last_batch_incomplete = False
-                for res in responses:
-                    if isinstance(res, list) and res:
-                        raw_tasks.extend(res)
-                        if len(res) < per_page:
-                            last_batch_incomplete = True
-                    elif isinstance(res, list) and not res:
-                        last_batch_incomplete = True
-                    elif isinstance(res, Exception):
-                        logger.warning("Failed to fetch Zammad page: %s", res)
-                        # We continue even if one page fails, but treat it as a potential end
-                        last_batch_incomplete = True
-
-                if last_batch_incomplete:
-                    break
-                current_page += batch_size
+            remaining = await self._fetch_remaining_pages(
+                client, url, first_page_params, per_page
+            )
+            raw_tasks.extend(remaining)
 
         return raw_tasks
+
+    async def _fetch_remaining_pages(self, client, url, first_page_params, per_page):
+        # SAFEGUARD: Use a Semaphore to limit concurrency and avoid overwhelming Zammad
+        semaphore = asyncio.Semaphore(2)  # Max 2 concurrent page requests
+        remaining_tasks = []
+
+        async def fetch_page(page_num):
+            async with semaphore:
+                params = {**first_page_params, "page": page_num}
+                r = await client.get(
+                    url, headers=self.headers, params=params, timeout=45.0
+                )
+                r.raise_for_status()
+                p_data = r.json()
+                return p_data.get("tickets", []) if isinstance(p_data, dict) else p_data
+
+        current_page = 2
+        while True:
+            # Fetch in batches of 5 to avoid creating too many tasks
+            # if there are thousands
+            batch_size = 5
+            batch_tasks = [
+                fetch_page(p) for p in range(current_page, current_page + batch_size)
+            ]
+            responses = await asyncio.gather(*batch_tasks, return_exceptions=True)
+
+            last_batch_incomplete = False
+            for res in responses:
+                if isinstance(res, list) and res:
+                    remaining_tasks.extend(res)
+                    if len(res) < per_page:
+                        last_batch_incomplete = True
+                elif isinstance(res, list) and not res:
+                    last_batch_incomplete = True
+                elif isinstance(res, Exception):
+                    logger.warning("Failed to fetch Zammad page: %s", res)
+                    # We continue even if one page fails, but treat it
+                    # as a potential end
+                    last_batch_incomplete = True
+
+            if last_batch_incomplete:
+                break
+            current_page += batch_size
+        return remaining_tasks
 
     def _normalize_tasks(self, raw_tasks, user_map, company_name):
         normalized_tasks = []

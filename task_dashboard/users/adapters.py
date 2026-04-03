@@ -8,11 +8,12 @@ from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.conf import settings
 from django.contrib.auth.models import Group
 
+from task_dashboard.users.models import SSOGroup
+from task_dashboard.users.models import User
+
 if typing.TYPE_CHECKING:
     from allauth.socialaccount.models import SocialLogin
     from django.http import HttpRequest
-
-    from task_dashboard.users.models import User
 
 
 class AccountAdapter(DefaultAccountAdapter):
@@ -121,7 +122,6 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         """
         Syncs Keycloak groups from social account data to Django groups.
         """
-        from task_dashboard.users.models import SSOGroup
 
         # 1. Check provider
         provider = sociallogin.account.provider

@@ -173,7 +173,10 @@ class TestDashboardView:
 
     def test_priority_sorting(self, user: User, rf: RequestFactory):
         service = ServiceConfiguration.objects.create(
-            name="Test Service", service_type="zammad", is_active=True, default_access_level="FULL"
+            name="Test Service",
+            service_type="zammad",
+            is_active=True,
+            default_access_level="FULL",
         )
         priorities = ["Low", "Medium", "High", "Critical"]
         for i, p in enumerate(priorities):
@@ -193,7 +196,7 @@ class TestDashboardView:
         view.request = request
         context = view.get_context_data()
         tasks = context["tasks"]
-        
+
         task_priorities = [t.priority for t in tasks]
         assert task_priorities == ["Critical", "High", "Medium", "Low"]
 
@@ -204,7 +207,7 @@ class TestDashboardView:
         view.request = request
         context = view.get_context_data()
         tasks = context["tasks"]
-        
+
         task_priorities = [t.priority for t in tasks]
         assert task_priorities == ["Low", "Medium", "High", "Critical"]
 
