@@ -51,6 +51,25 @@ ACCESS_LEVEL_CHOICES = [
 ]
 
 
+class SSOGroup(models.Model):
+    """
+    Marker model to differentiate groups created by SSO from manually created ones.
+    """
+
+    group = models.OneToOneField(
+        Group,
+        on_delete=models.CASCADE,
+        related_name="sso_group",
+    )
+
+    class Meta:
+        verbose_name = "SSO Group Marker"
+        verbose_name_plural = "SSO Group Markers"
+
+    def __str__(self):
+        return f"SSO Managed: {self.group.name}"
+
+
 class ServiceConfiguration(models.Model):
     SERVICE_TYPES = [
         ("zammad", "Zammad"),

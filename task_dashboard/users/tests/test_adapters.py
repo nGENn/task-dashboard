@@ -12,45 +12,50 @@ pytestmark = pytest.mark.django_db
 
 def test_pre_social_login_keycloak_group_sync(rf: RequestFactory, db):
     """
-    Test that Keycloak groups are synced to the Django user.
+    Test that Keycloak groups are synced to the Django user,
+    but manually assigned groups are NOT removed.
     """
+    from task_dashboard.users.models import SSOGroup
+
     adapter = SocialAccountAdapter()
     request = rf.get("/")
 
     # Create a user
     user = User.objects.create(email="test@example.com")
 
-    # Create a SocialAccount with extra_data containing groups
+    # 1. Create a manual group and assign it to the user
+    manual_group = Group.objects.create(name="manual-admin")
+    user.groups.add(manual_group)
+
+    # 2. Create an old SSO group that is no longer in the payload
+    old_sso_group = Group.objects.create(name="old-sso-group")
+    SSOGroup.objects.create(group=old_sso_group)
+    user.groups.add(old_sso_group)
+
+    # 3. Prepare SocialLogin with NEW groups
     social_account = SocialAccount(
         user=user,
         provider="keycloak",
         uid="12345",
-        extra_data={"groups": ["admin", "editor"]},
+        extra_data={"groups": ["new-sso-group"]},
     )
-
     social_login = SocialLogin(user=user, account=social_account)
-
-    # Pre-existing group that should NOT be removed if we are just adding
-    # OR it SHOULD be removed if we are doing strict sync.
-    # The requirement says "Update the user's groups: Clear existing groups
-    # (or smarter diffing) and set the user's groups to the list from
-    # Keycloak."
-    # So let's test strict sync.
-    other_group = Group.objects.create(name="other")
-    user.groups.add(other_group)
 
     # Run the method
     adapter.pre_social_login(request, social_login)
 
-    # Verify groups were created and assigned
-    assert Group.objects.filter(name="admin").exists()
-    assert Group.objects.filter(name="editor").exists()
-
+    # Verify groups
     user_groups = list(user.groups.values_list("name", flat=True))
-    assert "admin" in user_groups
-    assert "editor" in user_groups
-    # Strict sync check: "other" should be removed
-    assert "other" not in user_groups
+
+    # New SSO group should be added
+    assert "new-sso-group" in user_groups
+    assert SSOGroup.objects.filter(group__name="new-sso-group").exists()
+
+    # Manual group should REMAINS
+    assert "manual-admin" in user_groups
+
+    # Old SSO group should be REMOVED
+    assert "old-sso-group" not in user_groups
 
 
 def test_pre_social_login_non_keycloak_no_sync(rf: RequestFactory, db):

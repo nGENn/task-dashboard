@@ -121,6 +121,8 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         """
         Syncs Keycloak groups from social account data to Django groups.
         """
+        from task_dashboard.users.models import SSOGroup
+
         # 1. Check provider
         provider = sociallogin.account.provider
         if provider not in ["keycloak", "openid_connect"]:
@@ -143,10 +145,25 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         django_groups = []
         for name in groups_names:
             group, _ = Group.objects.get_or_create(name=name)
+            # Mark it as an SSO group
+            SSOGroup.objects.get_or_create(group=group)
             django_groups.append(group)
 
         # 5. Assign groups to user
-        # Clear existing groups and set to the ones from Keycloak
-        # as per the requirement for strict sync.
+        # Only manage SSO groups; leave manual groups alone.
         if user.pk:
-            user.groups.set(django_groups)
+            # Current SSO groups the user belongs to
+            sso_group_ids = SSOGroup.objects.values_list("group_id", flat=True)
+            current_user_sso_groups = set(user.groups.filter(id__in=sso_group_ids))
+
+            # New SSO groups from this login
+            new_sso_groups = set(django_groups)
+
+            # Diff
+            to_remove = current_user_sso_groups - new_sso_groups
+            to_add = new_sso_groups - current_user_sso_groups
+
+            if to_remove:
+                user.groups.remove(*to_remove)
+            if to_add:
+                user.groups.add(*to_add)
