@@ -16,6 +16,7 @@ from django.utils.translation import gettext_lazy as _
 
 from task_dashboard.users.forms import UserAdminChangeForm
 from task_dashboard.users.models import ExternalGroup
+from task_dashboard.users.models import GlobalSetting
 from task_dashboard.users.models import ServiceConfiguration
 from task_dashboard.users.models import ServicePermission
 from task_dashboard.users.models import Task
@@ -110,6 +111,66 @@ class TestUserDetailView:
 
 
 class TestDashboardView:
+    def test_adjustable_default_states(self, user: User, rf: RequestFactory):
+        service = ServiceConfiguration.objects.create(
+            name="Test Service",
+            service_type="zammad",
+            is_active=True,
+            default_access_level="FULL",
+        )
+        # Create tasks with different states
+        Task.objects.create(
+            external_id="T1", title="Open", status="open", service=service
+        )
+        Task.objects.create(
+            external_id="T2", title="Pending", status="pending", service=service
+        )
+        Task.objects.create(
+            external_id="T3", title="Closed", status="closed", service=service
+        )
+
+        # 1. Default settings (open,pending)
+        settings = GlobalSetting.load()
+        settings.default_task_states = "open,pending"
+        settings.save()
+
+        request = rf.get("/?view=all")
+        request.user = user
+        view = DashboardView()
+        view.request = request
+        context = view.get_context_data()
+        tasks = context["tasks"]
+        statuses = {t.status for t in tasks}
+        assert "open" in statuses
+        assert "pending" in statuses
+        assert "closed" not in statuses
+
+        # 2. Change settings to only show 'open'
+        settings.default_task_states = "open"
+        settings.save()
+
+        request = rf.get("/?view=all")
+        request.user = user
+        view = DashboardView()
+        view.request = request
+        context = view.get_context_data()
+        tasks = context["tasks"]
+        statuses = {t.status for t in tasks}
+        assert "open" in statuses
+        assert "pending" not in statuses
+        assert "closed" not in statuses
+
+        # 3. Verify explicit filter overrides default
+        request = rf.get("/?view=all&state=closed")
+        request.user = user
+        view = DashboardView()
+        view.request = request
+        context = view.get_context_data()
+        tasks = context["tasks"]
+        statuses = {t.status for t in tasks}
+        assert "closed" in statuses
+        assert "open" not in statuses
+
     def test_priority_sorting(self, user: User, rf: RequestFactory):
         service = ServiceConfiguration.objects.create(
             name="Test Service", service_type="zammad", is_active=True, default_access_level="FULL"

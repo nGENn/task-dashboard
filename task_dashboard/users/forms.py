@@ -1,10 +1,47 @@
 from allauth.account.forms import SignupForm
 from allauth.socialaccount.forms import SignupForm as SocialSignupForm
+from django import forms
 from django.contrib.auth import forms as admin_forms
 from django.forms import EmailField
 from django.utils.translation import gettext_lazy as _
 
+from .models import GlobalSetting
 from .models import User
+
+
+class GlobalSettingForm(forms.ModelForm):
+    default_task_states_list = forms.MultipleChoiceField(
+        choices=[
+            ("open", "Open"),
+            ("pending", "Pending"),
+            ("closed", "Closed"),
+        ],
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label="Default Task States",
+        help_text="Select the default task states to show in the table.",
+    )
+
+    class Meta:
+        model = GlobalSetting
+        fields = ["company_name", "default_task_states"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.default_task_states:
+            self.fields["default_task_states_list"].initial = [
+                s.strip()
+                for s in self.instance.default_task_states.split(",")
+                if s.strip()
+            ]
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        selected_states = self.cleaned_data.get("default_task_states_list", [])
+        instance.default_task_states = ",".join(selected_states)
+        if commit:
+            instance.save()
+        return instance
 
 
 class UserAdminChangeForm(admin_forms.UserChangeForm):

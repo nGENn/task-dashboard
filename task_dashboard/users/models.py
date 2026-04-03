@@ -129,6 +129,11 @@ class GlobalSetting(models.Model):
             "Used as fallback customer name across services if none is specified."
         ),
     )
+    default_task_states = models.CharField(
+        max_length=255,
+        default="open,pending",
+        help_text="Comma-separated list of default task states to show in the table (e.g., open,pending,new).",
+    )
 
     class Meta:
         verbose_name = "Global Setting"
