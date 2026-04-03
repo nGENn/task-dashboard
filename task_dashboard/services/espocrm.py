@@ -118,19 +118,37 @@ class EspoService:
         user_map = {}
         try:
             url = f"{self.base_url}/api/v1/User"
-            params = {"maxSize": 200, "select": "id,emailAddress,userName"}
-            resp = await client.get(
-                url, headers=self.headers, params=params, timeout=10.0
-            )
-            if resp.status_code == HTTPStatus.OK:
-                users = resp.json().get("list", [])
-                for u in users:
-                    uid = u.get("id")
-                    email = u.get("emailAddress")
-                    if uid:
-                        user_map[uid] = (
-                            email if email else f"{u.get('userName')}@placeholder"
-                        )
+            offset = 0
+            max_size = 200
+
+            while True:
+                params = {
+                    "offset": offset,
+                    "maxSize": max_size,
+                    "select": "id,emailAddress,userName",
+                }
+                resp = await client.get(
+                    url, headers=self.headers, params=params, timeout=10.0
+                )
+                if resp.status_code == HTTPStatus.OK:
+                    users = resp.json().get("list", [])
+                    if not users:
+                        break
+
+                    for u in users:
+                        uid = u.get("id")
+                        email = u.get("emailAddress")
+                        if uid:
+                            user_map[uid] = (
+                                email if email else f"{u.get('userName')}@placeholder"
+                            )
+
+                    if len(users) < max_size:
+                        break
+                    offset += max_size
+                else:
+                    break
+
             cache.set(cache_key, user_map, timeout=3600)
         except httpx.HTTPError as e:
             logger.warning("Espo User Map failed: %s", e)
@@ -138,41 +156,32 @@ class EspoService:
 
     async def _fetch_entity(self, client, url, entity_type, params, ctx):
         try:
-            # Fetch first page
+            offset = 0
             max_size = 100
-            request_params = {**params, "offset": 0, "maxSize": max_size}
-            resp = await client.get(
-                url, headers=self.headers, params=request_params, timeout=15.0
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            items = data.get("list", [])
-            if not items:
-                return
 
-            self._process_items(
-                items,
-                entity_type,
-                ctx["target"],
-                ctx["user_map"],
-                ctx["company_name"],
-            )
-
-            # If page 1 was full, fetch page 2 concurrently
-            if len(items) == max_size:
-                request_params["offset"] = max_size
-                resp2 = await client.get(
+            while True:
+                request_params = {**params, "offset": offset, "maxSize": max_size}
+                resp = await client.get(
                     url, headers=self.headers, params=request_params, timeout=15.0
                 )
-                if resp2.status_code == HTTPStatus.OK:
-                    data2 = resp2.json()
-                    self._process_items(
-                        data2.get("list", []),
-                        entity_type,
-                        ctx["target"],
-                        ctx["user_map"],
-                        ctx["company_name"],
-                    )
+                resp.raise_for_status()
+
+                data = resp.json()
+                items = data.get("list", [])
+                if not items:
+                    break
+
+                self._process_items(
+                    items,
+                    entity_type,
+                    ctx["target"],
+                    ctx["user_map"],
+                    ctx["company_name"],
+                )
+
+                if len(items) < max_size:
+                    break
+                offset += max_size
 
         except httpx.HTTPError as e:
             logger.warning("Failed to fetch Espo %s: %s", entity_type, e)

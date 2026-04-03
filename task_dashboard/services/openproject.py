@@ -108,23 +108,41 @@ class OpenProjectService:
         user_map = {}
         try:
             url = f"{self.base_url}/api/v3/users"
-            resp = await client.get(
-                url, headers=self._get_headers(), params={"pageSize": 100}, timeout=10.0
-            )
-            if resp.status_code == HTTPStatus.OK:
-                elements = resp.json().get("_embedded", {}).get("elements", [])
-                for u in elements:
-                    uid = u.get("id")
-                    email = u.get("email")
-                    login = u.get("login")
-                    if uid:
-                        final_email = email if email else f"{login}@placeholder"
-                        user_map[uid] = final_email
-            elif resp.status_code == HTTPStatus.FORBIDDEN:
-                logger.warning(
-                    "OpenProject User Map access forbidden (403). "
-                    "Credentials may lack permission to list users."
+            offset = 1
+            page_size = 100
+
+            while True:
+                resp = await client.get(
+                    url,
+                    headers=self._get_headers(),
+                    params={"offset": offset, "pageSize": page_size},
+                    timeout=10.0,
                 )
+                if resp.status_code == HTTPStatus.OK:
+                    elements = resp.json().get("_embedded", {}).get("elements", [])
+                    if not elements:
+                        break
+
+                    for u in elements:
+                        uid = u.get("id")
+                        email = u.get("email")
+                        login = u.get("login")
+                        if uid:
+                            final_email = email if email else f"{login}@placeholder"
+                            user_map[uid] = final_email
+                    
+                    if len(elements) < page_size:
+                        break
+                    offset += 1
+                elif resp.status_code == HTTPStatus.FORBIDDEN:
+                    logger.warning(
+                        "OpenProject User Map access forbidden (403). "
+                        "Credentials may lack permission to list users."
+                    )
+                    break
+                else:
+                    break
+
             cache.set(cache_key, user_map, timeout=3600)
         except httpx.HTTPError as e:
             logger.warning("OpenProject User Map failed: %s", e)
@@ -134,39 +152,36 @@ class OpenProjectService:
         self, client, normalized_tasks, user_map, company_name
     ):
         url = f"{self.base_url}/api/v3/work_packages"
+        offset = 1
         page_size = 100
 
-        # Fetch first page
-        params = {
-            "offset": 1,
-            "pageSize": page_size,
-            "sortBy": '[["updatedAt","desc"]]',
-        }
-        resp = await client.get(
-            url, params=params, headers=self._get_headers(), timeout=20.0
-        )
-        resp.raise_for_status()
+        try:
+            while True:
+                params = {
+                    "offset": offset,
+                    "pageSize": page_size,
+                    "sortBy": '[["updatedAt","desc"]]',
+                }
+                resp = await client.get(
+                    url, params=params, headers=self._get_headers(), timeout=20.0
+                )
+                resp.raise_for_status()
 
-        data = resp.json()
-        elements = data.get("_embedded", {}).get("elements", [])
-        if not elements:
-            return
+                data = resp.json()
+                elements = data.get("_embedded", {}).get("elements", [])
+                if not elements:
+                    break
 
-        for item in elements:
-            self._process_work_package(item, normalized_tasks, user_map, company_name)
-
-        # Fetch page 2 concurrently if page 1 was full
-        if len(elements) == page_size:
-            params["offset"] = 2
-            resp2 = await client.get(
-                url, params=params, headers=self._get_headers(), timeout=20.0
-            )
-            if resp2.status_code == HTTPStatus.OK:
-                elements2 = resp2.json().get("_embedded", {}).get("elements", [])
-                for item in elements2:
+                for item in elements:
                     self._process_work_package(
                         item, normalized_tasks, user_map, company_name
                     )
+
+                if len(elements) < page_size:
+                    break
+                offset += 1
+        except httpx.HTTPError as e:
+            logger.warning("Failed to fetch OpenProject work packages: %s", e)
 
     def _process_work_package(self, item, normalized_tasks, user_map, company_name):
         links = item.get("_links", {})

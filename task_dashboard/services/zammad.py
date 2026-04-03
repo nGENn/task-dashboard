@@ -34,22 +34,35 @@ class ZammadService:
         user_map = {}
         try:
             url = f"{self.base_url}/api/v1/users"
-            # Increased timeout for user map
-            resp = await client.get(
-                url,
-                headers=self.headers,
-                params={"per_page": 250},
-                timeout=30.0,
-            )
-            if resp.status_code == HTTPStatus.OK:
-                for u in resp.json():
-                    uid = u.get("id")
-                    email = u.get("email")
-                    name = (
-                        f"{u.get('firstname', '')} {u.get('lastname', '')}"
-                    ).strip() or u.get("login")
-                    if uid:
-                        user_map[uid] = {"email": email, "name": name}
+            page = 1
+            per_page = 250
+
+            while True:
+                resp = await client.get(
+                    url,
+                    headers=self.headers,
+                    params={"page": page, "per_page": per_page},
+                    timeout=30.0,
+                )
+                if resp.status_code == HTTPStatus.OK:
+                    elements = resp.json()
+                    if not elements:
+                        break
+
+                    for u in elements:
+                        uid = u.get("id")
+                        email = u.get("email")
+                        name = (
+                            f"{u.get('firstname', '')} {u.get('lastname', '')}"
+                        ).strip() or u.get("login")
+                        if uid:
+                            user_map[uid] = {"email": email, "name": name}
+
+                    if len(elements) < per_page:
+                        break
+                    page += 1
+                else:
+                    break
 
             cache.set(cache_key, user_map, timeout=3600)
         except httpx.HTTPError as e:
@@ -176,15 +189,31 @@ class ZammadService:
                         else p_data
                     )
 
-            tasks = [fetch_page(page) for page in range(2, 11)]
-            responses = await asyncio.gather(*tasks, return_exceptions=True)
+            current_page = 2
+            while True:
+                # Fetch in batches of 5 to avoid creating too many tasks if there are thousands
+                batch_size = 5
+                batch_tasks = [
+                    fetch_page(p) for p in range(current_page, current_page + batch_size)
+                ]
+                responses = await asyncio.gather(*batch_tasks, return_exceptions=True)
 
-            for res in responses:
-                if isinstance(res, list):
-                    raw_tasks.extend(res)
-                elif isinstance(res, Exception):
-                    logger.warning("Failed to fetch Zammad page: %s", res)
-                    # We continue even if one page fails, as we have other data
+                last_batch_incomplete = False
+                for res in responses:
+                    if isinstance(res, list) and res:
+                        raw_tasks.extend(res)
+                        if len(res) < per_page:
+                            last_batch_incomplete = True
+                    elif isinstance(res, list) and not res:
+                        last_batch_incomplete = True
+                    elif isinstance(res, Exception):
+                        logger.warning("Failed to fetch Zammad page: %s", res)
+                        # We continue even if one page fails, but treat it as a potential end
+                        last_batch_incomplete = True
+
+                if last_batch_incomplete:
+                    break
+                current_page += batch_size
 
         return raw_tasks
 

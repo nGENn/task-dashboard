@@ -173,78 +173,112 @@ class GitLabService:
 
         user_map = {}
         try:
-            # We fetch up to 100 users for mapping
             url = f"{self.base_url}/api/v4/users"
-            resp = await client.get(
-                url, headers=self.headers, params={"per_page": 100}, timeout=10.0
-            )
-            if resp.status_code == HTTPStatus.OK:
-                for u in resp.json():
-                    uid = u.get("id")
-                    email = u.get("email")
-                    public_email = u.get("public_email")
-                    if uid:
-                        user_map[uid] = email if email else public_email
+            page = 1
+            per_page = 100
+
+            while True:
+                resp = await client.get(
+                    url,
+                    headers=self.headers,
+                    params={"page": page, "per_page": per_page},
+                    timeout=10.0,
+                )
+                if resp.status_code == HTTPStatus.OK:
+                    elements = resp.json()
+                    if not elements:
+                        break
+
+                    for u in elements:
+                        uid = u.get("id")
+                        email = u.get("email")
+                        public_email = u.get("public_email")
+                        if uid:
+                            user_map[uid] = email if email else public_email
+
+                    if len(elements) < per_page:
+                        break
+                    page += 1
+                else:
+                    break
+
             cache.set(cache_key, user_map, timeout=3600)
         except httpx.HTTPError as e:
             logger.warning("GitLab User Map failed: %s", e)
         return user_map
 
     async def _fetch_and_normalize(self, client, url, item_type, ctx, params=None):
+        if params is None:
+            params = {}
+
+        page = 1
+        per_page = 100
+        params["per_page"] = per_page
+
         try:
-            resp = await client.get(
-                url, headers=self.headers, params=params, timeout=15.0
-            )
-            resp.raise_for_status()
-
-            for item in resp.json():
-                assignee = item.get("assignee") or {}
-                if not assignee and item.get("assignees"):
-                    assignee = item.get("assignees")[0]
-
-                author = item.get("author", {})
-                owner_name = assignee.get("name") or author.get("name") or "-"
-                owner_email = ctx["user_map"].get(
-                    assignee.get("id") or author.get("id")
+            while True:
+                params["page"] = page
+                resp = await client.get(
+                    url, headers=self.headers, params=params, timeout=15.0
                 )
+                resp.raise_for_status()
 
-                group_name = item_type
-                references = item.get("references")
-                if references and "full" in references:
-                    full_ref = references["full"]
-                    if "#" in full_ref:
-                        group_name = full_ref.split("#")[0]
-                    elif "!" in full_ref:
-                        group_name = full_ref.split("!")[0]
-                else:
-                    web_url = item.get("web_url", "")
-                    if web_url:
-                        path = urlparse(web_url).path
-                        if "/-/issues/" in path:
-                            group_name = path.split("/-/issues/")[0].strip("/")
-                        elif "/-/merge_requests/" in path:
-                            group_name = path.split("/-/merge_requests/")[0].strip("/")
+                elements = resp.json()
+                if not elements:
+                    break
 
-                ctx["target"].append(
-                    {
-                        "id": f"GL-{item_type[0]}-{item.get('iid')}",
-                        "title": item.get("title"),
-                        "status": "open",
-                        "priority": "Medium",
-                        "origin": self.config.name,
-                        "customer": ctx["company_name"],
-                        "group": group_name,
-                        "owner": owner_name,
-                        "owner_email": owner_email,
-                        "created_at": self._format_date(item.get("created_at")),
-                        "updated_at": self._format_date(item.get("updated_at")),
-                        "due_date": self._format_date(item.get("due_date")),
-                        "url": item.get("web_url"),
-                        "extra_info": {
-                            "project_id": item.get("project_id"),
-                        },
-                    }
-                )
+                for item in elements:
+                    assignee = item.get("assignee") or {}
+                    if not assignee and item.get("assignees"):
+                        assignee = item.get("assignees")[0]
+
+                    author = item.get("author", {})
+                    owner_name = assignee.get("name") or author.get("name") or "-"
+                    owner_email = ctx["user_map"].get(
+                        assignee.get("id") or author.get("id")
+                    )
+
+                    group_name = item_type
+                    references = item.get("references")
+                    if references and "full" in references:
+                        full_ref = references["full"]
+                        if "#" in full_ref:
+                            group_name = full_ref.split("#")[0]
+                        elif "!" in full_ref:
+                            group_name = full_ref.split("!")[0]
+                    else:
+                        web_url = item.get("web_url", "")
+                        if web_url:
+                            path = urlparse(web_url).path
+                            if "/-/issues/" in path:
+                                group_name = path.split("/-/issues/")[0].strip("/")
+                            elif "/-/merge_requests/" in path:
+                                group_name = path.split("/-/merge_requests/")[0].strip("/")
+
+                    ctx["target"].append(
+                        {
+                            "id": f"GL-{item_type[0]}-{item.get('iid')}",
+                            "title": item.get("title"),
+                            "status": "open",
+                            "priority": "Medium",
+                            "origin": self.config.name,
+                            "customer": ctx["company_name"],
+                            "group": group_name,
+                            "owner": owner_name,
+                            "owner_email": owner_email,
+                            "created_at": self._format_date(item.get("created_at")),
+                            "updated_at": self._format_date(item.get("updated_at")),
+                            "due_date": self._format_date(item.get("due_date")),
+                            "url": item.get("web_url"),
+                            "extra_info": {
+                                "project_id": item.get("project_id"),
+                            },
+                        }
+                    )
+
+                if len(elements) < per_page:
+                    break
+                page += 1
         except httpx.HTTPError as e:
             logger.warning("Failed to fetch GitLab %s: %s", item_type, e)
 
