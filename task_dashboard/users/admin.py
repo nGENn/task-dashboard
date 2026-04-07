@@ -9,6 +9,7 @@ from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
 from django.contrib.auth.models import Group
 from django.utils.translation import gettext_lazy as _
 
+from .forms import GlobalSettingForm
 from .forms import UserAdminChangeForm
 from .forms import UserAdminCreationForm
 from .models import ExternalGroup
@@ -187,7 +188,9 @@ class TaskAdmin(admin.ModelAdmin):
 
 @admin.register(GlobalSetting)
 class GlobalSettingAdmin(admin.ModelAdmin):
-    list_display = ["company_name"]
+    form = GlobalSettingForm
+    list_display = ["company_name", "default_task_states"]
+    exclude = ["default_task_states"]
 
     def has_add_permission(self, request):
         # Allow adding only if no setting exists yet

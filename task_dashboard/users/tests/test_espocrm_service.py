@@ -1,7 +1,9 @@
+from http import HTTPStatus
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import httpx
 import pytest
 
 from task_dashboard.services.espocrm import EspoService
@@ -97,6 +99,39 @@ async def test_get_tasks_async_parallel_fetching(espo_service):
         assert any("api/v1/User" in url for url in urls)
         assert any("api/v1/Case" in url for url in urls)
         assert any("api/v1/Task" in url for url in urls)
+
+
+@pytest.mark.anyio
+async def test_fetch_entity_pagination(espo_service):
+    # Mock Cases with 2 pages
+    page1 = [{"id": f"c{i}", "name": f"Case {i}"} for i in range(1, 101)]
+    page2 = [{"id": "c101", "name": "Case 101"}]
+
+    async def mock_get(url, **kwargs):
+        offset = kwargs.get("params", {}).get("offset")
+        resp = MagicMock()
+        resp.status_code = HTTPStatus.OK
+        resp.raise_for_status = MagicMock()
+        if offset == 0:
+            resp.json = MagicMock(return_value={"list": page1})
+        elif offset == 100:  # noqa: PLR2004
+            resp.json = MagicMock(return_value={"list": page2})
+        else:
+            resp.json = MagicMock(return_value={"list": []})
+        return resp
+
+    ctx = {"target": [], "user_map": {}, "company_name": "TestCorp"}
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get_call:
+        mock_get_call.side_effect = mock_get
+
+        async with httpx.AsyncClient() as client:
+            await espo_service._fetch_entity(  # noqa: SLF001
+                client, "https://espo.example.com/api/v1/Case", "Case", {}, ctx
+            )
+
+        assert len(ctx["target"]) == 101  # noqa: PLR2004
+        assert ctx["target"][0]["title"] == "Case 1"
+        assert ctx["target"][100]["title"] == "Case 101"
 
 
 @pytest.mark.anyio

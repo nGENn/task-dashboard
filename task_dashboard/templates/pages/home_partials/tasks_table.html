@@ -7,8 +7,10 @@
         <tr>
           {% with request.GET.sort as current_sort %}
             {% with request.GET.direction as current_dir %}
-              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
-                <a class="flex items-center justify-between w-full h-full px-2"
+              <th class="w-5 px-1"></th>
+              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors px-1 w-1 whitespace-nowrap"
+                  data-min-width="50">
+                <a class="flex items-center justify-between w-full h-full px-1"
                    href="?{% sort_url 'origin' %}"
                    hx-get="?{% sort_url 'origin' %}"
                    hx-target="#task-results"
@@ -27,8 +29,9 @@
                 </a>
                 <div class="resizer"></div>
               </th>
-              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
-                <a class="flex items-center justify-between w-full h-full px-2"
+              <th class="font-semibold relative group overflow-hidden cursor-pointer hover:bg-base-300 transition-colors px-1 w-[100px] min-w-[100px]"
+                  data-min-width="80">
+                <a class="flex items-center justify-between w-full h-full px-1"
                    href="?{% sort_url 'id' %}"
                    hx-get="?{% sort_url 'id' %}"
                    hx-target="#task-results"
@@ -47,8 +50,9 @@
                 </a>
                 <div class="resizer"></div>
               </th>
-              <th class="font-semibold relative group min-w-[200px] cursor-pointer hover:bg-base-300 transition-colors">
-                <a class="flex items-center justify-between w-full h-full px-2"
+              <th class="font-semibold relative group overflow-hidden cursor-pointer hover:bg-base-300 transition-colors px-1 w-[300px] min-w-[300px]"
+                  data-min-width="150">
+                <a class="flex items-center justify-between w-full h-full px-1"
                    href="?{% sort_url 'title' %}"
                    hx-get="?{% sort_url 'title' %}"
                    hx-target="#task-results"
@@ -67,8 +71,9 @@
                 </a>
                 <div class="resizer"></div>
               </th>
-              <th class="font-semibold relative group min-w-[150px] cursor-pointer hover:bg-base-300 transition-colors">
-                <a class="flex items-center justify-between w-full h-full px-2"
+              <th class="font-semibold relative group overflow-hidden cursor-pointer hover:bg-base-300 transition-colors px-1 w-[150px] min-w-[150px]"
+                  data-min-width="80">
+                <a class="flex items-center justify-between w-full h-full px-1"
                    href="?{% sort_url 'customer' %}"
                    hx-get="?{% sort_url 'customer' %}"
                    hx-target="#task-results"
@@ -87,8 +92,9 @@
                 </a>
                 <div class="resizer"></div>
               </th>
-              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
-                <a class="flex items-center justify-between w-full h-full px-2"
+              <th class="font-semibold relative group overflow-hidden cursor-pointer hover:bg-base-300 transition-colors px-1 w-[150px] min-w-[150px]"
+                  data-min-width="80">
+                <a class="flex items-center justify-between w-full h-full px-1"
                    href="?{% sort_url 'group' %}"
                    hx-get="?{% sort_url 'group' %}"
                    hx-target="#task-results"
@@ -107,8 +113,9 @@
                 </a>
                 <div class="resizer"></div>
               </th>
-              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
-                <a class="flex items-center justify-between w-full h-full px-2"
+              <th class="font-semibold relative group overflow-hidden cursor-pointer hover:bg-base-300 transition-colors px-1 w-[150px] min-w-[150px]"
+                  data-min-width="80">
+                <a class="flex items-center justify-between w-full h-full px-1"
                    href="?{% sort_url 'owner' %}"
                    hx-get="?{% sort_url 'owner' %}"
                    hx-target="#task-results"
@@ -127,8 +134,8 @@
                 </a>
                 <div class="resizer"></div>
               </th>
-              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
-                <a class="flex items-center justify-between w-full h-full px-2"
+              <th class="font-semibold relative group w-[80px] cursor-pointer hover:bg-base-300 transition-colors px-1">
+                <a class="flex items-center justify-between w-full h-full px-1"
                    href="?{% sort_url 'status' %}"
                    hx-get="?{% sort_url 'status' %}"
                    hx-target="#task-results"
@@ -145,10 +152,9 @@
                     </span>
                   {% endif %}
                 </a>
-                <div class="resizer"></div>
               </th>
-              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
-                <a class="flex items-center justify-between w-full h-full px-2"
+              <th class="font-semibold relative group w-[80px] cursor-pointer hover:bg-base-300 transition-colors px-1">
+                <a class="flex items-center justify-between w-full h-full px-1"
                    href="?{% sort_url 'priority' %}"
                    hx-get="?{% sort_url 'priority' %}"
                    hx-target="#task-results"
@@ -165,10 +171,9 @@
                     </span>
                   {% endif %}
                 </a>
-                <div class="resizer"></div>
               </th>
-              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
-                <a class="flex items-center justify-between w-full h-full px-2"
+              <th class="font-semibold relative group w-[80px] cursor-pointer hover:bg-base-300 transition-colors px-1">
+                <a class="flex items-center justify-between w-full h-full px-1"
                    href="?{% sort_url 'created_at' %}"
                    hx-get="?{% sort_url 'created_at' %}"
                    hx-target="#task-results"
@@ -185,10 +190,9 @@
                     </span>
                   {% endif %}
                 </a>
-                <div class="resizer"></div>
               </th>
-              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
-                <a class="flex items-center justify-between w-full h-full px-2"
+              <th class="font-semibold relative group w-[80px] cursor-pointer hover:bg-base-300 transition-colors px-1">
+                <a class="flex items-center justify-between w-full h-full px-1"
                    href="?{% sort_url 'updated_at' %}"
                    hx-get="?{% sort_url 'updated_at' %}"
                    hx-target="#task-results"
@@ -205,10 +209,9 @@
                     </span>
                   {% endif %}
                 </a>
-                <div class="resizer"></div>
               </th>
-              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors">
-                <a class="flex items-center justify-between w-full h-full px-2"
+              <th class="font-semibold relative group w-[80px] cursor-pointer hover:bg-base-300 transition-colors px-1">
+                <a class="flex items-center justify-between w-full h-full px-1"
                    href="?{% sort_url 'due_date' %}"
                    hx-get="?{% sort_url 'due_date' %}"
                    hx-target="#task-results"
@@ -225,7 +228,6 @@
                     </span>
                   {% endif %}
                 </a>
-                <div class="resizer"></div>
               </th>
             {% endwith %}
           {% endwith %}
@@ -235,45 +237,70 @@
         {% for task in tasks %}
           <tr class="hover cursor-pointer"
               onclick="window.open('{{ task.url }}', '_blank')">
-            <td>
+            <td class="w-5 px-1">
+              <form action="{% url 'users:refresh-single-task' task.id %}"
+                    method="post"
+                    onclick="event.stopPropagation();"
+                    class="m-0 p-0">
+                {% csrf_token %}
+                <button type="submit"
+                        class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:text-primary"
+                        title="Refresh this ticket">
+                  <svg xmlns="http://www.w3.org/2000/svg"
+                       fill="none"
+                       viewBox="0 0 24 24"
+                       stroke-width="2"
+                       stroke="currentColor"
+                       class="w-3.5 h-3.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                  </svg>
+                </button>
+              </form>
+            </td>
+            <td class="px-1 w-1 whitespace-nowrap">
               <span class="badge badge-ghost text-xs">{{ task.service.name }}</span>
             </td>
-            <td class="font-mono text-sm font-bold {% if task.external_id|length > 16 %}whitespace-normal break-all{% else %}whitespace-nowrap{% endif %} min-w-[100px] max-w-[200px]">
-              <div class="flex items-center gap-1">
-                <span>{{ task.external_id }}</span>
-                <form action="{% url 'users:refresh-single-task' task.id %}"
-                      method="post"
-                      onclick="event.stopPropagation();"
-                      class="inline m-0 p-0">
-                  {% csrf_token %}
-                  <button type="submit"
-                          class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:text-primary"
-                          title="Refresh this ticket">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                         fill="none"
-                         viewBox="0 0 24 24"
-                         stroke-width="2"
-                         stroke="currentColor"
-                         class="w-3.5 h-3.5">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                    </svg>
-                  </button>
-                </form>
+            <td class="font-mono text-sm font-bold px-1">
+              <div class="max-w-0 min-w-full flex items-center gap-1">
+                <span class="truncate flex-1" title="{{ task.external_id }}">{{ task.external_id }}</span>
+                <button type="button"
+                        class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:text-primary flex-shrink-0"
+                        title="Copy ID"
+                        onclick="event.stopPropagation(); window.copyToClipboard('{{ task.external_id }}', 'ID copied to clipboard!');">
+                  <svg xmlns="http://www.w3.org/2000/svg"
+                       fill="none"
+                       viewBox="0 0 24 24"
+                       stroke-width="2"
+                       stroke="currentColor"
+                       class="w-3.5 h-3.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
               </div>
             </td>
-            <td class="min-w-[200px] max-w-[400px]">
-              <span class="truncate block font-medium" title="{{ task.title }}">{{ task.title }}</span>
+            <td class="px-1">
+              <div class="max-w-0 min-w-full">
+                <span class="truncate block font-medium" title="{{ task.title }}">{{ task.title }}</span>
+              </div>
             </td>
-            <td class="text-sm min-w-[150px] max-w-[250px] whitespace-normal break-all">{{ task.customer }}</td>
-            <td class="text-sm whitespace-nowrap">{{ task.group }}</td>
-            <td class="text-sm font-medium max-w-[200px] whitespace-normal break-words">
-              {% if task.owner_email %}
-                <span class="text-primary">{{ task.owner_email }}</span>
-              {% else %}
-                <span class="text-base-content/50 italic">{{ task.owner }}</span>
-              {% endif %}
+            <td class="text-sm px-1">
+              <div class="max-w-0 min-w-full truncate whitespace-normal break-all"
+                   title="{{ task.customer }}">{{ task.customer }}</div>
             </td>
-            <td>
+            <td class="text-sm px-1">
+              <div class="max-w-0 min-w-full whitespace-normal break-all"
+                   title="{{ task.group }}">{{ task.group }}</div>
+            </td>
+            <td class="text-sm font-medium px-1">
+              <div class="max-w-0 min-w-full whitespace-normal break-all">
+                {% if task.owner_email %}
+                  <span class="text-primary block">{{ task.owner_email }}</span>
+                {% else %}
+                  <span class="text-base-content/50 italic block">{{ task.owner }}</span>
+                {% endif %}
+              </div>
+            </td>
+            <td class="px-1 w-[80px]">
               {% if task.status == 'open' %}
                 <span class="badge badge-warning gap-1 text-xs whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full bg-warning-content/60"></span>
               Open</span>
@@ -285,7 +312,7 @@
           {{ task.status|title }}</span>
         {% endif %}
       </td>
-      <td>
+      <td class="px-1 w-[80px]">
         {% if task.priority == 'Critical' %}
           <span class="text-error flex items-center gap-1 font-semibold text-xs whitespace-nowrap">
             <svg xmlns="http://www.w3.org/2000/svg"
@@ -300,13 +327,13 @@
           <span class="text-base-content/70 text-xs whitespace-nowrap">{{ task.priority }}</span>
         {% endif %}
       </td>
-      <td class="text-xs text-base-content/70 whitespace-nowrap">{{ task.created_at|dynamic_date }}</td>
-      <td class="text-xs text-base-content/70 whitespace-nowrap">{{ task.updated_at|dynamic_date }}</td>
-      <td class="text-xs text-base-content/70 whitespace-nowrap">{{ task.due_date|dynamic_date }}</td>
+      <td class="text-xs text-base-content/70 whitespace-nowrap px-1 w-[80px]">{{ task.created_at|dynamic_date }}</td>
+      <td class="text-xs text-base-content/70 whitespace-nowrap px-1 w-[80px]">{{ task.updated_at|dynamic_date }}</td>
+      <td class="text-xs text-base-content/70 whitespace-nowrap px-1 w-[80px]">{{ task.due_date|dynamic_date }}</td>
     </tr>
   {% empty %}
     <tr>
-      <td colspan="11" class="text-center py-8 text-base-content/50">No tasks found matching your filters.</td>
+      <td colspan="12" class="text-center py-8 text-base-content/50 px-1">No tasks found matching your filters.</td>
     </tr>
   {% endfor %}
 </tbody>

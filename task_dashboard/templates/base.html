@@ -93,14 +93,14 @@
               <div class="dropdown dropdown-end">
                 <div tabindex="0"
                      role="button"
-                     class="btn btn-ghost btn-sm gap-2 normal-case">
-                  <span class="relative flex h-2 w-2">
+                     class="btn btn-ghost btn-sm gap-1.5 normal-case min-h-fit h-auto py-2 items-center">
+                  <span class="relative flex h-2 w-2 flex-shrink-0">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-{{ global_system_status.color }} opacity-75"></span>
                     <span class="relative inline-flex rounded-full h-2 w-2 bg-{{ global_system_status.color }}"></span>
                   </span>
-                  <span class="hidden md:inline text-sm">System: {{ global_system_status.state }}</span>
+                  <span class="hidden md:inline text-sm whitespace-nowrap">System: {{ global_system_status.state }}</span>
                   {% if global_system_status.max_latency > 0 %}
-                    <span class="badge badge-ghost badge-sm hidden lg:inline-flex">{{ global_system_status.max_latency }}ms</span>
+                    <span class="badge badge-ghost badge-sm hidden lg:inline-flex flex-shrink-0">{{ global_system_status.max_latency }}ms</span>
                   {% endif %}
                 </div>
                 <div tabindex="0"
@@ -108,7 +108,7 @@
                   <div class="card-body">
                     <h3 class="font-bold text-base-content flex items-center gap-2">
                       <svg xmlns="http://www.w3.org/2000/svg"
-                           class="h-4 w-4 text-{{ global_system_status.color }}"
+                           class="h-4 w-4 text-{{ global_system_status.color }} flex-shrink-0"
                            fill="none"
                            viewBox="0 0 24 24"
                            stroke="currentColor">
@@ -121,19 +121,19 @@
                     <p class="text-xs text-base-content/60 uppercase tracking-wider mb-2">Service Health</p>
                     <div class="space-y-2">
                       {% for service in services_status %}
-                        <div class="flex justify-between items-center">
-                          <span class="text-sm flex items-center gap-2">
+                        <div class="flex justify-between items-center gap-2">
+                          <span class="text-sm flex items-center gap-1.5">
                             {% if service.status == 'online' %}
-                              <span class="w-2 h-2 rounded-full bg-success"></span>
+                              <span class="w-2 h-2 rounded-full bg-success flex-shrink-0"></span>
                             {% elif service.status == 'offline' %}
-                              <span class="w-2 h-2 rounded-full bg-error"></span>
+                              <span class="w-2 h-2 rounded-full bg-error flex-shrink-0"></span>
                             {% else %}
-                              <span class="w-2 h-2 rounded-full bg-warning"></span>
+                              <span class="w-2 h-2 rounded-full bg-warning flex-shrink-0"></span>
                             {% endif %}
-                            {{ service.name }}
+                            <span class="break-words">{{ service.name }}</span>
                           </span>
                           {% if service.status == 'online' or service.status == 'degraded' %}
-                            <span class="badge {% if service.status == 'online' %}badge-success{% else %}badge-warning{% endif %} badge-sm badge-outline">{{ service.latency }}ms</span>
+                            <span class="badge {% if service.status == 'online' %}badge-success{% else %}badge-warning{% endif %} badge-sm badge-outline flex-shrink-0">{{ service.latency }}ms</span>
                           {% else %}
                             <div class="tooltip tooltip-left cursor-pointer"
                                  data-tip="{{ service.error }}">
@@ -184,8 +184,7 @@
                         <button id="force-refresh-btn"
                                 type="submit"
                                 class="btn btn-ghost btn-xs btn-circle text-base-content/40 transition-colors duration-300 tooltip tooltip-left"
-                                data-tip="Fetch fresh data from all platforms"
-                                title="Force Live Fetch (Clear Cache)">
+                                data-tip="Fetch fresh data from all platforms">
                           <svg xmlns="http://www.w3.org/2000/svg"
                                class="h-4 w-4"
                                fill="none"
@@ -337,7 +336,9 @@
 
           if (refreshBtn) {
             refreshBtn.addEventListener('click', function() {
-              refreshBtn.classList.add('animate-spin', 'text-success');
+              const icon = refreshBtn.querySelector('svg');
+              if (icon) icon.classList.add('animate-spin');
+              refreshBtn.classList.add('text-success');
             });
           }
 
@@ -402,6 +403,9 @@
             }, 3000);
           }
 
+          // Expose showToast to window
+          window.showToast = showToast;
+
           // Updated Click-to-Copy Function
           window.copyError = function(text) {
             if (!text || text === 'None') return;
@@ -411,6 +415,17 @@
             }).catch(err => {
               console.error('Failed to copy: ', err);
               showToast("Failed to copy to clipboard", "error");
+            });
+          }
+
+          // Generic Copy to Clipboard Function
+          window.copyToClipboard = function(text, message = "Copied to clipboard!") {
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(() => {
+              showToast(message);
+            }).catch(err => {
+              console.error('Failed to copy: ', err);
+              showToast("Failed to copy", "error");
             });
           }
 

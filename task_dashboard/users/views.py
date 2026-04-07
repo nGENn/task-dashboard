@@ -28,6 +28,7 @@ from django_q.tasks import async_task
 
 # Models
 from task_dashboard.users.models import ExternalGroup
+from task_dashboard.users.models import GlobalSetting
 from task_dashboard.users.models import SavedView
 from task_dashboard.users.models import ServiceConfiguration
 from task_dashboard.users.models import ServicePermission
@@ -477,10 +478,14 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         selected_owners = request.GET.getlist("owner")
         query = request.GET.get("q", "").lower().strip()
 
-        # Apply default active states for 'my' and 'unassigned' views if no explicit
-        # state filter is active
-        if not selected_states and current_view in ["my", "unassigned"]:
-            selected_states = ["open", "pending", "new"]
+        # Apply default active states if no explicit state filter is active
+        if not selected_states:
+            global_settings = GlobalSetting.load()
+            selected_states = [
+                s.strip()
+                for s in global_settings.default_task_states.split(",")
+                if s.strip()
+            ]
 
         if selected_states:
             filtered_tasks = [t for t in filtered_tasks if t.status in selected_states]
@@ -598,6 +603,19 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 if val is None:
                     # For due_date (or any other sort), None values go to the end
                     return "zzzzzzzzzz" if not reverse else ""
+
+                # Special sorting for priority
+                if actual_field == "priority":
+                    p_val = str(val).lower()
+                    ranks = {
+                        "critical": "0",
+                        "high": "1",
+                        "medium": "2",
+                        "normal": "2",
+                        "low": "3",
+                    }
+                    return f"{ranks.get(p_val, '4')}_{p_val}"
+
                 return str(val).lower()
 
             filtered_tasks.sort(key=sort_key, reverse=reverse)
