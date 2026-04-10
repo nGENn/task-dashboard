@@ -142,3 +142,13 @@ def _calculate_global_status(results):
         "color": color,
         "max_latency": max_latency,
     }
+
+
+def theme(request):
+    """
+    Adds the current theme from cookies to the template context.
+    Defaults to 'system'.
+    """
+    return {
+        "theme": request.COOKIES.get("theme", "system"),
+    }
