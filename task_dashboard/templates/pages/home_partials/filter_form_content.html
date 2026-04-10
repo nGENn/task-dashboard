@@ -26,7 +26,8 @@
               <input type="checkbox"
                      name="origin"
                      value="{{ origin }}"
-                     class="checkbox checkbox-sm checkbox-primary filter-checkbox" />
+                     class="checkbox checkbox-sm checkbox-primary filter-checkbox"
+                     {% if origin in applied_filters.origins %}checked{% endif %} />
               <span class="text-sm whitespace-nowrap">{{ origin }}</span>
             </label>
           </li>
@@ -59,7 +60,8 @@
               <input type="checkbox"
                      name="customer"
                      value="{{ customer }}"
-                     class="checkbox checkbox-sm checkbox-primary filter-checkbox" />
+                     class="checkbox checkbox-sm checkbox-primary filter-checkbox"
+                     {% if customer in applied_filters.customers %}checked{% endif %} />
               <span class="text-sm whitespace-nowrap">{{ customer }}</span>
             </label>
           </li>
@@ -92,7 +94,8 @@
               <input type="checkbox"
                      name="group"
                      value="{{ group }}"
-                     class="checkbox checkbox-sm checkbox-primary filter-checkbox" />
+                     class="checkbox checkbox-sm checkbox-primary filter-checkbox"
+                     {% if group in applied_filters.groups %}checked{% endif %} />
               <span class="text-sm whitespace-nowrap">{{ group }}</span>
             </label>
           </li>
@@ -125,7 +128,8 @@
               <input type="checkbox"
                      name="owner"
                      value="{{ owner }}"
-                     class="checkbox checkbox-sm checkbox-primary filter-checkbox" />
+                     class="checkbox checkbox-sm checkbox-primary filter-checkbox"
+                     {% if owner in applied_filters.owners %}checked{% endif %} />
               <span class="text-sm whitespace-nowrap">{{ owner }}</span>
             </label>
           </li>
@@ -158,7 +162,8 @@
               <input type="checkbox"
                      name="state"
                      value="{{ state }}"
-                     class="checkbox checkbox-sm checkbox-primary filter-checkbox" />
+                     class="checkbox checkbox-sm checkbox-primary filter-checkbox"
+                     {% if state in applied_filters.states %}checked{% endif %} />
               <span class="text-sm whitespace-nowrap capitalize">{{ state }}</span>
             </label>
           </li>
@@ -191,7 +196,8 @@
               <input type="checkbox"
                      name="priority"
                      value="{{ priority }}"
-                     class="checkbox checkbox-sm checkbox-primary filter-checkbox" />
+                     class="checkbox checkbox-sm checkbox-primary filter-checkbox"
+                     {% if priority in applied_filters.priorities %}checked{% endif %} />
               <span class="text-sm whitespace-nowrap capitalize">{{ priority }}</span>
             </label>
           </li>

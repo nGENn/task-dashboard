@@ -831,6 +831,17 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             },
         ]
 
+        # Add applied filters to context for UI reflection
+        context["applied_filters"] = {
+            "states": selected_states,
+            "owners": selected_owners,
+            "origins": request.GET.getlist("origin"),
+            "customers": request.GET.getlist("customer"),
+            "groups": request.GET.getlist("group"),
+            "priorities": request.GET.getlist("priority"),
+            "q": query,
+        }
+
         return context
 
 
