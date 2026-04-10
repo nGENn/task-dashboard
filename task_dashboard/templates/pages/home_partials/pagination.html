@@ -1,7 +1,9 @@
+{% load dashboard_extras %}
+
 <div class="flex items-center justify-center p-4 border-t border-base-300 bg-base-100">
   <div class="join">
     {% if tasks.has_previous %}
-      <button hx-get="?page={{ tasks.previous_page_number }}"
+      <button hx-get="?{% url_replace page=tasks.previous_page_number %}"
               hx-target="#task-results"
               hx-swap="outerHTML"
               hx-push-url="true"
@@ -15,7 +17,7 @@
       {% elif page_num == tasks.number %}
         <button class="join-item btn btn-sm btn-active">{{ page_num }}</button>
       {% else %}
-        <button hx-get="?page={{ page_num }}"
+        <button hx-get="?{% url_replace page=page_num %}"
                 hx-target="#task-results"
                 hx-swap="outerHTML"
                 hx-push-url="true"
@@ -23,7 +25,7 @@
       {% endif %}
     {% endfor %}
     {% if tasks.has_next %}
-      <button hx-get="?page={{ tasks.next_page_number }}"
+      <button hx-get="?{% url_replace page=tasks.next_page_number %}"
               hx-target="#task-results"
               hx-swap="outerHTML"
               hx-push-url="true"
