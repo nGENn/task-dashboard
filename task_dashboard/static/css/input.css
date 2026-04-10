@@ -4,32 +4,3 @@
 @source not "./daisyui{,*}.mjs";
 
 @plugin "./daisyui.mjs";
-
-@layer components {
-  .resizer {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 4px;
-    cursor: col-resize;
-    user-select: none;
-    height: 100%;
-    z-index: 10;
-    transition: background-color 0.2s;
-  }
-
-  .resizer:hover,
-  .resizer.resizing {
-    background-color: var(--color-primary);
-    width: 4px;
-  }
-
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-}
