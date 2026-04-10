@@ -6,7 +6,8 @@
       hx-get="."
       hx-target="#task-results"
       hx-swap="outerHTML"
-      hx-push-url="true">
+      hx-push-url="true"
+      hx-on::config-request="for (let key in event.detail.parameters) if (event.detail.parameters[key] === '') delete event.detail.parameters[key]">
   <input type="hidden" name="view" value="all" />
   {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}" />{% endif %}
   {% if request.GET.direction %}<input type="hidden" name="direction" value="{{ request.GET.direction }}" />{% endif %}
@@ -30,48 +31,8 @@
       </div>
     </div>
   </div>
-  <div role="tablist" class="tabs mb-2">
-    <!-- All Tasks -->
-    <a role="tab"
-       class="tab tooltip tooltip-bottom {% if current_view == 'all' %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
-       data-tip="All sources unfiltered"
-       href="?view=all">All Tasks</a>
-    <!-- Default Views -->
-    {% for view in default_views %}
-      <a role="tab"
-         class="tab tooltip tooltip-bottom {% if current_view == view.view_param %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
-         data-tip="{{ view.description }}"
-         href="{{ view.url }}">{{ view.name }}</a>
-    {% endfor %}
-    <!-- Saved Views -->
-    {% for view in saved_views %}
-      {% is_active_view request.GET view.params as active %}
-      <div class="relative flex items-center group">
-        <a role="tab"
-           class="tab pr-8 tooltip tooltip-bottom {% if active %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
-           data-tip="Custom saved filter: {{ view.name }}"
-           href="{{ view.url }}">{{ view.name }}</a>
-        <button type="button"
-                onclick="deleteView({{ view.id }})"
-                class="absolute right-2 z-20 {% if active %}opacity-100{% else %}opacity-0 group-hover:opacity-100{% endif %} hover:text-error transition-all"
-                title="Delete View">
-          <svg xmlns="http://www.w3.org/2000/svg"
-               class="h-4 w-4"
-               fill="none"
-               viewBox="0 0 24 24"
-               stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-    {% endfor %}
-    <!-- Add View Button -->
-    <button type="button"
-            role="tab"
-            class="tab tooltip tooltip-bottom"
-            data-tip="Save current filters as a custom view"
-            onclick="save_view_modal.showModal()">+</button>
-  </div>
+  <!-- View Tabs -->
+  {% include "pages/home_partials/tabs.html" %}
   <!-- Filter Form Content -->
   {% include "pages/home_partials/filter_form_content.html" %}
 </form>

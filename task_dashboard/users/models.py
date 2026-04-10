@@ -269,6 +269,45 @@ class ServicePermission(models.Model):
         )
 
 
+def compare_query_params(request_get, target_params) -> bool:
+    """
+    Core logic to compare a QueryDict (request_get) with a target dict of params.
+    """
+    if not isinstance(target_params, dict):
+        return False
+
+    # Parameters to ignore when comparing active view
+    ignore_params = {"page", "sort", "direction", "refresh", "csrfmiddlewaretoken"}
+
+    # Normalize request_get to a dict of sorted lists
+    req_dict = {}
+    for key in request_get:
+        if key not in ignore_params:
+            req_dict[key] = sorted(request_get.getlist(key))
+
+    # Normalize target_params to a dict of sorted lists
+    tp_dict = {}
+    for key, value in target_params.items():
+        if key not in ignore_params:
+            if isinstance(value, list):
+                tp_dict[key] = sorted([str(v) for v in value])
+            else:
+                tp_dict[key] = [str(value)]
+
+    # Normalize 'view' parameter: treat 'all' as equivalent to missing/empty
+    # this helps match views saved with or without the explicit 'view=all'
+    for d in [req_dict, tp_dict]:
+        if "view" in d and (d["view"] == ["all"] or d["view"] == []):
+            del d["view"]
+
+    # Clean up other empty values: remove anything that is just [""] or []
+    # This ensures that empty filters match whether they are missing or empty.
+    req_dict = {k: v for k, v in req_dict.items() if v not in ([""], [])}
+    tp_dict = {k: v for k, v in tp_dict.items() if v not in ([""], [])}
+
+    return req_dict == tp_dict
+
+
 class SavedView(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -290,8 +329,14 @@ class SavedView(models.Model):
     def __str__(self):
         return f"{self.user.email} - {self.name}"
 
+    def matches_params(self, request_get) -> bool:
+        """
+        Compares request_get (QueryDict) with this view's query_params.
+        Returns True if they match (ignoring order and specific params like page/sort).
+        """
+        return compare_query_params(request_get, self.query_params)
+
     def get_query_string(self) -> str:
-        """Returns the query parameters as a URL-encoded string."""
         qd = QueryDict(mutable=True)
         for key, value in self.query_params.items():
             if isinstance(value, list):

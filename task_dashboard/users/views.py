@@ -190,7 +190,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
     def get_template_names(self):
         if getattr(self.request, "htmx", False):
-            return ["pages/home_partials/table_and_pagination.html"]
+            return ["pages/home_partials/htmx_dashboard_response.html"]
         return [self.template_name]
 
     def get(self, request, *args, **kwargs):
@@ -807,15 +807,26 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         # 10. SAVED VIEWS
         saved_views = SavedView.objects.filter(user=self.request.user)
-        context["saved_views"] = [
-            {
-                "id": v.id,
-                "name": v.name,
-                "params": v.query_params,
-                "url": f"?{v.get_query_string()}",
-            }
-            for v in saved_views
-        ]
+        active_saved_view_id = None
+        context_saved_views = []
+
+        for v in saved_views:
+            is_active = v.matches_params(request.GET)
+            if is_active:
+                active_saved_view_id = v.id
+
+            context_saved_views.append(
+                {
+                    "id": v.id,
+                    "name": v.name,
+                    "params": v.query_params,
+                    "url": f"?{v.get_query_string()}",
+                    "is_active": is_active,
+                }
+            )
+
+        context["saved_views"] = context_saved_views
+        context["active_saved_view_id"] = active_saved_view_id
         context["default_views"] = [
             {
                 "name": "My Tasks",

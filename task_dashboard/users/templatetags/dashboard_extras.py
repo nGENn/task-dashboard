@@ -3,6 +3,8 @@ import datetime
 from django import template
 from django.utils import timezone
 
+from task_dashboard.users.models import compare_query_params
+
 register = template.Library()
 
 
@@ -64,32 +66,7 @@ def is_active_view(request_get, view_params):
     Compares request.GET (QueryDict) with view_params (dict).
     Returns True if they match (ignoring order and specific params like page/sort).
     """
-    if not isinstance(view_params, dict):
-        return False
-
-    # Parameters to ignore when comparing active view
-    ignore_params = {"page", "sort", "direction"}
-
-    # Normalize request_get to a dict of sorted lists
-    req_dict = {}
-    for key in request_get:
-        if key not in ignore_params:
-            req_dict[key] = sorted(request_get.getlist(key))
-
-    # Normalize view_params to a dict of sorted lists
-    vp_dict = {}
-    for key, value in view_params.items():
-        if key not in ignore_params:
-            if isinstance(value, list):
-                vp_dict[key] = sorted([str(v) for v in value])
-            else:
-                vp_dict[key] = [str(value)]
-
-    # Clean up empty values
-    req_dict = {k: v for k, v in req_dict.items() if v != [""] or k in vp_dict}
-    vp_dict = {k: v for k, v in vp_dict.items() if v != [""]}
-
-    return req_dict == vp_dict
+    return compare_query_params(request_get, view_params)
 
 
 @register.filter

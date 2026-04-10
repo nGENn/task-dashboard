@@ -1,0 +1,7 @@
+{# Primary target update #}
+{% include "pages/home_partials/table_and_pagination.html" %}
+{# Out-of-Band (OOB) updates #}
+{% with is_htmx_oob=True %}
+  {% include "pages/home_partials/tabs.html" %}
+  {% include "pages/home_partials/stats_cards.html" %}
+{% endwith %}
