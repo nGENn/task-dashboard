@@ -294,7 +294,10 @@ ACCOUNT_ADAPTER = "task_dashboard.users.adapters.AccountAdapter"
 # login_failed: Block after 5 failed attempts in 5 minutes (300s)
 ACCOUNT_RATE_LIMITS = {"login_failed": "5/5m"}
 # https://docs.allauth.org/en/latest/account/forms.html
-ACCOUNT_FORMS = {"signup": "task_dashboard.users.forms.UserSignupForm"}
+ACCOUNT_FORMS = {
+    "signup": "task_dashboard.users.forms.UserSignupForm",
+    "login": "task_dashboard.users.forms.UserLoginForm",
+}
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
 SOCIALACCOUNT_ADAPTER = "task_dashboard.users.adapters.SocialAccountAdapter"
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
