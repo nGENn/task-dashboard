@@ -45,14 +45,14 @@ def _prepare_upsert_data(config, tasks_data):
         tasks_to_upsert[task_id] = Task(
             service=config,
             external_id=task_id,
-            title=task_dict.get("title", ""),
-            status=task_dict.get("status", ""),
-            priority=task_dict.get("priority", ""),
+            title=task_dict.get("title") or "",
+            status=task_dict.get("status") or "",
+            priority=task_dict.get("priority") or "",
             customer=task_dict.get("customer") or "",
-            group=task_dict.get("group", ""),
-            owner=task_dict.get("owner", ""),
-            owner_email=task_dict.get("owner_email", "") or "",
-            url=task_dict.get("url", ""),
+            group=task_dict.get("group") or "",
+            owner=task_dict.get("owner") or "",
+            owner_email=task_dict.get("owner_email") or "",
+            url=task_dict.get("url") or "",
             created_at=parse_dt(task_dict.get("created_at")),
             updated_at=parse_dt(task_dict.get("updated_at")),
             due_date=parse_dt(task_dict.get("due_date")),
@@ -63,7 +63,7 @@ def _prepare_upsert_data(config, tasks_data):
             groups_to_upsert[(config.name, group_name)] = ExternalGroup(
                 origin=config.name,
                 name=group_name,
-                extra_data=task_dict.get("extra_info", {}),
+                extra_data=task_dict.get("extra_info") or {},
             )
     return tasks_to_upsert, groups_to_upsert
 
