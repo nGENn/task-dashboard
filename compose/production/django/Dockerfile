@@ -7,14 +7,16 @@ WORKDIR /app
 # Install dependencies for downloading and running the standalone binary
 RUN apt-get update && apt-get install -y curl bash ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# Copy CSS source and relevant templates for Tailwind to scan
-COPY ./task_dashboard/static/css /app/task_dashboard/static/css
-COPY ./task_dashboard/templates /app/task_dashboard/templates
+# Copy project files for Tailwind to scan
+COPY ./task_dashboard /app/task_dashboard
+COPY ./pyproject.toml /app/pyproject.toml
 
 # Download Tailwind standalone binary and build the CSS
-# Using the command provided by the user
+# We preserve our input.css by copying it back after the script runs
 RUN cd task_dashboard/static/css && \
+    cp input.css input.css.bak && \
     curl -sL daisyui.com/fast | bash && \
+    mv input.css.bak input.css && \
     ./tailwindcss -i input.css -o output.css --minify
 
 # define an alias for the specific python version used in this file.
@@ -28,10 +30,9 @@ WORKDIR ${APP_HOME}
 
 # Install apt packages
 RUN apt-get update && apt-get install --no-install-recommends -y \
-  # dependencies for building Python packages
   build-essential \
-  # psycopg dependencies
-  libpq-dev
+  libpq-dev \
+  && rm -rf /var/lib/apt/lists/*
 
 
 # Requirements are installed here to ensure they will be cached.
