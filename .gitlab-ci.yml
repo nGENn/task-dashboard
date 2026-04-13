@@ -88,8 +88,20 @@ pytest:
     DATABASE_URL: "postgres://task_dashboard:password@postgres:5432/test_task_dashboard"
     DJANGO_SECRET_KEY: "test-key"
     DJANGO_SETTINGS_MODULE: "config.settings.test"
+    # Ensure the DB is created by the service itself if needed
+    POSTGRES_DB: 'test_task_dashboard'
   script:
     - uv sync --frozen
+    # Wait for postgres to be ready
+    - |
+      for i in $(seq 1 30); do
+        if uv run python -c "import psycopg; psycopg.connect('$DATABASE_URL')"; then
+          echo "Database is ready!"
+          break
+        fi
+        echo "Waiting for database..."
+        sleep 1
+      done
     - uv run pytest --junitxml=report.xml --cov=task_dashboard --cov-report=xml --cov-report=term-missing
   coverage: '/TOTAL.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
