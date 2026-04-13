@@ -2,6 +2,8 @@ workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH
 
 default:
   image:
@@ -113,6 +115,23 @@ django_check:
     - uv sync --frozen
     - uv run python manage.py makemigrations --check --dry-run
     - uv run python manage.py check --deploy
+
+check_version_bump:
+  stage: test
+  needs: []
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - PR_VERSION=$(grep -m 1 '^version = "' pyproject.toml | cut -d '"' -f 2)
+    - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --depth=1
+    - MAIN_VERSION=$(git show "origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME:pyproject.toml" | grep -m 1 '^version = "' | cut -d '"' -f 2)
+    - 'echo "PR version: $PR_VERSION | Target version: $MAIN_VERSION"'
+    - |
+      if [ "$(printf '%s\n' "$MAIN_VERSION" "$PR_VERSION" | sort -V | head -n1)" != "$MAIN_VERSION" ] || [ "$PR_VERSION" = "$MAIN_VERSION" ]; then
+        echo "❌ Version must be bumped in pyproject.toml!"
+        exit 1
+      fi
+  allow_failure: false
 
 # ---------------------------------------------------------------------------
 # SECURITY STAGE: Proactive vulnerability scanning
