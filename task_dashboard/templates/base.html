@@ -92,7 +92,10 @@
           }
           syncFlatpickrTheme();
           new MutationObserver(syncFlatpickrTheme).observe(
-            document.documentElement, {attributes: true, attributeFilter: ['data-theme']}
+            document.documentElement, {
+              attributes: true,
+              attributeFilter: ['data-theme']
+            }
           );
         })();
       </script>
@@ -260,20 +263,29 @@
             {% get_available_languages as LANGUAGES %}
             {% get_current_language as LANGUAGE_CODE %}
             <div class="dropdown dropdown-end">
-              <div tabindex="0" role="button" class="btn btn-ghost btn-sm btn-square flex items-center justify-center gap-0.5" title="{% trans 'Change Language' %}">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div tabindex="0"
+                   role="button"
+                   class="btn btn-ghost btn-sm btn-square flex items-center justify-center gap-0.5"
+                   title="{% trans 'Change Language' %}">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     class="h-3.5 w-3.5"
+                     fill="none"
+                     viewBox="0 0 24 24"
+                     stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span class="uppercase text-xs font-semibold">{{ LANGUAGE_CODE }}</span>
               </div>
-              <ul tabindex="0" class="dropdown-content z-[100] menu p-1 shadow-xl bg-base-100 rounded-box w-auto min-w-max border border-base-300 mt-2">
+              <ul tabindex="0"
+                  class="dropdown-content z-[100] menu p-1 shadow-xl bg-base-100 rounded-box w-auto min-w-max border border-base-300 mt-2">
                 {% for lang in LANGUAGES %}
                   <li>
                     <form action="{% url 'set_language' %}" method="post" class="w-full">
                       {% csrf_token %}
-                      <input name="next" type="hidden" value="{{ request.path }}">
-                      <input name="language" type="hidden" value="{{ lang.0 }}">
-                      <button type="submit" class="w-full text-left bg-transparent border-none px-3 py-2 hover:bg-base-200 transition-colors rounded-md text-sm {% if lang.0 == LANGUAGE_CODE %}font-bold text-primary{% else %}text-base-content{% endif %}">
+                      <input name="next" type="hidden" value="{{ request.path }}" />
+                      <input name="language" type="hidden" value="{{ lang.0 }}" />
+                      <button type="submit"
+                              class="w-full text-left bg-transparent border-none px-3 py-2 hover:bg-base-200 transition-colors rounded-md text-sm {% if lang.0 == LANGUAGE_CODE %}font-bold text-primary{% else %}text-base-content{% endif %}">
                         {{ lang.1 }}
                       </button>
                     </form>

@@ -2,23 +2,23 @@
 {% load i18n %}
 <style>
   /* Flatpickr Lavender Override */
-  .flatpickr-calendar .flatpickr-day.selected, 
-  .flatpickr-calendar .flatpickr-day.startRange, 
-  .flatpickr-calendar .flatpickr-day.endRange, 
-  .flatpickr-calendar .flatpickr-day.selected.inRange, 
-  .flatpickr-calendar .flatpickr-day.startRange.inRange, 
+  .flatpickr-calendar .flatpickr-day.selected,
+  .flatpickr-calendar .flatpickr-day.startRange,
+  .flatpickr-calendar .flatpickr-day.endRange,
+  .flatpickr-calendar .flatpickr-day.selected.inRange,
+  .flatpickr-calendar .flatpickr-day.startRange.inRange,
   .flatpickr-calendar .flatpickr-day.endRange.inRange,
-  .flatpickr-calendar .flatpickr-day.selected:focus, 
-  .flatpickr-calendar .flatpickr-day.startRange:focus, 
-  .flatpickr-calendar .flatpickr-day.endRange:focus, 
-  .flatpickr-calendar .flatpickr-day.selected:hover, 
-  .flatpickr-calendar .flatpickr-day.startRange:hover, 
-  .flatpickr-calendar .flatpickr-day.endRange:hover, 
-  .flatpickr-calendar .flatpickr-day.selected.prevMonthDay, 
-  .flatpickr-calendar .flatpickr-day.startRange.prevMonthDay, 
-  .flatpickr-calendar .flatpickr-day.endRange.prevMonthDay, 
-  .flatpickr-calendar .flatpickr-day.selected.nextMonthDay, 
-  .flatpickr-calendar .flatpickr-day.startRange.nextMonthDay, 
+  .flatpickr-calendar .flatpickr-day.selected:focus,
+  .flatpickr-calendar .flatpickr-day.startRange:focus,
+  .flatpickr-calendar .flatpickr-day.endRange:focus,
+  .flatpickr-calendar .flatpickr-day.selected:hover,
+  .flatpickr-calendar .flatpickr-day.startRange:hover,
+  .flatpickr-calendar .flatpickr-day.endRange:hover,
+  .flatpickr-calendar .flatpickr-day.selected.prevMonthDay,
+  .flatpickr-calendar .flatpickr-day.startRange.prevMonthDay,
+  .flatpickr-calendar .flatpickr-day.endRange.prevMonthDay,
+  .flatpickr-calendar .flatpickr-day.selected.nextMonthDay,
+  .flatpickr-calendar .flatpickr-day.startRange.nextMonthDay,
   .flatpickr-calendar .flatpickr-day.endRange.nextMonthDay {
       background: var(--color-primary, #b4befe) !important;
       background-color: var(--color-primary, #b4befe) !important;
@@ -26,11 +26,11 @@
       color: var(--color-base-100, #1e1e2e) !important;
   }
 
-  .flatpickr-calendar .flatpickr-day:hover, 
-  .flatpickr-calendar .flatpickr-day.prevMonthDay:hover, 
-  .flatpickr-calendar .flatpickr-day.nextMonthDay:hover, 
-  .flatpickr-calendar .flatpickr-day:focus, 
-  .flatpickr-calendar .flatpickr-day.prevMonthDay:focus, 
+  .flatpickr-calendar .flatpickr-day:hover,
+  .flatpickr-calendar .flatpickr-day.prevMonthDay:hover,
+  .flatpickr-calendar .flatpickr-day.nextMonthDay:hover,
+  .flatpickr-calendar .flatpickr-day:focus,
+  .flatpickr-calendar .flatpickr-day.prevMonthDay:focus,
   .flatpickr-calendar .flatpickr-day.nextMonthDay:focus,
   .flatpickr-calendar .flatpickr-day.today {
       color: var(--color-primary, #b4befe) !important;
@@ -72,6 +72,11 @@
             onChange: function(selectedDates, dateStr, instance) {
               if (hiddenInput) {
                 hiddenInput.value = dateStr;
+                if (dateStr) {
+                  hiddenInput.setAttribute('name', picker.name);
+                } else {
+                  hiddenInput.removeAttribute('name');
+                }
               }
               updateBadges();
             },
@@ -84,7 +89,7 @@
     window.reinitializeUI = function(isHtmxUpdate=false, targetId=null) {
       if (!isHtmxUpdate || targetId === 'task-results') {
         initTableResizers();
-        
+
         // Ghost Exorcism: clear draft filters when a search query is active
         const currentParams = new URLSearchParams(window.location.search);
         if (currentParams.get('q') && currentParams.get('q').trim()) {
@@ -92,7 +97,10 @@
           if (window.datePickersConfigList) {
             window.datePickersConfigList.forEach(picker => {
               const input = document.getElementById(picker.inputId);
-              if (input) input.value = '';
+              if (input) {
+                input.value = '';
+                input.removeAttribute('name');
+              }
               const box = document.getElementById(picker.boxId);
               if (box && box._flatpickr) box._flatpickr.clear();
             });
@@ -105,6 +113,9 @@
       // Tooltip Sync: Fix stuck DaisyUI CSS tooltips on touch/click after OOB swaps.
       // This ensures "Refresh" and "Copy" pseudo-element tooltips don't get stuck.
       document.querySelectorAll('.tooltip').forEach(tooltip => {
+        // Dropdown UX Fix: Do not blur if the tooltip is part of a dropdown container
+        if (tooltip.classList.contains('dropdown') || tooltip.closest('.dropdown')) return;
+
         // Blur the active element when mouse leaves to hide pseudo-element tooltips
         tooltip.addEventListener('mouseleave', function() {
           if (document.activeElement && document.activeElement !== document.body) {
@@ -137,10 +148,12 @@
       if (checkbox) checkbox.checked = true;
     });
 
-    // 3. Listen for changes on ALL checkboxes
-    const checkboxes = document.querySelectorAll(".filter-checkbox");
-    checkboxes.forEach((box) => {
-      box.addEventListener("change", updateBadges);
+    // 3. Listen for changes on ALL checkboxes using event delegation
+    // This ensures that checkboxes added via HTMX OOB swaps are also tracked.
+    document.addEventListener("change", function(event) {
+      if (event.target && event.target.classList.contains("filter-checkbox")) {
+        updateBadges();
+      }
     });
 
     // Define filter clearing logic
@@ -151,7 +164,10 @@
       if (window.datePickersConfigList) {
         window.datePickersConfigList.forEach(picker => {
           const input = document.getElementById(picker.inputId);
-          if (input) input.value = '';
+          if (input) {
+            input.value = '';
+            input.removeAttribute('name');
+          }
           const box = document.getElementById(picker.boxId);
           if (box && box._flatpickr) box._flatpickr.clear();
         });
@@ -172,6 +188,21 @@
       existingBadges.forEach((b) => b.remove());
 
       let hasFilters = false;
+      const urlParams = new URLSearchParams(window.location.search);
+
+      // A1. Global Search query
+      const searchVal = urlParams.get("q");
+      if (searchVal && searchVal.trim()) {
+        hasFilters = true;
+        createBadge(
+          container,
+          "q",
+          searchVal,
+          `{% trans "Search" %}: <span class="ml-1 font-semibold">${searchVal}</span>`,
+          "badge-primary pr-0",
+          "{% trans 'Clear search query' %}"
+        );
+      }
 
       // A. Checkboxes
       const checkedBoxes = Array.from(document.querySelectorAll(".filter-checkbox:checked"));
@@ -300,15 +331,28 @@
 
     // Global function for the onclick event in the badge
     window.removeBadge = function(key, value) {
+      if (key === "q") {
+        const searchInput = document.querySelector('input[name="q"]');
+        if (searchInput) searchInput.value = "";
+        // Force form submission or page reload without q
+        const url = new URL(window.location.href);
+        url.searchParams.delete("q");
+        window.location.href = url.pathname + url.search;
+        return;
+      }
       if (["date_range", "updated_range", "due_range"].includes(key)) {
-        const pickerConfig = window.datePickersConfigList.find(p => p.name === key);
-        if (pickerConfig) {
-          const hiddenInput = document.getElementById(pickerConfig.inputId);
-          if (hiddenInput) hiddenInput.value = "";
-          const box = document.getElementById(pickerConfig.boxId);
-          if (box && box._flatpickr) box._flatpickr.clear();
-        }
+       const pickerConfig = window.datePickersConfigList.find(p => p.name === key);
+       if (pickerConfig) {
+         const hiddenInput = document.getElementById(pickerConfig.inputId);
+         if (hiddenInput) {
+           hiddenInput.value = "";
+           hiddenInput.removeAttribute("name");
+         }
+         const box = document.getElementById(pickerConfig.boxId);
+         if (box && box._flatpickr) box._flatpickr.clear();
+       }
       } else {
+
         if (value === 'all') {
           // Uncheck all checkboxes for this group
           const checkboxes = document.querySelectorAll(

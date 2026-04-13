@@ -1,9 +1,5 @@
 <div id="task-results"
-     {% if not request.htmx %}
-     hx-get="{{ request.get_full_path }}"
-     hx-trigger="load"
-     hx-swap="innerHTML"
-     {% endif %}>
+     {% if not request.htmx %}hx-get="{{ request.get_full_path }}" hx-trigger="load" hx-swap="innerHTML"{% endif %}>
   <progress id="loading-spinner"
             class="htmx-indicator progress progress-primary w-full h-1"></progress>
   {% include "users/partials/tasks_table.html" %}

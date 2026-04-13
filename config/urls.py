@@ -13,7 +13,11 @@ urlpatterns = [
     path("", DashboardView.as_view(perspective="home"), name="home"),
     path("my", DashboardView.as_view(perspective="my"), name="my_tasks"),
     path("all", DashboardView.as_view(perspective="all"), name="all_tasks"),
-    path("unassigned", DashboardView.as_view(perspective="unassigned"), name="unassigned_tasks"),
+    path(
+        "unassigned",
+        DashboardView.as_view(perspective="unassigned"),
+        name="unassigned_tasks",
+    ),
     path(
         "about/",
         TemplateView.as_view(template_name="pages/about.html"),

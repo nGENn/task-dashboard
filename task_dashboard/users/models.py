@@ -6,6 +6,9 @@ from django.contrib.auth.models import Group
 from django.db import models
 from django.db.models import CharField
 from django.db.models import EmailField
+from django.db.models import F
+from django.db.models import Value
+from django.db.models.functions import Concat
 from django.http import QueryDict
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -37,10 +40,10 @@ class User(AbstractUser):
         """Get URL for user's detail view.
 
         Returns:
-            str: URL for home.
+            str: URL for individual user profile.
 
         """
-        return reverse("home")
+        return reverse("users:detail", kwargs={"pk": self.pk})
 
 
 ACCESS_LEVEL_CHOICES = [
@@ -277,7 +280,14 @@ def compare_query_params(request_get, target_params) -> bool:
         return False
 
     # Parameters to ignore when comparing active view
-    ignore_params = {"page", "sort", "direction", "refresh", "csrfmiddlewaretoken", "view"}
+    ignore_params = {
+        "page",
+        "sort",
+        "direction",
+        "refresh",
+        "csrfmiddlewaretoken",
+        "view",
+    }
 
     # Normalize request_get to a dict of sorted lists
     req_dict = {}
@@ -293,8 +303,6 @@ def compare_query_params(request_get, target_params) -> bool:
                 tp_dict[key] = sorted([str(v) for v in value])
             else:
                 tp_dict[key] = [str(value)]
-
-
 
     # Clean up other empty values: remove anything that is just [""] or []
     # This ensures that empty filters match whether they are missing or empty.
@@ -342,9 +350,6 @@ class SavedView(models.Model):
                 qd[key] = value
         return qd.urlencode()
 
-
-from django.db.models import F, Value
-from django.db.models.functions import Concat
 
 class Task(models.Model):
     external_id = models.CharField(max_length=255)

@@ -1,21 +1,13 @@
 {% load dashboard_extras i18n %}
 
 <form method="get"
-      action="/all"
+      action="{% url 'all_tasks' %}"
       class="mb-4"
-      hx-get="/all"
+      hx-get="{% url 'all_tasks' %}"
       hx-target="#task-results"
       hx-swap="outerHTML"
       hx-push-url="true"
-      hx-on::config-request="
-        const p = event.detail.parameters;
-        // Remove empty values
-        for (let key in p) if (p[key] === '') delete p[key];
-        // Global search: strip all filter params when q is active
-        if (p.q && p.q.trim()) {
-          ['state','owner','origin','customer','group','priority','date_range','updated_range','due_range'].forEach(k => delete p[k]);
-        }
-      ">
+      hx-on::config-request=" const p = event.detail.parameters; // Remove empty values for (let key in p) if (p[key] === '') delete p[key]; // Global search: strip all filter params when q is active if (p.q && p.q.trim()) { ['state','owner','origin','customer','group','priority','date_range','updated_range','due_range'].forEach(k => delete p[k]); } ">
   {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}" />{% endif %}
   {% if request.GET.direction %}<input type="hidden" name="direction" value="{{ request.GET.direction }}" />{% endif %}
   <div class="form-control w-full md:w-1/3 mb-2">
@@ -60,7 +52,8 @@
       <form method="dialog">
         <button class="btn btn-ghost">{% trans "Cancel" %}</button>
       </form>
-      <div class="tooltip tooltip-left" data-tip="{% trans 'Click to save these filters' %}">
+      <div class="tooltip tooltip-left"
+           data-tip="{% trans 'Click to save these filters' %}">
         <button type="button" class="btn btn-primary" onclick="saveView()">{% trans 'Save View' %}</button>
       </div>
     </div>

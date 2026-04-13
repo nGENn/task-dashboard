@@ -122,8 +122,7 @@ def fetch_service_tasks(config_id: int):
 
             # Map the ExternalGroup objects to names for linking
             group_map = {
-                g.name: g
-                for g in ExternalGroup.objects.filter(origin=config.name)
+                g.name: g for g in ExternalGroup.objects.filter(origin=config.name)
             }
 
             # Prepare Task objects with service_group linked
@@ -162,20 +161,25 @@ def fetch_service_tasks(config_id: int):
                     .delete()
                 )
                 if deleted_count:
-                    logger.info("Pruned %s stale tasks for %s", deleted_count, config.name)
+                    logger.info(
+                        "Pruned %s stale tasks for %s", deleted_count, config.name
+                    )
             elif tasks_data:
                 # If we got tasks back but they were all invalid or filtered out,
                 # but the request itself SUCCEEDED (non-empty tasks_data list),
                 # we should still prune existing tasks.
                 deleted_count, _ = Task.objects.filter(service=config).delete()
                 if deleted_count:
-                    logger.info("Pruned %s stale tasks for %s", deleted_count, config.name)
+                    logger.info(
+                        "Pruned %s stale tasks for %s", deleted_count, config.name
+                    )
             else:
                 # Request returned 0 tasks or was empty.
                 # SAFEGUARD: To avoid fluctuation, only prune if we are sure the service
                 # returned a valid empty response, not an error.
                 logger.warning(
-                    "Service %s returned 0 results. Skipping pruning to prevent fluctuation.",
+                    "Service %s returned 0 results. "
+                    "Skipping pruning to prevent fluctuation.",
                     config.name,
                 )
 

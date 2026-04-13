@@ -1,17 +1,17 @@
-import os
-import django
-
 # We are in manage.py shell, so django is already set up.
 from task_dashboard.users.models import Task
 
-messy_owners = Task.objects.exclude(owner__isnull=True).values_list('owner', 'owner_email')
+messy_owners = Task.objects.exclude(owner__isnull=True).values_list(
+    "owner", "owner_email"
+)
 
 all_messy = set()
 for o, e in messy_owners:
-    if o: all_messy.add(o)
-    if e: all_messy.add(e)
+    if o:
+        all_messy.add(o)
+    if e:
+        all_messy.add(e)
 
-print("--- TOP MESSY STRINGS ---")
 results = []
 for m in all_messy:
     score = m.count(",") * 5 + m.count(" ") + (20 if m.strip().endswith(".") else 0)
@@ -19,5 +19,5 @@ for m in all_messy:
         results.append((score, m))
 
 results.sort(reverse=True, key=lambda x: x[0])
-for s, m in results[:10]:
-    print(f"[{s}] '{m}'")
+for _s, _m in results[:10]:
+    pass

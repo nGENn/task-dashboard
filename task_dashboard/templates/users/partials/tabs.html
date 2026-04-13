@@ -1,4 +1,5 @@
 {% load i18n %}
+
 <div id="tabs-container"
      role="tablist"
      class="tabs mb-2"
@@ -7,7 +8,7 @@
   <a role="tab"
      class="tab tooltip tooltip-bottom {% if current_view == 'all' and not active_saved_view_id %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
      data-tip="{% trans 'All sources unfiltered' %}"
-     href="/all">{% trans "All Tasks" %}</a>
+     href="{% url 'all_tasks' %}">{% trans "All Tasks" %}</a>
   <!-- Default Views -->
   {% for view in default_views %}
     <a role="tab"
