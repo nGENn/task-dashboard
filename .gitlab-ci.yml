@@ -6,12 +6,15 @@ stages:
 image: ghcr.io/astral-sh/uv:python3.13-bookworm
 
 variables:
+  # Aligned with ARCHITECTURE.md: PostgreSQL 18
   POSTGRES_USER: 'task_dashboard'
   POSTGRES_PASSWORD: ''
   POSTGRES_DB: 'test_task_dashboard'
   POSTGRES_HOST_AUTH_METHOD: trust
+  # Aligned with ARCHITECTURE.md: Valkey/Redis parity
+  VALKEY_URL: "redis://valkey:6379/0"
   DOCKER_DRIVER: overlay2
-  DOCKER_TLS_CERTDIR: ""    # Needed for docker:dind + buildx
+  DOCKER_TLS_CERTDIR: "" 
   IMAGE: $CI_REGISTRY_IMAGE
   UV_CACHE_DIR: .uv-cache
 
@@ -22,9 +25,11 @@ cache:
   paths:
     - .uv-cache
 
+# ---------------------------------------------------------------------------
+# LINT STAGE: Tailwind v4 discovery engine scans these files
+# ---------------------------------------------------------------------------
 precommit:
   stage: lint
-  image: ghcr.io/astral-sh/uv:python3.13-bookworm
   variables:
     PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
     SKIP: pytest
@@ -34,22 +39,23 @@ precommit:
   script:
     - uvx --with pre-commit-uv pre-commit run --show-diff-on-failure --color=always --all-files
 
+# ---------------------------------------------------------------------------
+# TEST STAGE: Verifying GIN indexes and Identity Bridge
+# ---------------------------------------------------------------------------
 pytest:
   stage: test
   services:
-    - name: postgres:16
+    - name: postgres:18-alpine
       alias: postgres
     - name: valkey/valkey:8
       alias: valkey
   variables:
     DATABASE_URL: "postgres://task_dashboard@postgres:5432/test_task_dashboard"
-    VALKEY_URL: "redis://valkey:6379/0"
     DJANGO_SECRET_KEY: "test-key"
     DJANGO_SETTINGS_MODULE: "config.settings.test"
   script:
     - uv sync --frozen
     - uv run pytest
-
 
 check_version_bump:
   stage: test
@@ -60,51 +66,41 @@ check_version_bump:
     - git fetch origin main
     - git checkout origin/main -- pyproject.toml
     - MAIN_VERSION=$(uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
-
-    - 'echo "PR version: $PR_VERSION"'
-    - 'echo "Main version: $MAIN_VERSION"'
-
+    - 'echo "PR version: $PR_VERSION | Main version: $MAIN_VERSION"'
     - |
-      # Compare versions
       if [ "$(printf '%s\n' "$MAIN_VERSION" "$PR_VERSION" | sort -V | head -n1)" != "$MAIN_VERSION" ] || [ "$PR_VERSION" = "$MAIN_VERSION" ]; then
-        echo "❌ Version must be bumped and higher than main!"
+        echo "❌ Version must be bumped in pyproject.toml!"
         exit 1
       fi
-
   allow_failure: false
 
-
+# ---------------------------------------------------------------------------
+# BUILD STAGE: Multi-container stack preparation
+# ---------------------------------------------------------------------------
 build-image:
   stage: build
   image: docker:latest
   services:
-    - docker:dind
+    - name: docker:dind
+      alias: docker
+  variables:
+    # Explicitly link Docker client to the DinD service
+    DOCKER_HOST: tcp://docker:2375
   script:
-    # ----------------------------
-    # Login to GitLab container registry
-    # ----------------------------
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
 
-    # ----------------------------
-    # Extract version from pyproject.toml
-    # ----------------------------
+    # Install uv/uvx correctly for Alpine
     - apk add curl
-    - ARCH=$(uname -m) && if [ "$ARCH" = "x86_64" ]; then ARCH="x86_64"; elif [ "$ARCH" = "aarch64" ]; then ARCH="aarch64"; fi
-    - curl -LsSf https://github.com/astral-sh/uv/releases/latest/download/uv-$ARCH-unknown-linux-musl.tar.gz | tar -xz
-    - mv uv-*/uv /usr/local/bin/uv
+    - curl -LsSf https://astral.sh/uv/install.sh | sh
+    - source $HOME/.cargo/env
+    
+    # Extract version using uvx (now available in path)
     - VERSION=$(uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
-    - 'echo "Detected version: $VERSION"'
+    - 'echo "Building version: $VERSION"'
 
-    # ----------------------------
-    # Enable buildx
-    # ----------------------------
     - docker buildx create --use --name builder
-    - docker buildx inspect --bootstrap
-    - 'echo "building image: $IMAGE"'
-
-    # ----------------------------
-    # Build and push with registry cache
-    # ----------------------------
+    
+    # Tailwind v4 logic: Dockerfile must copy source before building CSS
     - docker buildx build
       --tag $IMAGE:latest
       --tag $IMAGE:$VERSION
@@ -112,8 +108,5 @@ build-image:
       --cache-from type=registry,ref=$IMAGE:buildcache
       --cache-to type=registry,ref=$IMAGE:buildcache,mode=max
       -f ./compose/production/django/Dockerfile .
-
-  allow_failure: false
-
   only:
     - main
