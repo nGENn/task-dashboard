@@ -97,8 +97,20 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 USER django
 
-RUN DATABASE_URL="" \
-  DJANGO_SETTINGS_MODULE="config.settings.test" \
+RUN DATABASE_URL="postgres://localhost/dummy" \
+  DJANGO_SECRET_KEY="dummy" \
+  VALKEY_URL="redis://localhost:6379/0" \
+  SENTRY_DSN="https://dummy@sentry.io/1" \
+  DJANGO_SETTINGS_MODULE="config.settings.production" \
   python manage.py compilemessages
+
+RUN DATABASE_URL="postgres://localhost/dummy" \
+  DJANGO_SECRET_KEY="dummy" \
+  VALKEY_URL="redis://localhost:6379/0" \
+  SENTRY_DSN="https://dummy@sentry.io/1" \
+  DJANGO_SETTINGS_MODULE="config.settings.production" \
+  python manage.py collectstatic --noinput
+
+CMD ["/start"]
 
 ENTRYPOINT ["/entrypoint"]

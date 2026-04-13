@@ -1,26 +1,27 @@
+version: '3'
+
 volumes:
   production_postgres_data: {}
   production_postgres_data_backups: {}
-  production_traefik: {}
   production_django_media: {}
-
-
+  production_staticfiles: {}
 
 services:
   django:
     build:
       context: .
       dockerfile: ./compose/production/django/Dockerfile
-
     image: task_dashboard_production_django
     volumes:
       - production_django_media:/app/task_dashboard/media
+      - production_staticfiles:/app/staticfiles
     depends_on:
       - postgres
       - valkey
     env_file:
       - .env
     command: /start
+    restart: always
 
   postgres:
     build:
@@ -28,24 +29,25 @@ services:
       dockerfile: ./compose/production/postgres/Dockerfile
     image: task_dashboard_production_postgres
     volumes:
-      - production_postgres_data:/var/lib/postgresql/18/docker
+      - production_postgres_data:/var/lib/postgresql/data
       - production_postgres_data_backups:/backups
     env_file:
       - .env
+    restart: always
 
   valkey:
-    image: valkey/valkey:8
+    image: docker.io/valkey/valkey:8.0
     restart: always
 
   qcluster:
-    build:
-      context: .
-      dockerfile: ./compose/production/django/Dockerfile
     image: task_dashboard_production_django
     command: python manage.py qcluster
-    env_file: .env
+    env_file:
+      - .env
     depends_on:
       - postgres
       - valkey
     volumes:
       - production_django_media:/app/task_dashboard/media
+      - production_staticfiles:/app/staticfiles
+    restart: always

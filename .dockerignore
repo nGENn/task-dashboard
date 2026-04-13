@@ -12,8 +12,5 @@ venv
 .git
 .envs/
 
-# CSS Source Files
-task_dashboard/static/css/input.css
-task_dashboard/static/css/daisyui.mjs
-task_dashboard/static/css/daisyui-theme.mjs
-task_dashboard/static/css/tailwindcss
+# Keep CSS source files allowed for build context
+# (Modified by Antigravity)

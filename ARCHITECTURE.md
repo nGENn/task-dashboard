@@ -1,101 +1,59 @@
-# Task Dashboard Architecture Guide
+# Task Dashboard Architecture
 
-This document provides a technical overview of the Task Dashboard's internal architecture, focusing on the multi-service aggregation engine, the identity management system, and the state-based routing.
+This document provides a technical overview of the Task Dashboard's core pillars: **Identity Synchronization**, **Stateful Routing**, and **Asynchronous Performance**.
 
-## 1. System Overview
+## 1. The Identity Bridge (Core Logic)
 
-The Task Dashboard is a unified interface for tracking duties across heterogeneous service platforms (Zammad, GitLab, EspoCRM, Eramba, and OpenProject). It utilizes an asynchronous synchronization layer to pull tasks into a local PostgreSQL database, providing a low-latency, searchable view of all responsibilities.
+The primary challenge of this project is unifying disparate user identifiers from Zammad, GitLab, EspoCRM, and more into a single canonical view.
 
-### Stack
-- **Framework:** Django 5.x
-- **Database:** PostgreSQL 18 (with GIN indexes and GeneratedFields)
-- **Frontend:** HTMX, Tailwind CSS, DaisyUI
-- **Caching/Task Queue:** Valkey (High-performance Redis-compatible store)
-- **Background Tasks:** Django-Q2
+### Bag-of-Words Tokenization
+Instead of exact string matching, the system uses a **PostgreSQL-native tokenization engine**:
+1. **Normalization**: Identity strings (emails, names) are lowercased, unaccented, and transliterated (e.g., `ö` -> `oe`).
+2. **Tokenization**: Strings are split into alpha-numeric arrays using `regexp_split_to_array`.
+3. **Overlap Logic (`&&`)**: Filtering uses the Postgres array overlap operator. A match occurs if any search token exists in the task's identity array.
 
----
-
-## 2. The "Identity Bridge"
-
-The most complex component is the **Identity Bridge**, which unifies disparate user identifiers from various source systems into canonical Django users.
-
-### The Problem
-A single user might appear as:
-- `alice.alpha@example.com` (GitLab)
-- `Alice Alpha` (Zammad)
-- `alice.alpha` (EspoCRM)
-
-### The Solution: Bag-of-Words Tokenization
-Instead of exact string matching, the system uses a PostgreSQL-native "Bag-of-Words" overlap engine:
-
-1. **Tokenization:** Both the task owners in the database and the search criteria are normalized (lowercased, unaccented, and transliterated for umlauts) and split into arrays of alpha-numeric tokens.
-2. **Canonical Mapping:** The system builds a mapping in Python that determines the "Best Label" (usually an email address) for a group of related tokens.
-3. **Array Overlap (&&):** Filtering is performed using the Postgres `&&` operator. If any token from the search criteria exists in the task's identity array, it is considered a match.
-
-### GIN Indexing
-To maintain sub-millisecond performance on thousands of tasks, the system uses specialized GIN (Generalized Inverted Index) indexes on the results of the tokenization expressions:
-```sql
-CREATE INDEX idx_task_owner_array ON users_task USING GIN (
-    regexp_split_to_array(
-        unaccent(replace(replace(replace(lower(owner), 'ö', 'oe'), 'ä', 'ae'), 'ü', 'ue')),
-        '[^a-z0-9@.-]+'
-    )
-);
-```
+### GIN Performance
+To ensure sub-millisecond response times across thousands of tasks, specialized **GIN (Generalized Inverted Indexes)** are applied to the tokenized expressions, enabling high-performance reverse lookups.
 
 ---
 
-## 3. Routing Architecture
+## 2. Stateful Routing (HTMX & Perspectives)
 
-The dashboard uses **Perspective-Based Routing** to manage state across HTMX swaps while maintaining clean, bookmarkable URLs.
+The dashboard uses **Perspective-Based Routing** to manage complex filtering states while keeping URLs bookmarkable.
 
-- **`/my`**: Highlights "My Tasks". Automatically filters tasks assigned to the current user.
-- **`/unassigned`**: Highlights "Unassigned". Filters for tasks with no owner.
-- **`/all`**: Shows all tasks globally.
-- **`/` (Root)**: Transparently redirects to `/my` for fresh logins but serves as the landing for ad-hoc filter combinations.
-
-### Persistence & HTMX
-State is preserved during filtering and sorting via `hx-push-url="true"`. The `DashboardView` detects `HX-Request` headers to determine whether to return the full page shell or just the table partial.
+- **Routes**: `/my` (User's tasks), `/unassigned` (Tasks without owner), `/all` (Global view).
+- **HTMX Partial Swaps**: The `DashboardView` detects `HX-Request` headers. On initial load, it returns the full shell; subsequent filter/pagination actions only return the table row partial.
+- **State Persistence**: Filter parameters are preserved during navigation and pushed to the browser history via `hx-push-url`.
 
 ---
 
-## 4. Database Schema
+## 3. Asynchronous Sync Layer
 
-### `Task` Model
-- **`search_text`**: A `GeneratedField` that concatenates title, ID, customer, and owner for optimized global search.
-- **`is_owner`**: A computed annotation in the Django ORM that leverages the Identity Bridge overlap logic.
+Data integrity is maintained through a high-concurrency background pipeline.
 
-### `SavedView`
-Allows users to persist complex filter combinations (e.g., "High Priority Security Tasks") as named items in their sidebar.
-
----
-
-## 5. Localization: German Core Terms
-
-To ensure consistency in future development, use the following terms for UI elements:
-
-| English Term | German Translation | Usage |
-| :--- | :--- | :--- |
-| **Origin** | **Herkunft** | The source platform (Zammad, etc.) |
-| **Owner** | **Besitzer** | The user assigned to the task |
-| **Customer** | **Kunde** | The organization or client |
-| **State** | **Status** | Current task status (Open, Pending) |
-| **Pending** | **Ausstehend** | Waiting for feedback or external info |
-| **Priority** | **Priorität** | Critical, High, Medium, Low |
-| **Reset** | **Zurücksetzen** | Clearing all active filters |
+### The Pipeline
+1. **Parallel Fetch**: **Django-Q2** dispatches workers for each service in parallel.
+2. **Concurrent API Requests**: Individual service clients use `asyncio` and `httpx` to paginate through APIs concurrently.
+3. **Atomic Upsert**: Data is written in bulk using `bulk_create(update_conflicts=True)`.
+4. **Auto-Pruning**: Tasks removed from the source system are automatically purged from the local database during the next sync.
 
 ---
 
-## 6. Environment Setup (Docker)
+## 4. Build Pipeline (Tailwind v4)
 
-Deployment is managed via Docker Compose. The environment includes:
-- **`django`**: The core application container.
-- **`postgres`**: Database with `unaccent` extension enabled.
-- **`valkey`**: Infrastructure for caching and background sync tasks.
-- **`worker`**: Background process for executing service fetchers.
+We utilize **Tailwind CSS v4**'s standalone discovery engine.
+- **Source Scanning**: classes are discovered dynamically in `.html` templates, `.js` scripts, and `.py` view files via `@source` directives in `input.css`.
+- **Zero-Purge**: This ensures that classes generated dynamically in Python views are preserved in the production build.
 
-To compile translations and apply migrations:
-```bash
-docker exec task_dashboard_django python manage.py migrate
-docker exec task_dashboard_django python manage.py compilemessages
-```
+---
+
+## 5. Deployment Checklist
+
+The system is optimized for **Docker** deployment using a 4-container stack:
+1. **App**: Django/Gunicorn (Web Interface).
+2. **Worker**: Django-Q Cluster (Background Sync).
+3. **Database**: PostgreSQL 18.
+4. **Cache**: Valkey (In-memory storage).
+
+> [!TIP]
+> To verify a production build locally, set `ACCOUNT_DEFAULT_HTTP_PROTOCOL=http` and disable `SESSION_COOKIE_SECURE` temporarily.

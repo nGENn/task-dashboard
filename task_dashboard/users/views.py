@@ -4,6 +4,8 @@ import re
 import time
 import unicodedata
 
+from django.contrib.auth import logout
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.cache import cache
 from django.utils import timezone as django_timezone
 
@@ -99,7 +101,7 @@ def refresh_single_task_view(request, pk):
 
 # --- MAIN DASHBOARD VIEW ---
 
-class DashboardView(TemplateView):
+class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "users/dashboard.html"
     perspective = None
 
@@ -256,7 +258,7 @@ class DashboardView(TemplateView):
                 "saved_views": [
                     {"id": v.id, "name": v.name, "url": f"/?{v.get_query_string()}", "is_active": False}
                     for v in SavedView.objects.filter(user=user)
-                ],
+                ] if user.is_authenticated else [],
             })
             return context
 
@@ -587,7 +589,7 @@ class DashboardView(TemplateView):
             if clean and len(clean) == 1: t.owner_email = clean[0]; t.owner = ""
 
         page.object_list = t_list
-        sv = SavedView.objects.filter(user=user)
+        sv = SavedView.objects.filter(user=user) if user.is_authenticated else SavedView.objects.none()
         # Don't highlight any saved view when search is active
         active_id = None if search_q else next((v.id for v in sv if v.matches_params(request.GET)), None)
 

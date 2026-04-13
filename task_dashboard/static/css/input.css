@@ -1,10 +1,13 @@
 @import "tailwindcss";
-@config "./tailwind.config.js";
 
 @source not "./tailwindcss";
 @source not "./daisyui{,*}.mjs";
 
 @plugin "./daisyui.mjs";
+
+@source "../../templates/**/*.html";
+@source "../js/**/*.js";
+@source "../../task_dashboard/**/*.py";
 
 @plugin "./daisyui-theme.mjs" {
   name: "mocha";
