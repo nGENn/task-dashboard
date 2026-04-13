@@ -4,8 +4,9 @@ workflow:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 default:
-  image: ghcr.io/astral-sh/uv:python3.13-bookworm
-  pull_policy: [always, if-not-present]
+  image:
+    name: ghcr.io/astral-sh/uv:python3.13-bookworm
+    pull_policy: [always, if-not-present]
   interruptible: true
   retry:
     max: 2
@@ -128,7 +129,9 @@ dependency_audit:
   needs: []
   script:
     - uv sync --frozen
-    - uv run pip-audit --requirement <(uv export --format requirements-txt)
+    # Use temporary file instead of process substitution for /bin/sh compatibility
+    - uv export --format requirements-txt > requirements.txt
+    - uv run pip-audit --requirement requirements.txt
 
 # ---------------------------------------------------------------------------
 # BUILD STAGE: Multi-container stack preparation
@@ -137,10 +140,13 @@ build-image:
   stage: build
   # Final gate: require all quality/security checks to pass
   needs: ["pytest", "django_check", "mypy", "precommit", "bandit", "dependency_audit"]
-  image: docker:24.0.9
+  image:
+    name: docker:24.0.9
+    pull_policy: [always, if-not-present]
   services:
     - name: docker:24.0.9-dind
       alias: docker
+      pull_policy: [always, if-not-present]
   variables:
     DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
