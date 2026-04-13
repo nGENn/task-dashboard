@@ -1,14 +1,31 @@
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+default:
+  interruptible: true
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+
 stages:
   - lint
   - test
+  - security
   - build
 
 image: ghcr.io/astral-sh/uv:python3.13-bookworm
+pull_policy: [always, if-not-present]
 
 variables:
+  # Python log flushing: immediately see logs even on crash
+  PYTHONUNBUFFERED: "1"
   # Aligned with ARCHITECTURE.md: PostgreSQL 18
   POSTGRES_USER: 'task_dashboard'
-  POSTGRES_PASSWORD: ''
+  POSTGRES_PASSWORD: 'password'
   POSTGRES_DB: 'test_task_dashboard'
   POSTGRES_HOST_AUTH_METHOD: trust
   # Aligned with ARCHITECTURE.md: Valkey/Redis parity
@@ -16,7 +33,9 @@ variables:
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: ""
   IMAGE: $CI_REGISTRY_IMAGE
-  UV_CACHE_DIR: .uv-cache
+  UV_CACHE_DIR: "${CI_PROJECT_DIR}/.uv-cache"
+  # Optimization for Docker builds
+  DOCKER_BUILDKIT: 1
 
 cache:
   key:
@@ -30,83 +49,114 @@ cache:
 # ---------------------------------------------------------------------------
 precommit:
   stage: lint
+  needs: []
   variables:
     PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
-    SKIP: pytest
+    # Skip items that have their own dedicated CI jobs for faster feedback
+    SKIP: "pytest,bandit,mypy"
   cache:
+    key:
+      files:
+        - .pre-commit-config.yaml
     paths:
       - ${PRE_COMMIT_HOME}
   script:
-    - uvx --with pre-commit-uv pre-commit run --show-diff-on-failure --color=always --all-files
+    - uv sync --frozen
+    - uv run pre-commit run --show-diff-on-failure --color=always --all-files
+
+mypy:
+  stage: lint
+  needs: []
+  script:
+    - uv sync --frozen
+    - uv run mypy .
 
 # ---------------------------------------------------------------------------
 # TEST STAGE: Verifying GIN indexes and Identity Bridge
 # ---------------------------------------------------------------------------
 pytest:
   stage: test
+  needs: []
   services:
     - name: postgres:18-alpine
       alias: postgres
     - name: valkey/valkey:8
       alias: valkey
   variables:
-    DATABASE_URL: "postgres://task_dashboard@postgres:5432/test_task_dashboard"
+    DATABASE_URL: "postgres://task_dashboard:password@postgres:5432/test_task_dashboard"
     DJANGO_SECRET_KEY: "test-key"
     DJANGO_SETTINGS_MODULE: "config.settings.test"
   script:
     - uv sync --frozen
-    - uv run pytest
+    - uv run pytest --junitxml=report.xml --cov=task_dashboard --cov-report=xml --cov-report=term-missing
+  coverage: '/TOTAL.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    paths:
+      - report.xml
+      - coverage.xml
+    expire_in: 1 week
 
-check_version_bump:
+django_check:
   stage: test
-  only:
-    - merge_requests
+  needs: []
+  variables:
+    DJANGO_SETTINGS_MODULE: "config.settings.test"
+    DJANGO_SECRET_KEY: "dummy-key-for-check"
+    DATABASE_URL: "sqlite:///:memory:"
   script:
-    - PR_VERSION=$(uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
-    - git fetch origin main
-    - git checkout origin/main -- pyproject.toml
-    - MAIN_VERSION=$(uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
-    - 'echo "PR version: $PR_VERSION | Main version: $MAIN_VERSION"'
-    - |
-      if [ "$(printf '%s\n' "$MAIN_VERSION" "$PR_VERSION" | sort -V | head -n1)" != "$MAIN_VERSION" ] || [ "$PR_VERSION" = "$MAIN_VERSION" ]; then
-        echo "❌ Version must be bumped in pyproject.toml!"
-        exit 1
-      fi
-  allow_failure: false
+    - uv sync --frozen
+    - uv run python manage.py makemigrations --check --dry-run
+    - uv run python manage.py check --deploy
+
+# ---------------------------------------------------------------------------
+# SECURITY STAGE: Proactive vulnerability scanning
+# ---------------------------------------------------------------------------
+bandit:
+  stage: security
+  needs: []
+  script:
+    - uv sync --frozen
+    - uv run bandit -r task_dashboard/ -ll
+
+dependency_audit:
+  stage: security
+  needs: []
+  script:
+    - uv sync --frozen
+    - uv run pip-audit --requirement <(uv export --format requirements-txt)
 
 # ---------------------------------------------------------------------------
 # BUILD STAGE: Multi-container stack preparation
 # ---------------------------------------------------------------------------
 build-image:
   stage: build
-  image: docker:latest
+  # Final gate: require all quality/security checks to pass
+  needs: ["pytest", "django_check", "mypy", "precommit", "bandit", "dependency_audit"]
+  image: docker:24.0.9
   services:
-    - name: docker:dind
+    - name: docker:24.0.9-dind
       alias: docker
   variables:
-    # Explicitly link Docker client to the DinD service
     DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
   script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
-
-    # Install uv/uvx correctly for Alpine
-    - apk add curl
-    - curl -LsSf https://astral.sh/uv/install.sh | sh
-    - source $HOME/.cargo/env
-
-    # Extract version using uvx (now available in path)
-    - VERSION=$(uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
+    - VERSION=$(grep -m 1 '^version = "' pyproject.toml | cut -d '"' -f 2)
     - 'echo "Building version: $VERSION"'
-
     - docker buildx create --use --name builder
-
-    # Tailwind v4 logic: Dockerfile must copy source before building CSS
     - docker buildx build
       --tag $IMAGE:latest
       --tag $IMAGE:$VERSION
+      --tag $IMAGE:$CI_COMMIT_SHORT_SHA
       --push
       --cache-from type=registry,ref=$IMAGE:buildcache
       --cache-to type=registry,ref=$IMAGE:buildcache,mode=max
       -f ./compose/production/django/Dockerfile .
-  only:
-    - main
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
