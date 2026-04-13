@@ -30,10 +30,8 @@ services:
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
       KEYCLOAK_SERVER_URL: ${KEYCLOAK_SERVER_URL}
     depends_on:
-      postgres:
-        condition: service_healthy
-      valkey:
-        condition: service_healthy
+      - postgres
+      - valkey
     volumes:
       - /app/.venv
     ports:
@@ -52,13 +50,8 @@ services:
       POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
     volumes:
-      - task_dashboard_local_postgres_data:/var/lib/postgresql
+      - task_dashboard_local_postgres_data:/var/lib/postgresql/18/docker
       - task_dashboard_local_postgres_data_backups:/backups
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-debug} -d ${POSTGRES_DB:-task_dashboard}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   valkey:
     image: valkey/valkey:8

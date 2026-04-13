@@ -109,7 +109,7 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         if not isinstance(data, dict):
             return set()
 
-        extracted = set()
+        extracted: set[str] = set()
         for key in ["groups", "policy", "roles"]:
             val = data.get(key)
             if isinstance(val, list):

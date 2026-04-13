@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from typing import Any
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -50,7 +51,7 @@ async def test_get_tasks_async_uses_id_when_number_is_missing(espo_service):
             {"id": "task-uuid-2", "name": "Task 2", "status": "In Progress"},
         ]
     }
-    user_data = {"list": []}
+    user_data: dict[str, list[Any]] = {"list": []}
 
     def side_effect(url, **kwargs):
         mock_resp = MagicMock()
@@ -120,7 +121,7 @@ async def test_fetch_entity_pagination(espo_service):
             resp.json = MagicMock(return_value={"list": []})
         return resp
 
-    ctx = {"target": [], "user_map": {}, "company_name": "TestCorp"}
+    ctx: dict[str, Any] = {"target": [], "user_map": {}, "company_name": "TestCorp"}
     with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get_call:
         mock_get_call.side_effect = mock_get
 

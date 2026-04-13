@@ -25,8 +25,8 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 # Install requirements first for better caching
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    --mount=type=bind,source=uv.lock,target=uv.lock:rw \
-    uv sync --frozen --no-install-project
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    uv sync --no-install-project
 
 # Create devcontainer user and add it to sudoers
 RUN groupadd --gid 1000 dev-user \
@@ -37,7 +37,7 @@ RUN groupadd --gid 1000 dev-user \
 # Copy project and finish sync
 COPY . ${APP_HOME}
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen && \
+    uv sync && \
     chown -R dev-user:dev-user ${APP_HOME}
 
 COPY ./compose/production/django/entrypoint /entrypoint

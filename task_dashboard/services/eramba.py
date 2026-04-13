@@ -4,6 +4,7 @@ import logging
 import re
 from datetime import UTC
 from datetime import datetime
+from datetime import timedelta
 from http import HTTPStatus
 
 import httpx
@@ -194,7 +195,7 @@ class ErambaService:
         company_name = global_setting.company_name if global_setting else "Internal"
 
         # Calculate future limit once for this sync run
-        future_limit = django_timezone.now() + django_timezone.timedelta(
+        future_limit = django_timezone.now() + timedelta(
             days=OPEN_TASK_FUTURE_WINDOW_DAYS
         )
 
@@ -258,7 +259,7 @@ class ErambaService:
         # Postman collection shows the pattern is simply /api/{module}/{id}
         url = f"{self.base_url}/{api_path}/{task_id}"
 
-        future_limit = django_timezone.now() + django_timezone.timedelta(
+        future_limit = django_timezone.now() + timedelta(
             days=OPEN_TASK_FUTURE_WINDOW_DAYS
         )
 
@@ -527,7 +528,7 @@ class ErambaService:
             val = item.get(f)
             if isinstance(val, list):
                 owners_raw.extend(val)
-            elif val and isinstance(val, (dict, str)):
+            elif val and isinstance(val, dict | str):
                 owners_raw.append(val)
         return owners_raw
 

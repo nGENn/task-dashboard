@@ -3,6 +3,7 @@ import logging
 import re
 import sys
 import unicodedata
+from typing import Any
 
 from django.conf import settings
 from django.contrib import messages
@@ -114,7 +115,8 @@ class UserUpdateView(UpdateView):
     def get_success_url(self):
         return reverse("home")
 
-    def get_object(self):
+    def get_object(self, queryset=None):
+        assert self.request.user.is_authenticated
         return User.objects.get(pk=self.request.user.pk)
 
     def form_valid(self, form):
@@ -150,7 +152,7 @@ def refresh_single_task_view(request, pk):
 
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "users/dashboard.html"
-    perspective = None
+    perspective: str | None = None
 
     def _apply_owner_filter_test(self, tokens_list, include_unassigned, qs):
         """Safer fallback for test environments."""
@@ -224,7 +226,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         if include_unassigned:
             overlap_id_qs = (
                 qs.annotate(
-                    match=RawSQL(  # noqa: S611
+                    match=RawSQL(  # noqa: S611 # nosec B611
                         where_clause,
                         (tokens_list, tokens_list),
                         output_field=BooleanField(),
@@ -236,7 +238,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             return qs.filter(Q(is_unassigned=True) | Q(pk__in=overlap_id_qs))
 
         return qs.annotate(
-            match=RawSQL(  # noqa: S611
+            match=RawSQL(  # noqa: S611 # nosec B611
                 where_clause, (tokens_list, tokens_list), output_field=BooleanField()
             )
         ).filter(match=True)
@@ -334,8 +336,8 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         )
         sp = ServicePermission.objects.filter(django_group__in=user_groups)
 
-        group_perms = {}
-        group_id_perms = {}
+        group_perms: dict[str, int] = {}
+        group_id_perms: dict[int, int] = {}
         for p in tp:
             lvl = p.access_level.upper()
             score = RBAC_MAP.get(lvl, RBAC_NONE)
@@ -346,11 +348,12 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 group_id_perms.get(p.allowed_external_group.id, RBAC_NONE), score
             )
 
-        service_perms = {}
-        for p in sp:
-            lvl = p.access_level.upper()
-            service_perms[p.service_id] = max(
-                service_perms.get(p.service_id, RBAC_NONE), RBAC_MAP.get(lvl, RBAC_NONE)
+        service_perms: dict[int, int] = {}
+        for sp_item in sp:
+            lvl = sp_item.access_level.upper()
+            service_perms[sp_item.service_id] = max(
+                service_perms.get(sp_item.service_id, RBAC_NONE),
+                RBAC_MAP.get(lvl, RBAC_NONE),
             )
 
         rbac_q = Q()
@@ -413,7 +416,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         owner_pool = list(
             base_tasks.order_by().values("owner", "owner_email").distinct()
         )
-        pool = []
+        pool: list[str] = []
         for p in owner_pool:
             raw_labels = []
             if p["owner"]:
@@ -424,14 +427,14 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 v for v in raw_labels if v and v.lower() not in UNASSIGNED_MARKERS
             )
 
-        merged = {}  # anchor -> {best, labels, has_tasks}
+        merged: dict[str, dict[str, Any]] = {}  # anchor -> {best, labels, has_tasks}
         user_raw = [getattr(user, "email", ""), getattr(user, "name", "")]
         for r in user_raw:
             self._add_to_merged(merged, users_map, r, has_task=False)
         for label in pool:
             self._add_to_merged(merged, users_map, label, has_task=True)
 
-        best_to_raw = {}
+        best_to_raw: dict[str, set[str]] = {}
         for g in merged.values():
             best_to_raw.setdefault(g["best"], set()).update(g["labels"])
 
@@ -497,7 +500,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         return (4, len(frag), frag)
 
     def _build_token_index(self, merged):
-        token_to_canonical = {}
+        token_to_canonical: dict[str, str] = {}
         for anchor, g in merged.items():
             best = g["best"]
             for label in g["labels"]:
@@ -767,7 +770,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             "\"users_task\".\"owner_email\", ''))), '[^a-z0-9@.-]+') && %s"
         )
         return qs.annotate(
-            is_owner=RawSQL(  # noqa: S611
+            is_owner=RawSQL(  # noqa: S611 # nosec B611
                 my_overlap_sql, [user_tokens], output_field=BooleanField()
             )
         )

@@ -17,6 +17,8 @@ try:
 except Exception:  # noqa: BLE001
     sys.exit(1)
 
+from typing import Any
+
 from django.core.paginator import Paginator
 from django.db import connection
 from django.db.models import BooleanField
@@ -170,10 +172,10 @@ def verify_unnest_and_distinct():
     # We'll check if any returned owner contains a comma
     unique_owners_ext = set(
         Task.objects.annotate(
-            clean=Trim(Unnest(StringToArray(F("owner"), Value(value=","))))
+            cleaned_owner=Trim(Unnest(StringToArray(F("owner"), Value(value=","))))
         )
         .order_by()
-        .values_list("clean", flat=True)
+        .values_list("cleaned_owner", flat=True)
         .distinct()
     )
     unassigned = ["", "-", "None", "Unassigned"]
@@ -225,7 +227,7 @@ def verify_hierarchy():
     owner_pairs = get_pairs("owner")
     email_pairs = get_pairs("owner_email")
 
-    identity_map = {}
+    identity_map: dict[str, tuple[str, int]] = {}
     update_identity_map(identity_map, owner_pairs, is_email=False)
     update_identity_map(identity_map, email_pairs, is_email=True)
 
@@ -291,9 +293,9 @@ def verify_user_rbac(user):
 
 
 def group_perms_by_level(perms, id_field):
-    grouped = {"FULL": [], "LIMITED": [], "OWN": []}
+    grouped: dict[str, list[Any]] = {"FULL": [], "LIMITED": [], "OWN": []}
     priority = {"NONE": 0, "OWN": 1, "LIMITED": 2, "FULL": 3}
-    best_levels = {}
+    best_levels: dict[Any, str] = {}
     for p in perms:
         pid = p[id_field]
         lvl = p["access_level"]

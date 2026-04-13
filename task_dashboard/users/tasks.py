@@ -1,4 +1,8 @@
 import logging
+from typing import Any
+from typing import Protocol
+from typing import cast
+from typing import runtime_checkable
 
 from django.core.cache import cache
 from django.db import transaction
@@ -17,6 +21,12 @@ from .models import ServiceConfiguration
 from .models import Task
 
 logger = logging.getLogger(__name__)
+
+
+@runtime_checkable
+class TaskService(Protocol):
+    def get_tasks(self, *, force_refresh: bool = False) -> list[dict[str, Any]]: ...
+
 
 SERVICE_CLASSES = {
     "zammad": ZammadService,
@@ -99,7 +109,7 @@ def fetch_service_tasks(config_id: int):
         return 0
 
     logger.info("Fetching tasks for service: %s (%s)", config.name, config.service_type)
-    service_instance = service_class(config)
+    service_instance = cast("TaskService", service_class(config))
     try:
         tasks_data = service_instance.get_tasks(force_refresh=True)
     except Exception:

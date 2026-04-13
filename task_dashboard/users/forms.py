@@ -36,7 +36,7 @@ class GlobalSettingForm(forms.ModelForm):
                 if s.strip()
             ]
 
-    def save(self, *, commit=True):
+    def save(self, commit=True):  # noqa: FBT002
         instance = super().save(commit=False)
         selected_states = self.cleaned_data.get("default_task_states_list", [])
         instance.default_task_states = ",".join(selected_states)

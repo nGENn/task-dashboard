@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from typing import Any
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -84,7 +85,7 @@ async def test_fetch_and_normalize_pagination(gl_service):
                 resp.json = MagicMock(return_value=[])
         return resp
 
-    ctx = {"target": [], "user_map": {}, "company_name": "TestCorp"}
+    ctx: dict[str, Any] = {"target": [], "user_map": {}, "company_name": "TestCorp"}
     with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get_call:
         mock_get_call.side_effect = mock_get
 

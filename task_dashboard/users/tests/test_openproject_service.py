@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from typing import Any
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -126,7 +127,7 @@ async def test_fetch_work_packages_pagination(op_service):
             resp.json = MagicMock(return_value={"_embedded": {"elements": []}})
         return resp
 
-    tasks = []
+    tasks: list[dict[str, Any]] = []
     with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get_call:
         mock_get_call.side_effect = mock_get
 

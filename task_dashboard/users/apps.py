@@ -11,7 +11,7 @@ def setup_periodic_tasks(sender, **kwargs):
     Sets up periodic tasks for the users app using Django Q.
     """
     # Moving to top-level causes AppRegistryNotReady
-    from django_q.models import Schedule  # noqa: PLC0415
+    from django_q.models import Schedule
 
     # Check if django_q_schedule table exists before trying to use it
     if "django_q_schedule" not in connection.introspection.table_names():
@@ -35,9 +35,9 @@ class UsersConfig(AppConfig):
 
     def ready(self):
         # Moving to top-level causes AppRegistryNotReady
-        from .tasks import fetch_all_tasks_task  # noqa: F401, PLC0415
+        from .tasks import fetch_all_tasks_task  # noqa: F401
 
         with contextlib.suppress(ImportError):
-            import task_dashboard.users.signals  # noqa: F401, PLC0415
+            import task_dashboard.users.signals  # noqa: F401
 
         post_migrate.connect(setup_periodic_tasks, sender=self)

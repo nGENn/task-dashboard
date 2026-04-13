@@ -1,5 +1,6 @@
 # ruff: noqa: E501
 import logging
+from typing import Any
 
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
@@ -105,7 +106,7 @@ INSTALLED_APPS += ["anymail"]
 # https://anymail.readthedocs.io/en/stable/installation/#anymail-settings-reference
 # https://anymail.readthedocs.io/en/stable/esps
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-ANYMAIL = {}
+ANYMAIL: dict[str, Any] = {}
 
 
 # LOGGING

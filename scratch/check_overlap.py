@@ -11,9 +11,11 @@ messy_str = (
 )
 
 # First let's guarantee this string is in a task for testing
+first_task = Task.objects.first()
+service_id = first_task.service_id if first_task else 0
 t, created = Task.objects.get_or_create(
     external_id="test-bag-1",
-    service_id=Task.objects.first().service_id if Task.objects.exists() else 0,
+    service_id=service_id,
     defaults={
         "title": "Bag of words test",
         "owner": messy_str,

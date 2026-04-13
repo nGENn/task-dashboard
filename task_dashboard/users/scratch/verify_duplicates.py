@@ -8,6 +8,8 @@ from django.test import RequestFactory
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.test")
 django.setup()
 
+from typing import Any  # noqa: E402
+
 from task_dashboard.users.models import ServiceConfiguration  # noqa: E402
 from task_dashboard.users.models import Task  # noqa: E402
 from task_dashboard.users.views import DashboardView  # noqa: E402
@@ -93,7 +95,7 @@ def verify_hardened_logic():
     )
 
     factory = RequestFactory()
-    request = factory.get("/users/dashboard/?view=all")
+    request: Any = factory.get("/users/dashboard/?view=all")
     request.user = test_user
     request.htmx = False
 

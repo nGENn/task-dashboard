@@ -9,6 +9,8 @@ sys.path.append(str(Path.cwd()))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.local")
 django.setup()
 
+from typing import Any  # noqa: E402
+
 from django.db.models import Case  # noqa: E402
 from django.db.models import CharField  # noqa: E402
 from django.db.models import F  # noqa: E402
@@ -30,7 +32,7 @@ class Unaccent(django.db.models.Func):
 
 
 def get_base_expr(field_name):
-    expr = Unaccent(Lower(F(field_name)))
+    expr: Any = Unaccent(Lower(F(field_name)))
     for old, new in [("oe", "o"), ("ae", "a"), ("ue", "u")]:
         expr = Replace(expr, Value(old), Value(new))
     return expr

@@ -1,3 +1,4 @@
+from datetime import timedelta
 from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -273,8 +274,8 @@ async def test_view_url_correctness(eramba_service):
 @pytest.mark.anyio
 async def test_future_task_filtering(eramba_service):
     now = timezone.now()
-    within_window = (now + timezone.timedelta(days=15)).strftime("%Y-%m-%d")
-    outside_window = (now + timezone.timedelta(days=45)).strftime("%Y-%m-%d")
+    within_window = (now + timedelta(days=15)).strftime("%Y-%m-%d")
+    outside_window = (now + timedelta(days=45)).strftime("%Y-%m-%d")
 
     mock_response = MagicMock()
     mock_response.status_code = 200

@@ -1,3 +1,4 @@
+# Ignore all version control
 .git
 .gitignore
 .gitlab-ci.yml
@@ -5,8 +6,8 @@
 .python-version
 .editorconfig
 .dockerignore
-.vscode
-.devcontainer
+
+# Build artifacts
 .pytest_cache
 .ruff_cache
 .uv-cache
@@ -16,14 +17,20 @@ __pycache__
 *.pyc
 *.pyo
 *.pyd
+
+# Local data
 db.sqlite3
 .env
 staticfiles
 media
+
+# CSS artifacts
 task_dashboard/static/css/tailwindcss
 task_dashboard/static/css/daisyui.mjs
 task_dashboard/static/css/daisyui-theme.mjs
 task_dashboard/static/css/output.css
+
+# Documentation
 README.md
 ARCHITECTURE.md
 TODO.md

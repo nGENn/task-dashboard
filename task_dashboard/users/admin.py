@@ -4,6 +4,7 @@ from allauth.socialaccount.models import SocialToken
 from django import forms
 from django.conf import settings
 from django.contrib import admin
+from django.contrib.admin.exceptions import NotRegistered
 from django.contrib.auth import admin as auth_admin
 from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
 from django.contrib.auth.models import Group
@@ -29,7 +30,7 @@ if settings.DJANGO_ADMIN_FORCE_ALLAUTH:
 try:
     admin.site.unregister(SocialApp)
     admin.site.unregister(SocialToken)
-except admin.sites.NotRegistered:
+except NotRegistered:
     pass
 
 
