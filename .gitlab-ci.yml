@@ -14,7 +14,7 @@ variables:
   # Aligned with ARCHITECTURE.md: Valkey/Redis parity
   VALKEY_URL: "redis://valkey:6379/0"
   DOCKER_DRIVER: overlay2
-  DOCKER_TLS_CERTDIR: "" 
+  DOCKER_TLS_CERTDIR: ""
   IMAGE: $CI_REGISTRY_IMAGE
   UV_CACHE_DIR: .uv-cache
 
@@ -93,13 +93,13 @@ build-image:
     - apk add curl
     - curl -LsSf https://astral.sh/uv/install.sh | sh
     - source $HOME/.cargo/env
-    
+
     # Extract version using uvx (now available in path)
     - VERSION=$(uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
     - 'echo "Building version: $VERSION"'
 
     - docker buildx create --use --name builder
-    
+
     # Tailwind v4 logic: Dockerfile must copy source before building CSS
     - docker buildx build
       --tag $IMAGE:latest
