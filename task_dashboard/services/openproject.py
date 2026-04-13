@@ -60,7 +60,11 @@ class OpenProjectService:
                 )
             except httpx.HTTPError:
                 logger.exception("Error fetching OpenProject data")
-                return []
+                # Raise to ensure prune is skipped
+                raise
+            except Exception:
+                logger.exception("Unexpected error fetching OpenProject data")
+                raise
             else:
                 cache.set(cache_key, normalized_tasks, timeout=300)
                 return normalized_tasks

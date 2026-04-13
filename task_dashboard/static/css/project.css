@@ -304,9 +304,22 @@
       }
     }
     @layer daisyui.l1.l2 {
-      > .tooltip-content, &[data-tip]:before {
+      > .tooltip-content,
+      &[data-tip]:before {
         transform: translateX(-50%) translateY(var(--tt-pos, 0.25rem));
         inset: auto auto var(--tt-off) 50%;
+      }
+      &.tooltip-right {
+        > .tooltip-content,
+        &[data-tip]:before {
+          transform: translateY(-50%) translateX(var(--tt-pos, 0.25rem));
+          inset: 50% auto auto var(--tt-off);
+        }
+        &:after {
+          transform: translateY(-50%) translateX(var(--tt-pos, 0.25rem));
+          inset: 50% auto auto var(--tt-tail);
+          rotate: 90deg;
+        }
       }
       &:after {
         transform: translateX(-50%) translateY(var(--tt-pos, 0.25rem));

@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Django Project\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-05-23 12:00+0000\n"
+"POT-Creation-Date: 2026-04-13 04:39+0200\n"
 "PO-Revision-Date: 2024-05-23 12:00+0000\n"
 "Last-Translator: \n"
 "Language-Team: German\n"
@@ -12,30 +12,42 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#: config/settings/base.py:36
 msgid "English"
 msgstr "Englisch"
 
-msgid "German"
-msgstr "Deutsch"
+#: config/settings/base.py:37
+msgid "Deutsch"
+msgstr ""
 
+#: task_dashboard/templates/account/login.html:8
+#: task_dashboard/templates/allauth/layouts/entrance.html:13
 msgid "Sign In"
 msgstr "Anmelden"
 
+#: task_dashboard/templates/account/login.html:92
 msgid "Forgot Password?"
 msgstr "Passwort vergessen?"
 
+#: task_dashboard/templates/account/logout.html:6
+#: task_dashboard/templates/account/logout.html:12
+#: task_dashboard/templates/account/logout.html:21
 msgid "Sign Out"
 msgstr "Abmelden"
 
+#: task_dashboard/templates/account/logout.html:13
 msgid "Are you sure you want to sign out?"
 msgstr "Sind Sie sicher, dass Sie sich abmelden möchten?"
 
+#: task_dashboard/templates/account/password_reset.html:7
 msgid "Password Reset"
 msgstr "Passwort zurücksetzen"
 
+#: task_dashboard/templates/account/password_reset.html:24
 msgid "Reset Password"
 msgstr "Passwort zurücksetzen"
 
+#: task_dashboard/templates/account/password_reset.html:29
 msgid ""
 "Forgotten your password? Enter your email address below, and we'll send you "
 "an email allowing you to reset it."
@@ -43,32 +55,157 @@ msgstr ""
 "Haben Sie Ihr Passwort vergessen? Geben Sie unten Ihre E-Mail-Adresse ein, "
 "und wir senden Ihnen eine E-Mail, mit der Sie es zurücksetzen können."
 
+#: task_dashboard/templates/account/password_reset.html:39
 msgid "Reset My Password"
 msgstr "Mein Passwort zurücksetzen"
 
+#: task_dashboard/templates/users/partials/tabs.html:9
+msgid "All sources unfiltered"
+msgstr ""
+
+#: task_dashboard/templates/users/partials/tabs.html:10
+msgid "All Tasks"
+msgstr ""
+
+#: task_dashboard/templates/users/partials/tabs.html:23
+msgid "Custom saved filter:"
+msgstr ""
+
+#: task_dashboard/templates/users/partials/tabs.html:28
+msgid "Delete View"
+msgstr ""
+
+#: task_dashboard/templates/users/partials/tabs.html:43
+msgid "Save current filters as a custom view"
+msgstr ""
+
+#: task_dashboard/templates/users/partials/tasks_table.html:19
+msgid "Origin"
+msgstr ""
+
+#: task_dashboard/templates/users/partials/tasks_table.html:40
+msgid "ID"
+msgstr ""
+
+#: task_dashboard/templates/users/partials/tasks_table.html:61
+msgid "Title"
+msgstr ""
+
+#: task_dashboard/templates/users/partials/tasks_table.html:82
+msgid "Customer"
+msgstr ""
+
+#: task_dashboard/templates/users/partials/tasks_table.html:103
+msgid "Group"
+msgstr ""
+
+#: task_dashboard/templates/users/partials/tasks_table.html:124
+msgid "Owner"
+msgstr ""
+
+#: task_dashboard/templates/users/partials/tasks_table.html:144
+msgid "State"
+msgstr ""
+
+#: task_dashboard/templates/users/partials/tasks_table.html:163
+msgid "Priority"
+msgstr ""
+
+#: task_dashboard/templates/users/partials/tasks_table.html:182
+msgid "Created"
+msgstr ""
+
+#: task_dashboard/templates/users/partials/tasks_table.html:201
+msgid "Updated"
+msgstr ""
+
+#: task_dashboard/templates/users/partials/tasks_table.html:220
+msgid "Due Date"
+msgstr ""
+
+#: task_dashboard/templates/users/partials/tasks_table.html:244
+msgid "Force immediate re-sync for this task."
+msgstr ""
+
+#: task_dashboard/templates/users/partials/tasks_table.html:310
+msgid "Open"
+msgstr ""
+
+#: task_dashboard/templates/users/partials/tasks_table.html:313
+msgid "Resolved"
+msgstr ""
+
+#: task_dashboard/templates/users/partials/tasks_table.html:340
+msgid "No tasks found matching your filters."
+msgstr ""
+
+#: task_dashboard/users/admin.py:42
 msgid "Personal info"
 msgstr "Persönliche Informationen"
 
+#: task_dashboard/users/admin.py:44
 msgid "Permissions"
 msgstr "Berechtigungen"
 
+#: task_dashboard/users/admin.py:55
 msgid "Important dates"
 msgstr "Wichtige Daten"
 
+#: task_dashboard/users/admin.py:116
 msgid "API Configuration"
 msgstr "API-Konfiguration"
 
+#: task_dashboard/users/apps.py:34
 msgid "Users"
 msgstr "Benutzer"
 
+#: task_dashboard/users/forms.py:65 task_dashboard/users/tests/test_forms.py:35
 msgid "This email has already been taken."
 msgstr "Diese E-Mail-Adresse ist bereits vergeben."
 
+#: task_dashboard/users/models.py:25
 msgid "Name of User"
 msgstr "Name des Benutzers"
 
+#: task_dashboard/users/models.py:28
 msgid "email address"
 msgstr "E-Mail-Adresse"
 
+#: task_dashboard/users/models.py:47
+msgid "Full Access (See all tasks)"
+msgstr ""
+
+#: task_dashboard/users/models.py:48
+msgid "Limited (Own tasks + Unassigned only)"
+msgstr ""
+
+#: task_dashboard/users/models.py:49
+msgid "Only own tasks"
+msgstr ""
+
+#: task_dashboard/users/models.py:50
+msgid "No Access"
+msgstr ""
+
+#: task_dashboard/users/tests/test_views.py:81 task_dashboard/users/views.py:89
 msgid "Information successfully updated"
 msgstr "Informationen erfolgreich aktualisiert"
+
+#: task_dashboard/users/views.py:251 task_dashboard/users/views.py:624
+msgid "My Tasks"
+msgstr ""
+
+#: task_dashboard/users/views.py:251 task_dashboard/users/views.py:624
+msgid "Tasks assigned to you."
+msgstr ""
+
+#: task_dashboard/users/views.py:252 task_dashboard/users/views.py:625
+msgid "Unassigned"
+msgstr ""
+
+#: task_dashboard/users/views.py:252 task_dashboard/users/views.py:625
+msgid "Tasks without an owner."
+msgstr ""
+
+#~ msgid "German"
+#~ msgstr "Deutsch"

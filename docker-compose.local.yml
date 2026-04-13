@@ -30,6 +30,7 @@ services:
       KEYCLOAK_SERVER_URL: ${KEYCLOAK_SERVER_URL}
     depends_on:
       - postgres
+      - valkey
     volumes:
       - /app/.venv
     ports:
@@ -50,3 +51,7 @@ services:
     volumes:
       - task_dashboard_local_postgres_data:/var/lib/postgresql/18/docker
       - task_dashboard_local_postgres_data_backups:/backups
+
+  valkey:
+    image: valkey/valkey:8
+    container_name: task_dashboard_valkey

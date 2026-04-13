@@ -1,15 +1,16 @@
-{% load dashboard_extras %}
+{% load dashboard_extras i18n %}
 
 <!-- Filter Form Content -->
-<div class="mb-2 bg-base-100 rounded-box shadow-sm border border-base-300 p-4">
-  <div class="flex flex-wrap gap-3 mb-3 w-full">
+<div id="filter-form-content-wrapper" class="mb-2 bg-base-100 rounded-box shadow-sm border border-base-300 p-4" {% if is_htmx_oob %}hx-swap-oob="true"{% endif %}>
+  <div id="filter-options-container"
+       class="flex flex-wrap gap-3 mb-3 w-full">
     <!-- Dropdowns -->
     <div class="dropdown tooltip tooltip-bottom filter-dropdown-container"
-         data-tip="Source platform">
+         data-tip="{% trans 'Source platform' %}">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
-        <span class="text-base-content/60 text-sm truncate">Origin</span>
+        <span class="text-base-content/60 text-sm truncate">{% trans "Origin" %}</span>
         <svg xmlns="http://www.w3.org/2000/svg"
              class="h-4 w-4 opacity-50 flex-shrink-0"
              fill="none"
@@ -33,17 +34,23 @@
           </li>
         {% empty %}
           <li class="disabled">
-            <span class="text-xs opacity-50">No data</span>
+            <span class="text-xs opacity-50">
+              {% if not request.htmx %}
+                <span class="loading loading-dots loading-xs"></span> Loading...
+              {% else %}
+                No data
+              {% endif %}
+            </span>
           </li>
         {% endfor %}
       </ul>
     </div>
     <div class="dropdown tooltip tooltip-bottom filter-dropdown-container"
-         data-tip="Filter by customer name">
+         data-tip="{% trans 'Filter by customer name' %}">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
-        <span class="text-base-content/60 text-sm truncate">Customer</span>
+        <span class="text-base-content/60 text-sm truncate">{% trans "Customer" %}</span>
         <svg xmlns="http://www.w3.org/2000/svg"
              class="h-4 w-4 opacity-50 flex-shrink-0"
              fill="none"
@@ -67,17 +74,23 @@
           </li>
         {% empty %}
           <li class="disabled">
-            <span class="text-xs opacity-50">No data</span>
+            <span class="text-xs opacity-50">
+              {% if not request.htmx %}
+                <span class="loading loading-dots loading-xs"></span> Loading...
+              {% else %}
+                No data
+              {% endif %}
+            </span>
           </li>
         {% endfor %}
       </ul>
     </div>
     <div class="dropdown tooltip tooltip-bottom filter-dropdown-container"
-         data-tip="Filter by functional group or department">
+         data-tip="{% trans 'Filter by functional group or department' %}">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
-        <span class="text-base-content/60 text-sm truncate">Group</span>
+        <span class="text-base-content/60 text-sm truncate">{% trans "Group" %}</span>
         <svg xmlns="http://www.w3.org/2000/svg"
              class="h-4 w-4 opacity-50 flex-shrink-0"
              fill="none"
@@ -101,17 +114,23 @@
           </li>
         {% empty %}
           <li class="disabled">
-            <span class="text-xs opacity-50">No data</span>
+            <span class="text-xs opacity-50">
+              {% if not request.htmx %}
+                <span class="loading loading-dots loading-xs"></span> Loading...
+              {% else %}
+                No data
+              {% endif %}
+            </span>
           </li>
         {% endfor %}
       </ul>
     </div>
     <div class="dropdown tooltip tooltip-bottom filter-dropdown-container"
-         data-tip="Filter by assigned user in source system">
+         data-tip="{% trans 'Filter by assigned user in source system' %}">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
-        <span class="text-base-content/60 text-sm truncate">Owner</span>
+        <span class="text-base-content/60 text-sm truncate">{% trans "Owner" %}</span>
         <svg xmlns="http://www.w3.org/2000/svg"
              class="h-4 w-4 opacity-50 flex-shrink-0"
              fill="none"
@@ -135,17 +154,23 @@
           </li>
         {% empty %}
           <li class="disabled">
-            <span class="text-xs opacity-50">No data</span>
+            <span class="text-xs opacity-50">
+              {% if not request.htmx %}
+                <span class="loading loading-dots loading-xs"></span> Loading...
+              {% else %}
+                No data
+              {% endif %}
+            </span>
           </li>
         {% endfor %}
       </ul>
     </div>
     <div class="dropdown dropdown-end tooltip tooltip-bottom filter-dropdown-container"
-         data-tip="Filter by current task status">
+         data-tip="{% trans 'Filter by current task status' %}">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
-        <span class="text-base-content/60 text-sm truncate">State</span>
+        <span class="text-base-content/60 text-sm truncate">{% trans "State" %}</span>
         <svg xmlns="http://www.w3.org/2000/svg"
              class="h-4 w-4 opacity-50 flex-shrink-0"
              fill="none"
@@ -169,17 +194,23 @@
           </li>
         {% empty %}
           <li class="disabled">
-            <span class="text-xs opacity-50">No data</span>
+            <span class="text-xs opacity-50">
+              {% if not request.htmx %}
+                <span class="loading loading-dots loading-xs"></span> Loading...
+              {% else %}
+                No data
+              {% endif %}
+            </span>
           </li>
         {% endfor %}
       </ul>
     </div>
     <div class="dropdown dropdown-end tooltip tooltip-bottom filter-dropdown-container"
-         data-tip="Filter by task priority level">
+         data-tip="{% trans 'Filter by task priority level' %}">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
-        <span class="text-base-content/60 text-sm truncate">Priority</span>
+        <span class="text-base-content/60 text-sm truncate">{% trans "Priority" %}</span>
         <svg xmlns="http://www.w3.org/2000/svg"
              class="h-4 w-4 opacity-50 flex-shrink-0"
              fill="none"
@@ -203,14 +234,20 @@
           </li>
         {% empty %}
           <li class="disabled">
-            <span class="text-xs opacity-50">No data</span>
+            <span class="text-xs opacity-50">
+              {% if not request.htmx %}
+                <span class="loading loading-dots loading-xs"></span> Loading...
+              {% else %}
+                No data
+              {% endif %}
+            </span>
           </li>
         {% endfor %}
       </ul>
     </div>
     <!-- Date Ranges using completely static DIVs to prevent text shifting -->
     <div class="tooltip tooltip-bottom filter-dropdown-container"
-         data-tip="Creation date">
+         data-tip="{% trans 'Creation date' %}">
       <div id="date-range-picker"
            class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer w-full">
         <svg xmlns="http://www.w3.org/2000/svg"
@@ -220,7 +257,7 @@
              stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
-        <span class="text-base-content/60 text-sm truncate pointer-events-none">Created</span>
+        <span class="text-base-content/60 text-sm truncate pointer-events-none">{% trans "Created" %}</span>
       </div>
     </div>
     <input type="hidden"
@@ -228,7 +265,7 @@
            name="date_range"
            value="{{ request.GET.date_range }}" />
     <div class="tooltip tooltip-bottom filter-dropdown-container"
-         data-tip="Last modified">
+         data-tip="{% trans 'Last modified' %}">
       <div id="updated-range-picker"
            class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer w-full">
         <svg xmlns="http://www.w3.org/2000/svg"
@@ -238,7 +275,7 @@
              stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
-        <span class="text-base-content/60 text-sm truncate pointer-events-none">Updated</span>
+        <span class="text-base-content/60 text-sm truncate pointer-events-none">{% trans "Updated" %}</span>
       </div>
     </div>
     <input type="hidden"
@@ -246,7 +283,7 @@
            name="updated_range"
            value="{{ request.GET.updated_range }}" />
     <div class="tooltip tooltip-bottom filter-dropdown-container"
-         data-tip="Due date">
+         data-tip="{% trans 'Due date' %}">
       <div id="due-range-picker"
            class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer w-full">
         <svg xmlns="http://www.w3.org/2000/svg"
@@ -256,7 +293,7 @@
              stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
-        <span class="text-base-content/60 text-sm truncate pointer-events-none">Due</span>
+        <span class="text-base-content/60 text-sm truncate pointer-events-none">{% trans "Due" %}</span>
       </div>
     </div>
     <input type="hidden"
@@ -268,15 +305,15 @@
     <div id="active-filters-container"
          class="flex flex-wrap items-center gap-2 min-h-[2rem]">
       <span class="text-sm text-base-content/60 mr-1 hidden"
-            id="active-filters-label">Active filters:</span>
+            id="active-filters-label">{% trans "Active filters:" %}</span>
     </div>
     <div class="flex items-center gap-2 whitespace-nowrap">
-      <a href="?view={{ current_view|default:'my' }}"
+      <a href="/all"
          class="btn btn-ghost btn-sm tooltip tooltip-left"
-         data-tip="Clear all currently selected filters">Reset</a>
+         data-tip="{% trans 'Hard reset to global view with no filters' %}">{% trans "Reset" %}</a>
       <button type="submit"
               class="btn btn-primary btn-sm tooltip tooltip-left"
-              data-tip="Apply filters">Apply Filters</button>
+              data-tip="{% trans 'Apply filters' %}">{% trans "Apply Filters" %}</button>
     </div>
   </div>
 </div>

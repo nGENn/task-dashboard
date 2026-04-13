@@ -1,14 +1,21 @@
-{% load dashboard_extras %}
+{% load dashboard_extras i18n %}
 
 <form method="get"
-      action="."
+      action="/all"
       class="mb-4"
-      hx-get="."
+      hx-get="/all"
       hx-target="#task-results"
       hx-swap="outerHTML"
       hx-push-url="true"
-      hx-on::config-request="for (let key in event.detail.parameters) if (event.detail.parameters[key] === '') delete event.detail.parameters[key]">
-  <input type="hidden" name="view" value="all" />
+      hx-on::config-request="
+        const p = event.detail.parameters;
+        // Remove empty values
+        for (let key in p) if (p[key] === '') delete p[key];
+        // Global search: strip all filter params when q is active
+        if (p.q && p.q.trim()) {
+          ['state','owner','origin','customer','group','priority','date_range','updated_range','due_range'].forEach(k => delete p[k]);
+        }
+      ">
   {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}" />{% endif %}
   {% if request.GET.direction %}<input type="hidden" name="direction" value="{{ request.GET.direction }}" />{% endif %}
   <div class="form-control w-full md:w-1/3 mb-2">
@@ -16,7 +23,7 @@
       {# djlint:off H026 #}
       <input type="text"
              name="q"
-             placeholder="Search by Task ID, Title, or Customer..."
+             placeholder="{% trans 'Search by Task ID, Title, or Customer...' %}"
              class="input input-bordered w-full pl-12"
              {% if request.GET.q %}value="{{ request.GET.q }}"{% endif %} />
       {# djlint:on #}
@@ -32,29 +39,29 @@
     </div>
   </div>
   <!-- View Tabs -->
-  {% include "pages/home_partials/tabs.html" %}
+  {% include "users/partials/tabs.html" %}
   <!-- Filter Form Content -->
-  {% include "pages/home_partials/filter_form_content.html" %}
+  {% include "users/partials/filter_form_content.html" %}
 </form>
 <dialog id="save_view_modal" class="modal">
   <div class="modal-box">
-    <h3 class="font-bold text-lg text-base-content">Save Current View</h3>
-    <p class="py-2 text-sm text-base-content/60">Enter a name for your current filter configuration.</p>
+    <h3 class="font-bold text-lg text-base-content">{% trans "Save Current View" %}</h3>
+    <p class="py-2 text-sm text-base-content/60">{% trans "Enter a name for your current filter configuration." %}</p>
     <div class="form-control w-full mt-4">
       <label class="label">
-        <span class="label-text">View Name</span>
+        <span class="label-text">{% trans "View Name" %}</span>
       </label>
       <input type="text"
              id="view_name"
              class="input input-bordered w-full"
-             placeholder="e.g. My High Priority Tasks" />
+             placeholder="{% trans 'e.g. My High Priority Tasks' %}" />
     </div>
     <div class="modal-action">
       <form method="dialog">
-        <button class="btn btn-ghost">Cancel</button>
+        <button class="btn btn-ghost">{% trans "Cancel" %}</button>
       </form>
-      <div class="tooltip tooltip-left" data-tip="Click to save these filters">
-        <button type="button" class="btn btn-primary" onclick="saveView()">Save View</button>
+      <div class="tooltip tooltip-left" data-tip="{% trans 'Click to save these filters' %}">
+        <button type="button" class="btn btn-primary" onclick="saveView()">{% trans 'Save View' %}</button>
       </div>
     </div>
   </div>
@@ -64,15 +71,15 @@
 </dialog>
 <dialog id="delete_view_modal" class="modal">
   <div class="modal-box">
-    <h3 class="font-bold text-lg text-error">Delete Saved View</h3>
+    <h3 class="font-bold text-lg text-error">{% trans "Delete Saved View" %}</h3>
     <p class="py-2 text-sm text-base-content/60">
-      Are you sure you want to delete this view? This action cannot be undone.
+      {% trans "Are you sure you want to delete this view? This action cannot be undone." %}
     </p>
     <div class="modal-action">
       <form method="dialog">
-        <button class="btn btn-ghost">Cancel</button>
+        <button class="btn btn-ghost">{% trans "Cancel" %}</button>
       </form>
-      <button type="button" class="btn btn-error" id="confirm_delete_btn">Delete View</button>
+      <button type="button" class="btn btn-error" id="confirm_delete_btn">{% trans "Delete View" %}</button>
     </div>
   </div>
   <form method="dialog" class="modal-backdrop">

@@ -39,8 +39,11 @@ pytest:
   services:
     - name: postgres:16
       alias: postgres
+    - name: valkey/valkey:8
+      alias: valkey
   variables:
     DATABASE_URL: "postgres://task_dashboard@postgres:5432/test_task_dashboard"
+    VALKEY_URL: "redis://valkey:6379/0"
     DJANGO_SECRET_KEY: "test-key"
     DJANGO_SETTINGS_MODULE: "config.settings.test"
   script:

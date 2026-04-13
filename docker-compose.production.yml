@@ -17,6 +17,7 @@ services:
       - production_django_media:/app/task_dashboard/media
     depends_on:
       - postgres
+      - valkey
     env_file:
       - .env
     command: /start
@@ -32,6 +33,10 @@ services:
     env_file:
       - .env
 
+  valkey:
+    image: valkey/valkey:8
+    restart: always
+
   qcluster:
     build:
       context: .
@@ -41,5 +46,6 @@ services:
     env_file: .env
     depends_on:
       - postgres
+      - valkey
     volumes:
       - production_django_media:/app/task_dashboard/media

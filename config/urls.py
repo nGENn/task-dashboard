@@ -10,7 +10,10 @@ from django.views.generic import TemplateView
 from task_dashboard.users.views import DashboardView
 
 urlpatterns = [
-    path("", DashboardView.as_view(), name="home"),
+    path("", DashboardView.as_view(perspective="home"), name="home"),
+    path("my", DashboardView.as_view(perspective="my"), name="my_tasks"),
+    path("all", DashboardView.as_view(perspective="all"), name="all_tasks"),
+    path("unassigned", DashboardView.as_view(perspective="unassigned"), name="unassigned_tasks"),
     path(
         "about/",
         TemplateView.as_view(template_name="pages/about.html"),
@@ -25,6 +28,7 @@ urlpatterns = [
         RedirectView.as_view(pattern_name="account_login", permanent=True),
     ),
     path("accounts/", include("allauth.urls")),
+    path("i18n/", include("django.conf.urls.i18n")),
     # Your stuff: custom urls includes go here
     # ...
     # Media files

@@ -400,17 +400,17 @@ class TestDashboardView:
             status="open",
             service=service_config,
             owner="",
-            owner_email="landefeld@ngenn.net",
+            owner_email="zeta@example.com",
             updated_at=timezone.now(),
         )
 
-        # Task 2: Reversed name 'Landefeld Klaus' (should map to 'landefeld')
+        # Task 2: Reversed name 'Zeta Bob' (should map to 'zeta')
         Task.objects.create(
             external_id="OP-2",
             title="Task with Reversed Name",
             status="open",
             service=service_config,
-            owner="Landefeld Klaus",
+            owner="Zeta Bob",
             owner_email="",
             updated_at=timezone.now(),
         )
@@ -422,18 +422,18 @@ class TestDashboardView:
         view.request = request
         context = view.get_context_data()
 
-        # Check filter options: should only have ONE owner (landefeld@ngenn.net)
-        # instead of two (landefeld@... and Landefeld Klaus or Klaus)
+        # Check filter options: should only have ONE owner (zeta@example.com)
+        # instead of two (zeta@... and Zeta Bob or Bob)
         owners = context["filter_options"]["owners"]
-        assert "landefeld@ngenn.net" in owners
-        assert "Landefeld Klaus" not in owners
-        assert "Klaus" not in owners
+        assert "zeta@example.com" in owners
+        assert "Zeta Bob" not in owners
+        assert "Bob" not in owners
 
         # Verify both tasks show up under the same owner in the table (unified display)
         # The view logic unifies owner_email for display if they share canonical ID
         tasks = context["tasks"].object_list
         for t in tasks:
-            assert t.owner_email == "landefeld@ngenn.net"
+            assert t.owner_email == "zeta@example.com"
             assert t.owner == ""
 
     def test_own_only_permission(self, user: User, rf: RequestFactory):
@@ -580,7 +580,7 @@ class TestDashboardView:
         assert "flast" not in owners
 
     def test_owner_unification_truncated_email(self, user: User, rf: RequestFactory):
-        """Verify that 'boeckmann@ngenn.net' overrides 'boeckmann@ngenn.'"""
+        """Verify that 'delta@example.com' overrides 'delta@example.'"""
         service = ServiceConfiguration.objects.create(
             name="Test Service",
             service_type="zammad",
@@ -594,14 +594,14 @@ class TestDashboardView:
             title="Task 1",
             status="open",
             service=service,
-            owner_email="boeckmann@ngenn.net",
+            owner_email="delta@example.com",
         )
         Task.objects.create(
             external_id="T2",
             title="Task 2",
             status="open",
             service=service,
-            owner_email="boeckmann@ngenn.",
+            owner_email="delta@example.",
         )
 
         request = rf.get("/?view=all")
@@ -612,13 +612,13 @@ class TestDashboardView:
 
         # Check filter options: only the full email should remain
         owners = context["filter_options"]["owners"]
-        assert "boeckmann@ngenn.net" in owners
-        assert "boeckmann@ngenn." not in owners
+        assert "delta@example.com" in owners
+        assert "delta@example." not in owners
 
         # Check task display: both should show the full email
         tasks = context["tasks"].object_list
         for t in tasks:
-            assert t.owner_email == "boeckmann@ngenn.net"
+            assert t.owner_email == "delta@example.com"
 
     def test_service_permission_overrides_default_access_level(
         self, user: User, rf: RequestFactory

@@ -41,5 +41,15 @@ MEDIA_URL = "http://media.testserver/"
 WHITENOISE_USE_FINDERS = True
 WHITENOISE_AUTOREFRESH = True
 
+# CACHES
+# ------------------------------------------------------------------------------
+# https://docs.djangoproject.com/en/dev/ref/settings/#caches
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "",
+    }
+}
+
 # Your stuff...
 # ------------------------------------------------------------------------------

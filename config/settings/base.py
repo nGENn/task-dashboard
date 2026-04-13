@@ -34,7 +34,7 @@ LANGUAGE_CODE = "en-us"
 
 LANGUAGES = [
     ("en", _("English")),
-    ("de", _("German")),
+    ("de", _("Deutsch")),
     #     ('fr-fr', _('French')),
     #     ('pt-br', _('Portuguese')),
 ]
@@ -108,7 +108,7 @@ AUTHENTICATION_BACKENDS = [
 # https://docs.djangoproject.com/en/dev/ref/settings/#auth-user-model
 AUTH_USER_MODEL = "users.User"
 # https://docs.djangoproject.com/en/dev/ref/settings/#login-redirect-url
-LOGIN_REDIRECT_URL = "users:redirect"
+LOGIN_REDIRECT_URL = "home"
 # https://docs.djangoproject.com/en/dev/ref/settings/#login-url
 LOGIN_URL = "account_login"
 
@@ -216,6 +216,8 @@ FIXTURE_DIRS = (str(APPS_DIR / "fixtures"),)
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#session-cookie-httponly
 SESSION_COOKIE_HTTPONLY = True
+# https://docs.djangoproject.com/en/dev/ref/settings/#session-engine
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 # https://docs.djangoproject.com/en/dev/ref/settings/#csrf-cookie-httponly
 CSRF_COOKIE_HTTPONLY = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#x-frame-options
@@ -270,8 +272,23 @@ LOGGING = {
     },
 }
 
-REDIS_URL = env("REDIS_URL", default="redis://redis:6379/0")
-REDIS_SSL = REDIS_URL.startswith("rediss://")
+VALKEY_URL = env("VALKEY_URL", default="redis://valkey:6379/0")
+VALKEY_SSL = VALKEY_URL.startswith("rediss://")
+
+# CACHES
+# ------------------------------------------------------------------------------
+# https://docs.djangoproject.com/en/dev/ref/settings/#caches
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": VALKEY_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            # Mimic memcached's default behavior of not connecting if can't
+            "IGNORE_EXCEPTIONS": True,
+        },
+    }
+}
 
 
 # django-allauth
@@ -391,5 +408,6 @@ Q_CLUSTER = {
     "queue_limit": 500,
     "cpu_affinity": 1,
     "label": "Django Q",
-    "orm": "default",  # Use Django ORM
+    "broker_class": "django_q.brokers.redis_broker.Redis",
+    "django_redis": "default",  # Use Valkey/Redis via django-redis
 }

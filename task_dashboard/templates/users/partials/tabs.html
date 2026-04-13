@@ -1,3 +1,4 @@
+{% load i18n %}
 <div id="tabs-container"
      role="tablist"
      class="tabs mb-2"
@@ -5,8 +6,8 @@
   <!-- All Tasks -->
   <a role="tab"
      class="tab tooltip tooltip-bottom {% if current_view == 'all' and not active_saved_view_id %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
-     data-tip="All sources unfiltered"
-     href="?view=all">All Tasks</a>
+     data-tip="{% trans 'All sources unfiltered' %}"
+     href="/all">{% trans "All Tasks" %}</a>
   <!-- Default Views -->
   {% for view in default_views %}
     <a role="tab"
@@ -19,12 +20,12 @@
     <div class="relative flex items-center group">
       <a role="tab"
          class="tab pr-8 tooltip tooltip-bottom {% if view.is_active %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
-         data-tip="Custom saved filter: {{ view.name }}"
+         data-tip="{% trans 'Custom saved filter:' %} {{ view.name }}"
          href="{{ view.url }}">{{ view.name }}</a>
       <button type="button"
               onclick="deleteView({{ view.id }})"
               class="absolute right-2 z-20 {% if view.is_active %}opacity-100{% else %}opacity-0 group-hover:opacity-100{% endif %} hover:text-error transition-all"
-              title="Delete View">
+              title="{% trans 'Delete View' %}">
         <svg xmlns="http://www.w3.org/2000/svg"
              class="h-4 w-4"
              fill="none"
@@ -39,6 +40,6 @@
   <button type="button"
           role="tab"
           class="tab tooltip tooltip-bottom"
-          data-tip="Save current filters as a custom view"
+          data-tip="{% trans 'Save current filters as a custom view' %}"
           onclick="save_view_modal.showModal()">+</button>
 </div>

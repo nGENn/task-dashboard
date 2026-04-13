@@ -4,14 +4,25 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-if [ -z "${POSTGRES_USER}" ]; then
-    base_postgres_image_default_user='postgres'
-    export POSTGRES_USER="${base_postgres_image_default_user}"
+if [ -z "${POSTGRES_USER:-}" ]; then
+    export POSTGRES_USER="postgres"
 fi
-export DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+export DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD:-}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-task_dashboard}"
 
-wait-for-it "${POSTGRES_HOST}:${POSTGRES_PORT}" -t 30
+# Wait for Postgres
+wait-for-it "${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}" -t 30
 
->&2 echo 'PostgreSQL is available'
+# Wait for Valkey
+# Use VALKEY_URL to find the host:port, or default to valkey:6379
+# This simple regex handles redis://[user:pass@]host[:port][/db]
+# (Actually, standard wait-for-it needs a host:port)
+_VALKEY_URL="${VALKEY_URL:-redis://valkey:6379/0}"
+VALKEY_HOST_PORT=${_VALKEY_URL#*//}      # strip scheme
+VALKEY_HOST_PORT=${VALKEY_HOST_PORT%%/*} # strip path/db
+VALKEY_HOST_PORT=${VALKEY_HOST_PORT#*@} # strip auth
+
+wait-for-it "${VALKEY_HOST_PORT:-valkey:6379}" -t 30
+
+>&2 echo 'PostgreSQL and Valkey are available'
 
 exec "$@"

@@ -1,0 +1,17 @@
+<div id="task-results"
+     {% if not request.htmx %}
+     hx-get="{{ request.get_full_path }}"
+     hx-trigger="load"
+     hx-swap="innerHTML"
+     {% endif %}>
+  <progress id="loading-spinner"
+            class="htmx-indicator progress progress-primary w-full h-1"></progress>
+  {% include "users/partials/tasks_table.html" %}
+  {% include "users/partials/pagination.html" %}
+</div>
+{% if is_htmx_oob %}
+  {% include "users/partials/stats_cards.html" %}
+  {% include "users/partials/tabs.html" %}
+  {% include "users/partials/system_health.html" %}
+  {% include "users/partials/filter_form_content.html" %}
+{% endif %}

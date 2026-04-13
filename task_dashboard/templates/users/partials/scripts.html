@@ -1,41 +1,129 @@
 {# djlint:off #}
+{% load i18n %}
+<style>
+  /* Flatpickr Lavender Override */
+  .flatpickr-calendar .flatpickr-day.selected, 
+  .flatpickr-calendar .flatpickr-day.startRange, 
+  .flatpickr-calendar .flatpickr-day.endRange, 
+  .flatpickr-calendar .flatpickr-day.selected.inRange, 
+  .flatpickr-calendar .flatpickr-day.startRange.inRange, 
+  .flatpickr-calendar .flatpickr-day.endRange.inRange,
+  .flatpickr-calendar .flatpickr-day.selected:focus, 
+  .flatpickr-calendar .flatpickr-day.startRange:focus, 
+  .flatpickr-calendar .flatpickr-day.endRange:focus, 
+  .flatpickr-calendar .flatpickr-day.selected:hover, 
+  .flatpickr-calendar .flatpickr-day.startRange:hover, 
+  .flatpickr-calendar .flatpickr-day.endRange:hover, 
+  .flatpickr-calendar .flatpickr-day.selected.prevMonthDay, 
+  .flatpickr-calendar .flatpickr-day.startRange.prevMonthDay, 
+  .flatpickr-calendar .flatpickr-day.endRange.prevMonthDay, 
+  .flatpickr-calendar .flatpickr-day.selected.nextMonthDay, 
+  .flatpickr-calendar .flatpickr-day.startRange.nextMonthDay, 
+  .flatpickr-calendar .flatpickr-day.endRange.nextMonthDay {
+      background: var(--color-primary, #b4befe) !important;
+      background-color: var(--color-primary, #b4befe) !important;
+      border-color: var(--color-primary, #b4befe) !important;
+      color: var(--color-base-100, #1e1e2e) !important;
+  }
+
+  .flatpickr-calendar .flatpickr-day:hover, 
+  .flatpickr-calendar .flatpickr-day.prevMonthDay:hover, 
+  .flatpickr-calendar .flatpickr-day.nextMonthDay:hover, 
+  .flatpickr-calendar .flatpickr-day:focus, 
+  .flatpickr-calendar .flatpickr-day.prevMonthDay:focus, 
+  .flatpickr-calendar .flatpickr-day.nextMonthDay:focus,
+  .flatpickr-calendar .flatpickr-day.today {
+      color: var(--color-primary, #b4befe) !important;
+      border-color: var(--color-primary, #b4befe) !important;
+  }
+</style>
 <script>
   document.addEventListener("DOMContentLoaded", function() {
     // 1. Initialize Flatpickr
-    const isMobile = window.innerWidth < 768;
+    window.initDatePickers = function() {
+      const isMobile = window.innerWidth < 768;
+      const datePickersConfigList = [
+        { boxId: "date-range-picker", inputId: "date-range-input", name: "date_range", label: "{% trans 'Created' %}" },
+        { boxId: "updated-range-picker", inputId: "updated-range-input", name: "updated_range", label: "{% trans 'Updated' %}" },
+        { boxId: "due-range-picker", inputId: "due-range-input", name: "due_range", label: "{% trans 'Due' %}" },
+      ];
+      window.datePickersConfigList = datePickersConfigList; // Expose for updateBadges
 
-    const datePickersConfigList = [
-      { boxId: "date-range-picker", inputId: "date-range-input", name: "date_range", label: "Created" },
-      { boxId: "updated-range-picker", inputId: "updated-range-input", name: "updated_range", label: "Updated" },
-      { boxId: "due-range-picker", inputId: "due-range-input", name: "due_range", label: "Due" },
-    ];
+      datePickersConfigList.forEach(picker => {
+        const box = document.getElementById(picker.boxId);
+        const hiddenInput = document.getElementById(picker.inputId);
 
-    window.datePickersConfigList = datePickersConfigList; // Expose for updateBadges
+        if (box) {
+          // Cleanup existing instance if any
+          if (box._flatpickr) {
+            box._flatpickr.destroy();
+          }
 
-    datePickersConfigList.forEach(picker => {
-      const box = document.getElementById(picker.boxId);
-      const hiddenInput = document.getElementById(picker.inputId);
+          let defaultDate = null;
+          if (hiddenInput && hiddenInput.value) {
+            defaultDate = hiddenInput.value.includes(" to ") ? hiddenInput.value.split(" to ") : hiddenInput.value;
+          }
 
-      let defaultDate = null;
-      if (hiddenInput && hiddenInput.value) {
-        defaultDate = hiddenInput.value.includes(" to ") ? hiddenInput.value.split(" to ") : hiddenInput.value;
+          box._flatpickr = flatpickr(box, {
+            mode: "range",
+            dateFormat: "Y-m-d",
+            defaultDate: defaultDate,
+            position: isMobile ? "auto right" : "auto left",
+            onChange: function(selectedDates, dateStr, instance) {
+              if (hiddenInput) {
+                hiddenInput.value = dateStr;
+              }
+              updateBadges();
+            },
+          });
+        }
+      });
+    };
+
+    // Define UI Re-initialization pipeline
+    window.reinitializeUI = function(isHtmxUpdate=false, targetId=null) {
+      if (!isHtmxUpdate || targetId === 'task-results') {
+        initTableResizers();
+        
+        // Ghost Exorcism: clear draft filters when a search query is active
+        const currentParams = new URLSearchParams(window.location.search);
+        if (currentParams.get('q') && currentParams.get('q').trim()) {
+          document.querySelectorAll('.filter-checkbox:checked').forEach(cb => cb.checked = false);
+          if (window.datePickersConfigList) {
+            window.datePickersConfigList.forEach(picker => {
+              const input = document.getElementById(picker.inputId);
+              if (input) input.value = '';
+              const box = document.getElementById(picker.boxId);
+              if (box && box._flatpickr) box._flatpickr.clear();
+            });
+          }
+        }
       }
+      initDatePickers();
+      updateBadges();
 
-      if (box) {
-        box._flatpickr = flatpickr(box, {
-          mode: "range",
-          dateFormat: "Y-m-d",
-          defaultDate: defaultDate,
-          theme: "dark",
-          position: isMobile ? "auto right" : "auto left",
-          onChange: function(selectedDates, dateStr, instance) {
-            if (hiddenInput) {
-              hiddenInput.value = dateStr;
-            }
-            updateBadges();
-          },
+      // Tooltip Sync: Fix stuck DaisyUI CSS tooltips on touch/click after OOB swaps.
+      // This ensures "Refresh" and "Copy" pseudo-element tooltips don't get stuck.
+      document.querySelectorAll('.tooltip').forEach(tooltip => {
+        // Blur the active element when mouse leaves to hide pseudo-element tooltips
+        tooltip.addEventListener('mouseleave', function() {
+          if (document.activeElement && document.activeElement !== document.body) {
+            document.activeElement.blur();
+          }
         });
-      }
+        tooltip.addEventListener('click', function() {
+          setTimeout(() => {
+            if (document.activeElement && document.activeElement !== document.body) {
+              document.activeElement.blur();
+            }
+          }, 1500); // Allow time for toast message before blurring, closing tooltip
+        });
+      });
+    };
+
+    // Listen for HTMX updates globally
+    document.body.addEventListener('htmx:afterSettle', function(event) {
+        window.reinitializeUI(true, event.detail.target.id);
     });
 
     // 2. Initial Setup: Check boxes based on URL params
@@ -55,8 +143,23 @@
       box.addEventListener("change", updateBadges);
     });
 
-    // 4. Initial Badge Render
-    updateBadges();
+    // Define filter clearing logic
+    window.clearFilters = function() {
+      // Uncheck all filter checkboxes
+      document.querySelectorAll('.filter-checkbox:checked').forEach(cb => cb.checked = false);
+      // Clear all date pickers
+      if (window.datePickersConfigList) {
+        window.datePickersConfigList.forEach(picker => {
+          const input = document.getElementById(picker.inputId);
+          if (input) input.value = '';
+          const box = document.getElementById(picker.boxId);
+          if (box && box._flatpickr) box._flatpickr.clear();
+        });
+      }
+      updateBadges();
+    };
+
+    // (Badges and filters are mapped during reinitializeUI)
 
     function updateBadges() {
       const container = document.getElementById("active-filters-container");
@@ -113,15 +216,30 @@
         const input = document.getElementById(picker.inputId);
         if (input && input.value) {
           hasFilters = true;
-          const formattedDate = input.value
+          let val = input.value.trim();
+          if (val.endsWith(" to")) {
+            val = val.substring(0, val.length - 3);
+          }
+
+          const formattedDate = val
             .replace(/(\d{4})-(\d{2})-(\d{2})/g, "$3.$2.$1")
             .replace(" to ", " - ");
+
+          // Compact Label with Icon
+          const displayText = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z" />
+            </svg>
+            ${picker.label}
+          `;
+
           createBadge(
             container,
             picker.name,
             input.value,
-            `${picker.label}: ${formattedDate}`,
-            "badge-neutral"
+            displayText,
+            "badge-primary",
+            formattedDate
           );
         }
       });
@@ -130,14 +248,13 @@
     // Toggle Label visibility
       if (hasFilters) {
         label.classList.remove("hidden");
-        // Add Clear All link
+        // Add dynamic "Clear all" link (in red) that only clears draft state
         if (!container.querySelector(".clear-all-link")) {
-          const clearBtn = document.createElement("a");
-          const urlParams = new URLSearchParams(window.location.search);
-          const currentView = urlParams.get('view') || 'my';
-          clearBtn.href = "?view=" + currentView;
+          const clearBtn = document.createElement("button");
+          clearBtn.type = "button";
           clearBtn.className = "btn btn-ghost btn-xs text-error clear-all-link";
-          clearBtn.innerText = "Clear all";
+          clearBtn.innerText = "{% trans 'Clear all' %}";
+          clearBtn.onclick = function() { window.clearFilters(); };
           container.appendChild(clearBtn);
         }
       } else {
@@ -214,6 +331,7 @@
       updateBadges();
     };
 
+
     function initTableResizers() {
       const resizers = document.querySelectorAll(".resizer");
       let currentResizer;
@@ -258,13 +376,8 @@
       });
     }
 
-    initTableResizers();
-
-    document.body.addEventListener('htmx:afterSwap', function(event) {
-        if (event.detail.target.id === 'task-results') {
-            initTableResizers();
-        }
-    });
+    // Single unified startup
+    window.reinitializeUI(false, null);
 
   });
 

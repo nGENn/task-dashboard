@@ -37,17 +37,17 @@ class User(AbstractUser):
         """Get URL for user's detail view.
 
         Returns:
-            str: URL for user detail.
+            str: URL for home.
 
         """
-        return reverse("users:detail", kwargs={"pk": self.id})
+        return reverse("home")
 
 
 ACCESS_LEVEL_CHOICES = [
-    ("FULL", "Full Access (See all tasks)"),
-    ("LIMITED", "Limited (Own tasks + Unassigned only)"),
-    ("OWN", "Only own tasks"),
-    ("NONE", "No Access"),
+    ("FULL", _("Full Access (See all tasks)")),
+    ("LIMITED", _("Limited (Own tasks + Unassigned only)")),
+    ("OWN", _("Only own tasks")),
+    ("NONE", _("No Access")),
 ]
 
 
@@ -277,7 +277,7 @@ def compare_query_params(request_get, target_params) -> bool:
         return False
 
     # Parameters to ignore when comparing active view
-    ignore_params = {"page", "sort", "direction", "refresh", "csrfmiddlewaretoken"}
+    ignore_params = {"page", "sort", "direction", "refresh", "csrfmiddlewaretoken", "view"}
 
     # Normalize request_get to a dict of sorted lists
     req_dict = {}
@@ -294,11 +294,7 @@ def compare_query_params(request_get, target_params) -> bool:
             else:
                 tp_dict[key] = [str(value)]
 
-    # Normalize 'view' parameter: treat 'all' as equivalent to missing/empty
-    # this helps match views saved with or without the explicit 'view=all'
-    for d in [req_dict, tp_dict]:
-        if "view" in d and (d["view"] == ["all"] or d["view"] == []):
-            del d["view"]
+
 
     # Clean up other empty values: remove anything that is just [""] or []
     # This ensures that empty filters match whether they are missing or empty.
@@ -347,6 +343,9 @@ class SavedView(models.Model):
         return qd.urlencode()
 
 
+from django.db.models import F, Value
+from django.db.models.functions import Concat
+
 class Task(models.Model):
     external_id = models.CharField(max_length=255)
     service = models.ForeignKey(
@@ -359,6 +358,13 @@ class Task(models.Model):
     priority = models.CharField(max_length=50)
     customer = models.CharField(max_length=255, blank=True, default="")
     group = models.CharField(max_length=255, blank=True)
+    service_group = models.ForeignKey(
+        ExternalGroup,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tasks",
+    )
     owner = models.CharField(max_length=255, blank=True)
     owner_email = models.EmailField(blank=True)
     created_at = models.DateTimeField(null=True, blank=True)
@@ -366,9 +372,29 @@ class Task(models.Model):
     due_date = models.DateTimeField(null=True, blank=True)
     url = models.URLField(max_length=500, blank=True)
 
+    # Postgres 18 / Django 5.x GeneratedField for optimized searching
+    search_text = models.GeneratedField(
+        expression=Concat(
+            F("title"),
+            Value(" "),
+            F("external_id"),
+            Value(" "),
+            F("customer"),
+            Value(" "),
+            F("owner"),
+            Value(" "),
+            F("group"),
+        ),
+        output_field=models.TextField(),
+        db_persist=True,
+    )
+
     class Meta:
         unique_together = ("service", "external_id")
         ordering = ["-updated_at"]
+        indexes = [
+            models.Index(fields=["search_text"]),
+        ]
 
     def __str__(self):
         return self.title
