@@ -215,10 +215,12 @@ class ErambaService:
             for res in results:
                 if isinstance(res, list):
                     all_tasks.extend(res)
-                else:
+                elif isinstance(res, Exception):
                     logger.error(
                         "Eramba sync error for service %s: %s", self.config.name, res
                     )
+                    # Raise the first exception we hit to abort pruning
+                    raise res
 
             cache.set(cache_key, all_tasks, timeout=300)
             return all_tasks

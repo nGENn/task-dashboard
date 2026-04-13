@@ -31,8 +31,8 @@
           {% endif %}
         {% endfor %}
         <div class="divider my-6">OR</div>
-        <div tabindex="0"
-             class="collapse collapse-arrow border border-base-300 bg-base-100 rounded-box text-left {% if form.errors %}collapse-open{% endif %}">
+        <div class="collapse collapse-arrow border border-base-300 bg-base-100 rounded-box text-left">
+          <input type="checkbox" {% if form.errors %}checked{% endif %} />
           <div class="collapse-title text-sm font-medium text-base-content/70 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg"
                  class="h-4 w-4"
@@ -61,14 +61,14 @@
                 </div>
               {% endif %}
               <div class="form-control w-full mb-3">
-                <label class="label">
+                <label class="label" for="id_login">
                   <span class="label-text font-bold">Email</span>
                 </label>
                 {{ form.login }}
                 {% for error in form.login.errors %}<span class="text-error text-xs mt-1">{{ error }}</span>{% endfor %}
               </div>
               <div class="form-control w-full mb-3">
-                <label class="label">
+                <label class="label" for="id_password">
                   <span class="label-text font-bold">Password</span>
                 </label>
                 {{ form.password }}

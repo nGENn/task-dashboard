@@ -1,15 +1,18 @@
-{% load dashboard_extras %}
+{% load dashboard_extras i18n %}
 
 <!-- Filter Form Content -->
-<div class="mb-2 bg-base-100 rounded-box shadow-sm border border-base-300 p-4">
-  <div class="flex flex-wrap gap-3 mb-3 w-full">
+<div id="filter-form-content-wrapper"
+     class="mb-2 bg-base-100 rounded-box shadow-sm border border-base-300 p-4"
+     {% if is_htmx_oob %}hx-swap-oob="true"{% endif %}>
+  <div id="filter-options-container"
+       class="flex flex-wrap gap-3 mb-3 w-full">
     <!-- Dropdowns -->
     <div class="dropdown tooltip tooltip-bottom filter-dropdown-container"
-         data-tip="Source platform">
+         data-tip="{% trans 'Source platform' %}">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
-        <span class="text-base-content/60 text-sm truncate">Origin</span>
+        <span class="text-base-content/60 text-sm truncate">{% trans "Origin" %}</span>
         <svg xmlns="http://www.w3.org/2000/svg"
              class="h-4 w-4 opacity-50 flex-shrink-0"
              fill="none"
@@ -26,23 +29,30 @@
               <input type="checkbox"
                      name="origin"
                      value="{{ origin }}"
-                     class="checkbox checkbox-sm checkbox-primary filter-checkbox" />
+                     class="checkbox checkbox-sm checkbox-primary filter-checkbox"
+                     {% if origin in applied_filters.origins %}checked{% endif %} />
               <span class="text-sm whitespace-nowrap">{{ origin }}</span>
             </label>
           </li>
         {% empty %}
           <li class="disabled">
-            <span class="text-xs opacity-50">No data</span>
+            <span class="text-xs opacity-50">
+              {% if not request.htmx %}
+                <span class="loading loading-dots loading-xs"></span> Loading...
+              {% else %}
+                No data
+              {% endif %}
+            </span>
           </li>
         {% endfor %}
       </ul>
     </div>
     <div class="dropdown tooltip tooltip-bottom filter-dropdown-container"
-         data-tip="Filter by customer name">
+         data-tip="{% trans 'Filter by customer name' %}">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
-        <span class="text-base-content/60 text-sm truncate">Customer</span>
+        <span class="text-base-content/60 text-sm truncate">{% trans "Customer" %}</span>
         <svg xmlns="http://www.w3.org/2000/svg"
              class="h-4 w-4 opacity-50 flex-shrink-0"
              fill="none"
@@ -59,23 +69,30 @@
               <input type="checkbox"
                      name="customer"
                      value="{{ customer }}"
-                     class="checkbox checkbox-sm checkbox-primary filter-checkbox" />
+                     class="checkbox checkbox-sm checkbox-primary filter-checkbox"
+                     {% if customer in applied_filters.customers %}checked{% endif %} />
               <span class="text-sm whitespace-nowrap">{{ customer }}</span>
             </label>
           </li>
         {% empty %}
           <li class="disabled">
-            <span class="text-xs opacity-50">No data</span>
+            <span class="text-xs opacity-50">
+              {% if not request.htmx %}
+                <span class="loading loading-dots loading-xs"></span> Loading...
+              {% else %}
+                No data
+              {% endif %}
+            </span>
           </li>
         {% endfor %}
       </ul>
     </div>
     <div class="dropdown tooltip tooltip-bottom filter-dropdown-container"
-         data-tip="Filter by functional group or department">
+         data-tip="{% trans 'Filter by functional group or department' %}">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
-        <span class="text-base-content/60 text-sm truncate">Group</span>
+        <span class="text-base-content/60 text-sm truncate">{% trans "Group" %}</span>
         <svg xmlns="http://www.w3.org/2000/svg"
              class="h-4 w-4 opacity-50 flex-shrink-0"
              fill="none"
@@ -92,23 +109,30 @@
               <input type="checkbox"
                      name="group"
                      value="{{ group }}"
-                     class="checkbox checkbox-sm checkbox-primary filter-checkbox" />
+                     class="checkbox checkbox-sm checkbox-primary filter-checkbox"
+                     {% if group in applied_filters.groups %}checked{% endif %} />
               <span class="text-sm whitespace-nowrap">{{ group }}</span>
             </label>
           </li>
         {% empty %}
           <li class="disabled">
-            <span class="text-xs opacity-50">No data</span>
+            <span class="text-xs opacity-50">
+              {% if not request.htmx %}
+                <span class="loading loading-dots loading-xs"></span> Loading...
+              {% else %}
+                No data
+              {% endif %}
+            </span>
           </li>
         {% endfor %}
       </ul>
     </div>
     <div class="dropdown tooltip tooltip-bottom filter-dropdown-container"
-         data-tip="Filter by assigned user in source system">
+         data-tip="{% trans 'Filter by assigned user in source system' %}">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
-        <span class="text-base-content/60 text-sm truncate">Owner</span>
+        <span class="text-base-content/60 text-sm truncate">{% trans "Owner" %}</span>
         <svg xmlns="http://www.w3.org/2000/svg"
              class="h-4 w-4 opacity-50 flex-shrink-0"
              fill="none"
@@ -125,23 +149,30 @@
               <input type="checkbox"
                      name="owner"
                      value="{{ owner }}"
-                     class="checkbox checkbox-sm checkbox-primary filter-checkbox" />
+                     class="checkbox checkbox-sm checkbox-primary filter-checkbox"
+                     {% if owner in applied_filters.owners %}checked{% endif %} />
               <span class="text-sm whitespace-nowrap">{{ owner }}</span>
             </label>
           </li>
         {% empty %}
           <li class="disabled">
-            <span class="text-xs opacity-50">No data</span>
+            <span class="text-xs opacity-50">
+              {% if not request.htmx %}
+                <span class="loading loading-dots loading-xs"></span> Loading...
+              {% else %}
+                No data
+              {% endif %}
+            </span>
           </li>
         {% endfor %}
       </ul>
     </div>
     <div class="dropdown dropdown-end tooltip tooltip-bottom filter-dropdown-container"
-         data-tip="Filter by current task status">
+         data-tip="{% trans 'Filter by current task status' %}">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
-        <span class="text-base-content/60 text-sm truncate">State</span>
+        <span class="text-base-content/60 text-sm truncate">{% trans "State" %}</span>
         <svg xmlns="http://www.w3.org/2000/svg"
              class="h-4 w-4 opacity-50 flex-shrink-0"
              fill="none"
@@ -158,23 +189,30 @@
               <input type="checkbox"
                      name="state"
                      value="{{ state }}"
-                     class="checkbox checkbox-sm checkbox-primary filter-checkbox" />
+                     class="checkbox checkbox-sm checkbox-primary filter-checkbox"
+                     {% if state in applied_filters.states %}checked{% endif %} />
               <span class="text-sm whitespace-nowrap capitalize">{{ state }}</span>
             </label>
           </li>
         {% empty %}
           <li class="disabled">
-            <span class="text-xs opacity-50">No data</span>
+            <span class="text-xs opacity-50">
+              {% if not request.htmx %}
+                <span class="loading loading-dots loading-xs"></span> Loading...
+              {% else %}
+                No data
+              {% endif %}
+            </span>
           </li>
         {% endfor %}
       </ul>
     </div>
     <div class="dropdown dropdown-end tooltip tooltip-bottom filter-dropdown-container"
-         data-tip="Filter by task priority level">
+         data-tip="{% trans 'Filter by task priority level' %}">
       <div tabindex="0"
            role="button"
            class="select select-bordered w-full flex items-center justify-between px-3">
-        <span class="text-base-content/60 text-sm truncate">Priority</span>
+        <span class="text-base-content/60 text-sm truncate">{% trans "Priority" %}</span>
         <svg xmlns="http://www.w3.org/2000/svg"
              class="h-4 w-4 opacity-50 flex-shrink-0"
              fill="none"
@@ -191,20 +229,27 @@
               <input type="checkbox"
                      name="priority"
                      value="{{ priority }}"
-                     class="checkbox checkbox-sm checkbox-primary filter-checkbox" />
+                     class="checkbox checkbox-sm checkbox-primary filter-checkbox"
+                     {% if priority in applied_filters.priorities %}checked{% endif %} />
               <span class="text-sm whitespace-nowrap capitalize">{{ priority }}</span>
             </label>
           </li>
         {% empty %}
           <li class="disabled">
-            <span class="text-xs opacity-50">No data</span>
+            <span class="text-xs opacity-50">
+              {% if not request.htmx %}
+                <span class="loading loading-dots loading-xs"></span> Loading...
+              {% else %}
+                No data
+              {% endif %}
+            </span>
           </li>
         {% endfor %}
       </ul>
     </div>
     <!-- Date Ranges using completely static DIVs to prevent text shifting -->
     <div class="tooltip tooltip-bottom filter-dropdown-container"
-         data-tip="Creation date">
+         data-tip="{% trans 'Creation date' %}">
       <div id="date-range-picker"
            class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer w-full">
         <svg xmlns="http://www.w3.org/2000/svg"
@@ -214,15 +259,15 @@
              stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
-        <span class="text-base-content/60 text-sm truncate pointer-events-none">Created</span>
+        <span class="text-base-content/60 text-sm truncate pointer-events-none">{% trans "Created" %}</span>
       </div>
     </div>
     <input type="hidden"
            id="date-range-input"
-           name="date_range"
+           {% if request.GET.date_range %}name="date_range"{% endif %}
            value="{{ request.GET.date_range }}" />
     <div class="tooltip tooltip-bottom filter-dropdown-container"
-         data-tip="Last modified">
+         data-tip="{% trans 'Last modified' %}">
       <div id="updated-range-picker"
            class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer w-full">
         <svg xmlns="http://www.w3.org/2000/svg"
@@ -232,15 +277,15 @@
              stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
-        <span class="text-base-content/60 text-sm truncate pointer-events-none">Updated</span>
+        <span class="text-base-content/60 text-sm truncate pointer-events-none">{% trans "Updated" %}</span>
       </div>
     </div>
     <input type="hidden"
            id="updated-range-input"
-           name="updated_range"
+           {% if request.GET.updated_range %}name="updated_range"{% endif %}
            value="{{ request.GET.updated_range }}" />
     <div class="tooltip tooltip-bottom filter-dropdown-container"
-         data-tip="Due date">
+         data-tip="{% trans 'Due date' %}">
       <div id="due-range-picker"
            class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer w-full">
         <svg xmlns="http://www.w3.org/2000/svg"
@@ -250,27 +295,64 @@
              stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
-        <span class="text-base-content/60 text-sm truncate pointer-events-none">Due</span>
+        <span class="text-base-content/60 text-sm truncate pointer-events-none">{% trans "Due" %}</span>
       </div>
     </div>
     <input type="hidden"
            id="due-range-input"
-           name="due_range"
+           {% if request.GET.due_range %}name="due_range"{% endif %}
            value="{{ request.GET.due_range }}" />
   </div>
   <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-t border-base-200 pt-4">
     <div id="active-filters-container"
          class="flex flex-wrap items-center gap-2 min-h-[2rem]">
-      <span class="text-sm text-base-content/60 mr-1 hidden"
-            id="active-filters-label">Active filters:</span>
+      <span class="text-sm text-base-content/60 mr-1 {% if not active_filters_sidebar %}hidden{% endif %}"
+            id="active-filters-label">{% trans "Active filters:" %}</span>
+      {% for key, data in active_filters_sidebar.items %}
+        {% with count=data.values|length %}
+          <div class="badge badge-primary gap-1 pr-0 py-1 tooltip tooltip-bottom before:text-xs before:max-w-xs before:whitespace-normal"
+               data-tip="{{ data.values|join:', ' }}">
+            {% if key == 'q' %}
+              {% trans "Search" %}: <span class="ml-1 font-semibold">{{ data.values.0 }}</span>
+            {% elif key == 'date_range' or key == 'updated_range' or key == 'due_range' %}
+              <svg xmlns="http://www.w3.org/2000/svg"
+                   class="h-3 w-3"
+                   fill="none"
+                   viewBox="0 0 24 24"
+                   stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              {{ data.label }}
+            {% else %}
+              {{ data.label }} <span class="badge badge-xs bg-primary-content text-primary border-none ml-1">{{ count }}</span>
+            {% endif %}
+            <button type="button"
+                    class="btn btn-ghost btn-xs text-primary-content hover:bg-transparent"
+                    onclick="removeBadge('{{ key }}', '{% if key == 'q' or key == 'date_range' or key == 'updated_range' or key == 'due_range' %}{{ data.values.0 }}{% else %}all{% endif %}')">
+              <svg xmlns="http://www.w3.org/2000/svg"
+                   class="h-3 w-3"
+                   fill="none"
+                   viewBox="0 0 24 24"
+                   stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        {% endwith %}
+      {% endfor %}
+      {% if active_filters_sidebar %}
+        <button type="button"
+                class="btn btn-ghost btn-xs text-error clear-all-link"
+                onclick="window.clearFilters()">{% trans 'Clear all' %}</button>
+      {% endif %}
     </div>
     <div class="flex items-center gap-2 whitespace-nowrap">
-      <a href="?view={{ current_view|default:'my' }}"
-         class="btn btn-ghost btn-sm tooltip"
-         data-tip="Clear all currently selected filters">Reset</a>
+      <a href="{% url 'all_tasks' %}"
+         class="btn btn-ghost btn-sm tooltip tooltip-left"
+         data-tip="{% trans 'Hard reset to global view with no filters' %}">{% trans "Reset" %}</a>
       <button type="submit"
               class="btn btn-primary btn-sm tooltip tooltip-left"
-              data-tip="Apply filters">Apply Filters</button>
+              data-tip="{% trans 'Apply filters' %}">{% trans "Apply Filters" %}</button>
     </div>
   </div>
 </div>

@@ -1,0 +1,10 @@
+{% load i18n %}
+
+<div id="system-health-indicator"
+     class="inline-flex"
+     {% if is_htmx_oob %}hx-swap-oob="true"{% endif %}>
+  <span class="hidden md:inline text-sm whitespace-nowrap text-{{ global_system_status.color }}">
+    {% trans "System:" %} {% trans global_system_status.state %}
+    {% if global_system_status.max_latency > 0 %}({{ global_system_status.max_latency }}ms){% endif %}
+  </span>
+</div>

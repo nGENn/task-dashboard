@@ -15,6 +15,7 @@ SECRET_KEY = env(
 )
 # https://docs.djangoproject.com/en/dev/ref/settings/#test-runner
 TEST_RUNNER = "django.test.runner.DiscoverRunner"
+TESTING = True
 
 # PASSWORDS
 # ------------------------------------------------------------------------------
@@ -40,6 +41,16 @@ MEDIA_URL = "http://media.testserver/"
 # http://whitenoise.evans.io/en/stable/django.html#using-whitenoise-in-development
 WHITENOISE_USE_FINDERS = True
 WHITENOISE_AUTOREFRESH = True
+
+# CACHES
+# ------------------------------------------------------------------------------
+# https://docs.djangoproject.com/en/dev/ref/settings/#caches
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "",
+    }
+}
 
 # Your stuff...
 # ------------------------------------------------------------------------------

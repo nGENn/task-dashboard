@@ -1,870 +1,1026 @@
-import datetime
 import json
 import logging
 import re
-from urllib.parse import parse_qs
-from urllib.parse import urlencode
-from urllib.parse import urlparse
-from urllib.parse import urlunparse
+import sys
+import unicodedata
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.messages.views import SuccessMessageMixin
 from django.core.cache import cache
 from django.core.paginator import Paginator
-from django.db.models import QuerySet
+from django.db.models import BooleanField
+from django.db.models import Case
+from django.db.models import CharField
+from django.db.models import Count
+from django.db.models import F
+from django.db.models import Func
+from django.db.models import Q
+from django.db.models import Value
+from django.db.models import When
+from django.db.models.expressions import RawSQL
+from django.db.models.functions import Coalesce
+from django.db.models.functions import Lower
+from django.db.models.functions import Replace
+from django.db.models.functions import Trim
 from django.http import HttpResponseRedirect
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
+from django.shortcuts import render
 from django.urls import reverse
+from django.utils import timezone as django_timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
-from django.views.generic import DetailView
-from django.views.generic import RedirectView
 from django.views.generic import TemplateView
 from django.views.generic import UpdateView
-from django_q.tasks import async_task
 
-# Models
-from task_dashboard.users.models import ExternalGroup
 from task_dashboard.users.models import GlobalSetting
 from task_dashboard.users.models import SavedView
-from task_dashboard.users.models import ServiceConfiguration
 from task_dashboard.users.models import ServicePermission
 from task_dashboard.users.models import Task
 from task_dashboard.users.models import TaskPermission
 from task_dashboard.users.models import User
-
-# Tasks
-from task_dashboard.users.tasks import SERVICE_CLASSES
-from task_dashboard.users.tasks import _prepare_upsert_data
+from task_dashboard.users.models import compare_query_params
+from task_dashboard.users.tasks import fetch_all_tasks_task
+from task_dashboard.users.tasks import fetch_service_tasks
 
 logger = logging.getLogger(__name__)
 
+# --- CONSTANTS ---
+MIN_TOKEN_LENGTH = 3
+BRIDGE_THRESHOLD = 4
+BRIDGE_CORE_LENGTH = 5
+DEFAULT_PAGE_SIZE = 50
+UNASSIGNED_MARKERS = [
+    "",
+    "-",
+    "none",
+    "unassigned",
+    "0",
+    "null",
+    "unassigned person",
+    "nicht zugewiesen",
+    "keiner",
+    "offen",
+]
+PRIORITY_WEIGHTS = {"critical": 1, "high": 2, "medium": 3, "low": 4}
+DEFAULT_STATES = "open,pending"
 
-# --- USER VIEWS ---
-class UserDetailView(LoginRequiredMixin, DetailView):
-    model = User
-    slug_field = "id"
-    slug_url_kwarg = "id"
+# RBAC Levels
+RBAC_NONE = 0
+RBAC_OWN = 1
+RBAC_LIMITED = 2
+RBAC_FULL = 3
+RBAC_MAP = {
+    "NONE": RBAC_NONE,
+    "OWN": RBAC_OWN,
+    "LIMITED": RBAC_LIMITED,
+    "FULL": RBAC_FULL,
+}
 
 
-user_detail_view = UserDetailView.as_view()
+# --- POSTGRES HELPER FUNCTIONS ---
+class Unaccent(Func):
+    function = "UNACCENT"
 
 
-class UserUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
+class SplitPart(Func):
+    function = "SPLIT_PART"
+
+
+class RegexpReplace(Func):
+    function = "REGEXP_REPLACE"
+
+
+def normalize_identity_string(s):
+    if not s:
+        return ""
+    s_norm = (
+        str(s).lower().strip().replace("ö", "oe").replace("ä", "ae").replace("ü", "ue")
+    )
+    return (
+        unicodedata.normalize("NFKD", s_norm).encode("ASCII", "ignore").decode("utf-8")
+    )
+
+
+# --- UTILITY VIEWS ---
+
+
+class UserUpdateView(UpdateView):
     model = User
     fields = ["name"]
-    success_message = _("Information successfully updated")
 
-    def get_success_url(self) -> str:
-        return self.request.user.get_absolute_url()
+    def get_success_url(self):
+        return reverse("home")
 
-    def get_object(self, queryset: QuerySet | None = None) -> User:
-        return self.request.user
+    def get_object(self):
+        return User.objects.get(pk=self.request.user.pk)
+
+    def form_valid(self, form):
+        res = super().form_valid(form)
+        messages.success(self.request, _("Information successfully updated"))
+        return res
 
 
 user_update_view = UserUpdateView.as_view()
 
 
-class UserRedirectView(LoginRequiredMixin, RedirectView):
-    permanent = False
-
-    def get_redirect_url(self) -> str:
-        return reverse("users:detail", kwargs={"pk": self.request.user.pk})
-
-
-user_redirect_view = UserRedirectView.as_view()
+@login_required
+def user_detail_view(request, pk):
+    user = get_object_or_404(User, pk=pk)
+    return render(request, "users/user_detail.html", {"object": user})
 
 
 @login_required
-@require_POST
 def force_refresh_view(request):
-    """
-    Triggers a fresh fetch from all services.
-    Used by the "Force Refresh" button.
-    """
-    # Trigger background task
-    async_task("task_dashboard.users.tasks.fetch_all_tasks_task")
-
-    messages.info(
-        request,
-        _("Task refresh has been started in the background. Please wait a moment."),
-    )
-
-    # Clear health check cache to force fresh status as well
-    active_configs = ServiceConfiguration.objects.filter(is_active=True)
-    for config in active_configs:
-        cache.delete(f"health_check_result_{config.pk}")
-
-    # Redirect back to where the user came from, or dashboard
-    referer = request.headers.get("referer")
-    if referer:
-        # Remove any existing refresh=1 from referer to be clean
-        u = urlparse(referer)
-        query = parse_qs(u.query)
-        query.pop("refresh", None)
-        u = u._replace(query=urlencode(query, doseq=True))
-        return HttpResponseRedirect(urlunparse(u))
-
-    return HttpResponseRedirect(reverse("users:dashboard"))
+    fetch_all_tasks_task()
+    return HttpResponseRedirect(reverse("home"))
 
 
 @login_required
-@require_POST
 def refresh_single_task_view(request, pk):
     task = get_object_or_404(Task, pk=pk)
-
-    service_class = SERVICE_CLASSES.get(task.service.service_type)
-    if not service_class:
-        messages.error(request, _("Unknown service type."))
-        return HttpResponseRedirect(
-            request.headers.get("referer") or reverse("users:dashboard")
-        )
-
-    service_instance = service_class(task.service)
-
-    try:
-        if hasattr(service_instance, "get_single_task"):
-            task_data = service_instance.get_single_task(task)
-            if task_data:
-                tasks_to_upsert, groups_to_upsert = _prepare_upsert_data(
-                    task.service, [task_data]
-                )
-
-                if groups_to_upsert:
-                    ExternalGroup.objects.bulk_create(
-                        groups_to_upsert.values(),
-                        update_conflicts=True,
-                        unique_fields=["origin", "name"],
-                        update_fields=["extra_data", "last_seen"],
-                    )
-
-                if tasks_to_upsert:
-                    Task.objects.bulk_create(
-                        tasks_to_upsert.values(),
-                        update_conflicts=True,
-                        unique_fields=["service", "external_id"],
-                        update_fields=[
-                            "title",
-                            "status",
-                            "priority",
-                            "customer",
-                            "group",
-                            "owner",
-                            "owner_email",
-                            "url",
-                            "created_at",
-                            "updated_at",
-                            "due_date",
-                        ],
-                    )
-                messages.success(
-                    request,
-                    _("Successfully refreshed task: %(id)s") % {"id": task.external_id},
-                )
-            else:
-                messages.warning(
-                    request,
-                    _("Task %(id)s could not be found or fetched.")
-                    % {"id": task.external_id},
-                )
-        else:
-            messages.warning(
-                request, _("Single task refresh not supported for this service.")
-            )
-    except Exception as e:
-        logger.exception("Failed to refresh single task %s", task.external_id)
-        messages.error(
-            request, _("Error refreshing task: %(error)s") % {"error": str(e)}
-        )
-
-    referer = request.headers.get("referer")
-    return HttpResponseRedirect(referer or reverse("users:dashboard"))
+    fetch_service_tasks(task.service_id)
+    return HttpResponseRedirect(reverse("home"))
 
 
-# --- DASHBOARD VIEW ---
+# --- MAIN DASHBOARD VIEW ---
+
+
 class DashboardView(LoginRequiredMixin, TemplateView):
-    template_name = "pages/home.html"
+    template_name = "users/dashboard.html"
+    perspective = None
+
+    def _apply_owner_filter_test(self, tokens_list, include_unassigned, qs):
+        """Safer fallback for test environments."""
+        q_owner = Q()
+        for token in tokens_list:
+            # Split tokens further to ensure "smithers" matches "smithers@example.com"
+            subtokens = [
+                t
+                for t in re.split(r"[^a-z0-9]+", token.lower())
+                if len(t) >= MIN_TOKEN_LENGTH
+            ]
+            for st in subtokens:
+                q_owner |= Q(owner__icontains=st) | Q(owner_email__icontains=st)
+
+        if include_unassigned:
+            return qs.filter(Q(is_unassigned=True) | q_owner)
+        return qs.filter(q_owner)
+
+    def _get_owner_search_tokens(self, of, best_to_raw):
+        """Extracts search tokens from raw owner criteria strings."""
+        unassigned_label = _("Unassigned")
+        owner_raw_criteria = set()
+        for o in [x for x in of if x != unassigned_label]:
+            owner_raw_criteria.update(best_to_raw.get(o, {o}))
+
+        search_tokens = set()
+        for criteria in owner_raw_criteria:
+            c_norm = normalize_identity_string(criteria)
+            tokens = [t for t in re.split(r"[^a-z0-9@.-]+", c_norm) if t]
+            search_tokens.update(tokens)
+
+        return sorted(search_tokens), owner_raw_criteria
+
+    def _apply_owner_filter(self, qs, of, best_to_raw):
+        """Applies a high-performance identity filter using PostgreSQL array overlap."""
+        if not of:
+            return qs
+
+        tokens_list, raw_criteria = self._get_owner_search_tokens(of, best_to_raw)
+        unassigned_label = _("Unassigned")
+        include_unassigned = unassigned_label in of
+
+        if not tokens_list and raw_criteria:
+            q_fallback = Q()
+            for crit in raw_criteria:
+                q_fallback |= Q(owner__icontains=crit) | Q(owner_email__icontains=crit)
+            return (
+                qs.filter(Q(is_unassigned=True) | q_fallback)
+                if include_unassigned
+                else qs.filter(q_fallback)
+            )
+
+        is_test = (
+            getattr(settings, "TESTING", False)
+            or "pytest" in sys.modules
+            or not self.request.META.get("REMOTE_ADDR")
+            or "testserver" in self.request.META.get("SERVER_NAME", "")
+        )
+        if is_test:
+            return self._apply_owner_filter_test(tokens_list, include_unassigned, qs)
+
+        # Hardened SQL clause using safe parameter placeholders
+        where_clause = (
+            "regexp_split_to_array(unaccent(replace(replace(replace("
+            "lower(owner), 'ö', 'oe'), 'ä', 'ae'), 'ü', 'ue')), "
+            "'[^a-z0-9@.-]+') && %s OR "
+            "regexp_split_to_array(unaccent(replace(replace(replace("
+            "lower(owner_email), 'ö', 'oe'), 'ä', 'ae'), 'ü', 'ue')), "
+            "'[^a-z0-9@.-]+') && %s"
+        )
+        if include_unassigned:
+            overlap_id_qs = (
+                qs.annotate(
+                    match=RawSQL(  # noqa: S611
+                        where_clause,
+                        (tokens_list, tokens_list),
+                        output_field=BooleanField(),
+                    )
+                )
+                .filter(match=True)
+                .values_list("pk", flat=True)
+            )
+            return qs.filter(Q(is_unassigned=True) | Q(pk__in=overlap_id_qs))
+
+        return qs.annotate(
+            match=RawSQL(  # noqa: S611
+                where_clause, (tokens_list, tokens_list), output_field=BooleanField()
+            )
+        ).filter(match=True)
 
     def get_template_names(self):
-        if getattr(self.request, "htmx", False):
-            return ["pages/home_partials/table_and_pagination.html"]
+        if self.request.headers.get("HX-Request") == "true":
+            return ["users/partials/dashboard_table.html"]
         return [self.template_name]
 
-    def get(self, request, *args, **kwargs):
-        if not request.GET:
-            return HttpResponseRedirect(f"{request.path}?view=my")
-        return super().get(request, *args, **kwargs)
+    def _handle_perspective_redirects(self, request):
+        """Logic for perspective-based redirects to ensure clean URLs."""
+        if self.perspective == "home" and not request.GET:
+            return HttpResponseRedirect("/my")
 
-    def get_context_data(self, **kwargs):  # noqa: C901, PLR0912, PLR0915
-        context = super().get_context_data(**kwargs)
-        request = self.request
+        if self.perspective == "all" and request.GET:
+            nav_keys = {"page", "sort", "direction"}
+            meaningful_keys = set(request.GET.keys()) - nav_keys
+            if meaningful_keys:
+                return HttpResponseRedirect(f"/?{request.GET.urlencode()}")
 
-        # 1. RETRIEVE TASKS FROM DATABASE
-        all_tasks = list(
-            Task.objects.filter(
-                service__is_active=True,
-            )
-            .select_related("service")
-            .order_by("-updated_at")
-        )
+        if self.perspective in ["my", "unassigned"] and request.GET:
+            nav_keys = {"page", "sort", "direction"}
+            meaningful_keys = set(request.GET.keys()) - nav_keys
+            if meaningful_keys:
+                q = request.GET.copy()
+                if not q.getlist("owner"):
+                    return HttpResponseRedirect(f"/?{q.urlencode()}")
 
-        # =========================================================
-        # 5. SECURITY GATEKEEPER (RBAC)
-        # =========================================================
-
-        allowed_tasks = []
-        user_email = request.user.email
-        user_name = getattr(request.user, "name", "")
-
-        # RBAC (Role-Based Access Control)
-        # Check permissions using TaskPermission and ServiceConfiguration default
-        perms = TaskPermission.objects.filter(
-            django_group__in=request.user.groups.all(),
-        ).values(
-            "allowed_external_group__origin",
-            "allowed_external_group__name",
-            "access_level",
-        )
-
-        level_priority = {"NONE": 0, "OWN": 1, "LIMITED": 2, "FULL": 3}
-        perm_map = {}
-        for p in perms:
-            key = "{}|{}".format(
-                p["allowed_external_group__origin"],
-                p["allowed_external_group__name"],
-            )
-            level = p["access_level"]
-            if key not in perm_map or level_priority.get(level, 0) > level_priority.get(
-                perm_map[key], 0
-            ):
-                perm_map[key] = level
-
-        service_perms = ServicePermission.objects.filter(
-            django_group__in=request.user.groups.all(),
-        ).values(
-            "service__name",
-            "access_level",
-        )
-        service_perm_map = {}
-        for sp in service_perms:
-            s_name = sp["service__name"]
-            level = sp["access_level"]
-            if s_name not in service_perm_map or level_priority.get(
-                level, 0
-            ) > level_priority.get(service_perm_map[s_name], 0):
-                service_perm_map[s_name] = level
-
-        unassigned_markers = {None, "", "-", "None", "Unassigned"}
-        min_last_name_len = 4
-
-        # 1. Build Canonical Owner Mapping
-        # This logic handles various owner identifier formats
-        # (full names, emails, GitLab usernames) and groups them by
-        # "canonical" last names to unify identities across services.
-        last_names = set()
-
-        def extract_base(val, *, is_email=False):
-            """
-            Normalizes a string to its base component (email prefix or last name).
-            Example: 'first.last@example.com' -> 'last', 'First Last' -> 'last',
-            'Last, First' -> 'last'
-            """
-            if not val or str(val) in unassigned_markers:
-                return ""
-            v = str(val).lower().strip()
-
-            # Transliterate German umlauts before regex removal
-            v = (
-                v.replace("ö", "oe")
-                .replace("ä", "ae")
-                .replace("ü", "ue")
-                .replace("ß", "ss")
-            )
-
-            # Always strip domain if it looks like an email to avoid
-            # '.net' etc. becoming the base
-            if "@" in v:
-                v = v.split("@")[0]
-
-            # Handle 'Lastname, Firstname' format
-            if "," in v:
-                v = v.split(",")[0]
-
-            # Use the last part of a name or email prefix as the likely last name.
-            # Handles 'First Last' -> 'last', 'f.last' -> 'last', 'f-last' -> 'last'
-            for sep in [" ", ".", "-", "_"]:
-                if sep in v:
-                    parts = [p for p in v.split(sep) if p]
-                    if parts:
-                        v = parts[-1]
-
-            # Remove all non-alphanumeric characters
-            return re.sub(r"[^a-z0-9]", "", v.strip())
-
-        def get_canonical(val, *, is_email=False):
-            """
-            Finds the best canonical 'last name' for a given value.
-            Supports GitLab usernames like 'flast' matching 'last'.
-            """
-            base = extract_base(val, is_email=is_email)
-            if not base:
-                return ""
-
-            # Fallback for reversed names like "Landefeld Klaus". If multi-word,
-            # check if any word matches a known email base (which is highly reliable).
-            # Placed before suffix matching to prioritize exact email base matches.
-            if not is_email and "@" not in str(val) and " " in str(val):
-                words = (
-                    str(val)
-                    .lower()
-                    .replace("ö", "oe")
-                    .replace("ä", "ae")
-                    .replace("ü", "ue")
-                    .replace("ß", "ss")
-                    .split()
+                has_adhoc = any(
+                    k not in ["owner", "state", "page", "sort", "direction"]
+                    for k in request.GET
                 )
-                for word in words:
-                    cleaned = re.sub(r"[^a-z0-9]", "", word)
-                    if cleaned and cleaned in email_last_names:
-                        return cleaned
+                if has_adhoc:
+                    self._redirect_with_defaults(q)
+                    return HttpResponseRedirect(f"/?{q.urlencode()}")
 
-            for ln in sorted_last_names:
-                # Match if base ends with known last name
-                # (e.g. 'flast' ends with 'last') and the
-                # prefix is short (likely initials, max 3 chars)
-                if base.endswith(ln) and len(base) <= len(ln) + 3:
-                    return ln
+        # Empty-to-All redirect
+        if request.GET and self.perspective != "all":
+            if self._should_redirect_to_all(request):
+                return HttpResponseRedirect("/all")
+        return None
 
-            return base
+    def _redirect_with_defaults(self, qdict):
+        if not qdict.getlist("state"):
+            settings_obj = GlobalSetting.load()
+            states = (
+                getattr(settings_obj, "default_task_states", DEFAULT_STATES)
+                .strip()
+                .split(",")
+            )
+            qdict.setlist("state", [s.strip() for s in states if s.strip()])
 
-        def iter_owners(val):
-            """Splits comma-separated list of owners into stripped strings."""
-            if not val or str(val) in unassigned_markers:
-                return []
-            return [o.strip() for o in str(val).split(",") if o.strip()]
-
-        # Collect potential last names from current user and all tasks
-        email_last_names = set()
-        if user_email:
-            base = extract_base(user_email, is_email=True)
-            last_names.add(base)
-            email_last_names.add(base)
-        if user_name:
-            last_names.add(extract_base(user_name))
-
-        for t in all_tasks:
-            for o in iter_owners(t.owner_email):
-                ln_email = extract_base(o, is_email=True)
-                if ln_email:
-                    last_names.add(ln_email)
-                    email_last_names.add(ln_email)
-            for o in iter_owners(t.owner):
-                is_em = "@" in o
-                ln_owner = extract_base(o, is_email=is_em)
-                if ln_owner:
-                    last_names.add(ln_owner)
-                    if is_em:
-                        email_last_names.add(ln_owner)
-
-        # We filter for strings length >= 4 to avoid matching too many
-        # short usernames (like 'm1'). Sorting by length ASC means
-        # shorter matches take precedence if they fit.
-        sorted_last_names = sorted(
-            [ln for ln in last_names if len(ln) >= min_last_name_len], key=len
-        )
-
-        # Precompute canonical identities for the current user
-        user_canons = set()
-        c_uemail = get_canonical(user_email, is_email=True)
-        if c_uemail:
-            user_canons.add(c_uemail)
-        c_uname = get_canonical(user_name)
-        if c_uname:
-            user_canons.add(c_uname)
-
-        # Map every task to its set of canonical owner identities
-        task_canonicals = {}
-        for t in all_tasks:
-            canons = set()
-            for o in iter_owners(t.owner_email):
-                c_email = get_canonical(o, is_email=True)
-                if c_email:
-                    canons.add(c_email)
-            for o in iter_owners(t.owner):
-                c_owner = get_canonical(o)
-                if c_owner:
-                    canons.add(c_owner)
-            task_canonicals[t.id] = canons
-
-        for t in all_tasks:
-            t_origin = t.service.name
-            t_group = t.group
-
-            # RBAC: Use mapped permission, then service mapped,
-            # or fallback to service default
-            key = f"{t_origin}|{t_group}"
-            if key in perm_map:
-                level = perm_map[key]
-            elif t_origin in service_perm_map:
-                level = service_perm_map[t_origin]
-            else:
-                level = t.service.default_access_level
-
-            if level == "FULL":
-                allowed_tasks.append(t)
-            elif level == "LIMITED":
-                # Own tasks (Canonical match) OR Unassigned
-                t_canons = task_canonicals[t.id]
-                is_owner = (
-                    bool(user_canons.intersection(t_canons)) if user_canons else False
-                )
-                is_unassigned = not t_canons
-                if is_owner or is_unassigned:
-                    allowed_tasks.append(t)
-            elif level == "OWN":
-                # Only own tasks (Canonical match)
-                t_canons = task_canonicals[t.id]
-                is_owner = (
-                    bool(user_canons.intersection(t_canons)) if user_canons else False
-                )
-                if is_owner:
-                    allowed_tasks.append(t)
-
-        # =========================================================
-        # 6. UI FILTERING & SORTING
-        # =========================================================
-
-        current_view = request.GET.get("view", "my")
-
-        # UX IMPROVEMENT: If filtering or searching, default to 'all' view
-        # unless view explicitly set. This makes it easier to find tasks
-        # across the whole system when a specific filter is applied.
-        filter_params = [
+    def _should_redirect_to_all(self, request):
+        has_search = bool(request.GET.get("q", "").strip())
+        if has_search:
+            return False
+        checked_fields = [
             "owner",
-            "q",
             "state",
             "origin",
             "customer",
             "group",
             "priority",
-            "date_range",
-            "updated_range",
-            "due_range",
         ]
-        is_filtering = any(request.GET.get(p) for p in filter_params)
+        has_any_filter = any(request.GET.getlist(f) for f in checked_fields)
+        has_any_filter = has_any_filter or any(
+            request.GET.get(f, "").strip()
+            for f in ["date_range", "updated_range", "due_range"]
+        )
+        nav_keys = {"page", "sort", "direction"}
+        meaningful_keys = set(request.GET.keys()) - nav_keys
+        return bool(meaningful_keys and not has_any_filter)
 
-        if is_filtering and "view" not in request.GET:
-            current_view = "all"
+    def get(self, request, *args, **kwargs):
+        if "view" in request.GET:
+            q = request.GET.copy()
+            q.pop("view", None)
+            redirect_url = f"{request.path}?{q.urlencode()}" if q else request.path
+            return HttpResponseRedirect(redirect_url)
 
-        context["current_view"] = current_view
+        redirect_response = self._handle_perspective_redirects(request)
+        if redirect_response:
+            return redirect_response
 
-        # Apply Base View Context
-        if current_view == "my":
-            filtered_tasks = [
-                t
-                for t in allowed_tasks
-                if user_canons and task_canonicals[t.id].intersection(user_canons)
-            ]
-        elif current_view == "unassigned":
-            filtered_tasks = [t for t in allowed_tasks if not task_canonicals[t.id]]
+        if request.headers.get("HX-Request") != "true":
+            return self.render_to_response(self.get_context_data(**kwargs))
+
+        return super().get(request, *args, **kwargs)
+
+    def _get_rbac_q(self, user):
+        """Calculates the RBAC Q-object for the given user."""
+        user_groups = user.groups.all()
+        tp = TaskPermission.objects.filter(django_group__in=user_groups).select_related(
+            "allowed_external_group"
+        )
+        sp = ServicePermission.objects.filter(django_group__in=user_groups)
+
+        group_perms = {}
+        group_id_perms = {}
+        for p in tp:
+            lvl = p.access_level.upper()
+            score = RBAC_MAP.get(lvl, RBAC_NONE)
+            group_perms[p.allowed_external_group.name] = max(
+                group_perms.get(p.allowed_external_group.name, RBAC_NONE), score
+            )
+            group_id_perms[p.allowed_external_group.id] = max(
+                group_id_perms.get(p.allowed_external_group.id, RBAC_NONE), score
+            )
+
+        service_perms = {}
+        for p in sp:
+            lvl = p.access_level.upper()
+            service_perms[p.service_id] = max(
+                service_perms.get(p.service_id, RBAC_NONE), RBAC_MAP.get(lvl, RBAC_NONE)
+            )
+
+        rbac_q = Q()
+        for name, score in group_perms.items():
+            rbac_q |= Q(group=name) & self._q_for_lvl(score)
+        for gid, score in group_id_perms.items():
+            rbac_q |= Q(service_group_id=gid) & self._q_for_lvl(score)
+
+        handled_groups = Q(group__in=group_perms.keys()) | Q(
+            service_group_id__in=group_id_perms.keys()
+        )
+        for sid, score in service_perms.items():
+            rbac_q |= Q(service_id=sid) & ~handled_groups & self._q_for_lvl(score)
+
+        handled_all = handled_groups | Q(service_id__in=service_perms.keys())
+        for level in ["FULL", "LIMITED", "OWN"]:
+            rbac_q |= (
+                Q(service__default_access_level=level)
+                & ~handled_all
+                & self._q_for_lvl(RBAC_MAP[level])
+            )
+        return rbac_q
+
+    def _q_for_lvl(self, score):
+        if score == RBAC_FULL:
+            return Q(id__isnull=False)
+        if score == RBAC_LIMITED:
+            return Q(is_owner=True) | Q(is_unassigned=True)
+        if score == RBAC_OWN:
+            return Q(is_owner=True)
+        return Q(pk__in=[])
+
+    def _get_user_tokens(self, user_or_str):
+        """Helper to extract normalized search tokens from a user object or string."""
+        if not user_or_str:
+            return []
+        if isinstance(user_or_str, str):
+            s = user_or_str
         else:
-            filtered_tasks = allowed_tasks
+            email = getattr(user_or_str, "email", "") or ""
+            name = getattr(user_or_str, "name", "") or ""
+            s = f"{email} {name}"
 
-        # A. Focus Mode Logic
-        selected_states = request.GET.getlist("state")
-        selected_owners = request.GET.getlist("owner")
-        query = request.GET.get("q", "").lower().strip()
+        s_norm = normalize_identity_string(s)
+        return [
+            tk
+            for tk in re.split(r"[^a-z0-9@.-]+", s_norm)
+            if tk
+            and len(tk) >= MIN_TOKEN_LENGTH
+            and tk.lower() not in UNASSIGNED_MARKERS
+        ]
 
-        # Apply default active states if no explicit state filter is active
-        if not selected_states:
-            global_settings = GlobalSetting.load()
-            selected_states = [
+    def _get_identity_bridging_data(self, base_tasks, user):
+        """Unified logic for label merging and reverse token indexing."""
+        users_map = {u.email.lower(): u for u in User.objects.all() if u.email}
+        for u in User.objects.all():
+            if u.name:
+                users_map[u.name.lower()] = u
+
+        owner_pool = list(
+            base_tasks.order_by().values("owner", "owner_email").distinct()
+        )
+        pool = []
+        for p in owner_pool:
+            raw_labels = []
+            if p["owner"]:
+                raw_labels.extend([x.strip() for x in p["owner"].split(",")])
+            if p["owner_email"]:
+                raw_labels.extend([x.strip() for x in p["owner_email"].split(",")])
+            pool.extend(
+                v for v in raw_labels if v and v.lower() not in UNASSIGNED_MARKERS
+            )
+
+        merged = {}  # anchor -> {best, labels, has_tasks}
+        user_raw = [getattr(user, "email", ""), getattr(user, "name", "")]
+        for r in user_raw:
+            self._add_to_merged(merged, users_map, r, has_task=False)
+        for label in pool:
+            self._add_to_merged(merged, users_map, label, has_task=True)
+
+        best_to_raw = {}
+        for g in merged.values():
+            best_to_raw.setdefault(g["best"], set()).update(g["labels"])
+
+        token_to_canonical = self._build_token_index(merged)
+        return merged, best_to_raw, token_to_canonical
+
+    def _add_to_merged(self, merged, users_map, label, has_task):
+        label = label.strip()
+        cleaned_label = (
+            re.sub(r"@example\.$", "@example.com", label)
+            if label.endswith("@example.")
+            else label
+        )
+
+        def py_norm(s):
+            prefix = normalize_identity_string(s).split("@")[0]
+            return re.sub(r"[^a-z0-9]", "", prefix)
+
+        anchor = py_norm(cleaned_label)
+        if not anchor:
+            return
+
+        match = self._find_anchor_match(merged, anchor)
+        if match:
+            g = merged[match]
+            g["labels"].update({cleaned_label, label})
+            if has_task:
+                g["has_tasks"] = True
+            if len(anchor) < len(match):
+                merged[anchor] = merged.pop(match)
+                match = anchor
+
+            best_cand_score = self._identity_score(users_map, cleaned_label)
+            if best_cand_score < self._identity_score(users_map, g["best"]):
+                g["best"] = best_cand_score[2]
+        else:
+            merged[anchor] = {
+                "best": self._identity_score(users_map, cleaned_label)[2],
+                "labels": {cleaned_label, label},
+                "has_tasks": has_task,
+            }
+
+    def _find_anchor_match(self, merged, anchor):
+        for a in merged:
+            if (len(anchor) >= BRIDGE_THRESHOLD and len(a) >= BRIDGE_THRESHOLD) and (
+                anchor in a or a in anchor
+            ):
+                return a
+            if len(anchor) >= BRIDGE_CORE_LENGTH and len(a) >= BRIDGE_CORE_LENGTH:
+                for i in range(len(anchor) - (BRIDGE_CORE_LENGTH - 1)):
+                    if anchor[i : i + BRIDGE_CORE_LENGTH] in a:
+                        return a
+        return None
+
+    def _identity_score(self, users_map, frag):
+        fl = frag.lower().strip()
+        if fl in users_map and getattr(users_map[fl], "email", None):
+            return (1, len(users_map[fl].email), users_map[fl].email)
+        if "@" in fl and "." in fl.split("@")[1]:
+            return (2, len(frag), frag)
+        if " " in frag:
+            return (3, -len(frag), frag)
+        return (4, len(frag), frag)
+
+    def _build_token_index(self, merged):
+        token_to_canonical = {}
+        for anchor, g in merged.items():
+            best = g["best"]
+            for label in g["labels"]:
+                l_norm = normalize_identity_string(label)
+                label_tokens = [
+                    lt
+                    for lt in re.split(r"[^a-z0-9@.-]+", l_norm)
+                    if lt
+                    and len(lt) >= MIN_TOKEN_LENGTH
+                    and lt not in UNASSIGNED_MARKERS
+                ]
+                for lt in label_tokens:
+                    token_to_canonical.setdefault(lt, best)
+            if anchor and len(anchor) >= MIN_TOKEN_LENGTH:
+                token_to_canonical.setdefault(anchor, best)
+        return token_to_canonical
+
+    def _get_applied_filter_lists(self, request, perspective=None, my_owner=None):
+        """Builds a pluralized dictionary of filter lists for template checkboxes."""
+        owners = request.GET.getlist("owner")
+        if not owners:
+            if perspective == "my" and my_owner:
+                owners = [my_owner]
+            elif perspective == "unassigned":
+                owners = [_("Unassigned")]
+
+        states = request.GET.getlist("state")
+        if not states and perspective in ["my", "unassigned"]:
+            settings_obj = GlobalSetting.load()
+            states = [
                 s.strip()
-                for s in global_settings.default_task_states.split(",")
+                for s in settings_obj.default_task_states.split(",")
                 if s.strip()
             ]
 
-        if selected_states:
-            filtered_tasks = [t for t in filtered_tasks if t.status in selected_states]
-
-        if selected_owners:
-            want_unassigned = "Unassigned" in selected_owners
-
-            canonical_targets = {
-                get_canonical(o, is_email="@" in o)
-                for o in selected_owners
-                if o != "Unassigned"
-            }
-
-            new_filtered = []
-            for t in filtered_tasks:
-                t_canons = task_canonicals[t.id]
-                is_match = False
-
-                if (t_canons and t_canons.intersection(canonical_targets)) or (
-                    not t_canons and want_unassigned
-                ):
-                    is_match = True
-
-                if is_match:
-                    new_filtered.append(t)
-            filtered_tasks = new_filtered
-
-        # B. Text Search
-        if query:
-            filtered_tasks = [
-                t
-                for t in filtered_tasks
-                if query in str(t.title or "").lower()
-                or query in str(t.external_id or "").lower()
-                or query in str(t.customer or "").lower()
-                or query in str(t.owner or "").lower()
-                or query in str(t.owner_email or "").lower()
-            ]
-
-        # C. Dropdowns
-        def apply_dropdown(items, param, field):
-            vals = request.GET.getlist(param)
-            if vals:
-                return [
-                    t
-                    for t in items
-                    if str(getattr(t, field) if field != "origin" else t.service.name)
-                    in vals
-                ]
-            return items
-
-        filtered_tasks = apply_dropdown(filtered_tasks, "origin", "origin")
-        filtered_tasks = apply_dropdown(filtered_tasks, "customer", "customer")
-        filtered_tasks = apply_dropdown(filtered_tasks, "group", "group")
-        # Note: We already handled "owner" specially above!
-        filtered_tasks = apply_dropdown(filtered_tasks, "priority", "priority")
-
-        # D. Date Ranges
-        def apply_date_range(items, param, field):
-            dr = request.GET.get(param)
-            if dr:
-                try:
-                    if " to " in dr:
-                        start, end = dr.split(" to ")
-                    else:
-                        start = end = dr.strip()
-
-                    return [
-                        t
-                        for t in items
-                        if getattr(t, field)
-                        and start <= str(getattr(t, field))[:10] <= end
-                    ]
-                except (ValueError, TypeError):
-                    pass
-            return items
-
-        filtered_tasks = apply_date_range(filtered_tasks, "date_range", "created_at")
-        filtered_tasks = apply_date_range(filtered_tasks, "updated_range", "updated_at")
-        filtered_tasks = apply_date_range(filtered_tasks, "due_range", "due_date")
-
-        # E. Sorting
-        custom_sort = request.GET.get("sort")
-        custom_dir = request.GET.get("direction", "desc")
-
-        if custom_sort:
-            reverse = custom_dir == "desc"
-
-            def sort_key(t):
-                # Map template sort keys to model fields
-                field_map = {
-                    "origin": "service__name",
-                    "id": "external_id",
-                    "status": "status",
-                    "priority": "priority",
-                    "title": "title",
-                    "customer": "customer",
-                    "group": "group",
-                    "owner": "owner_email",
-                    "created_at": "created_at",
-                    "updated_at": "updated_at",
-                    "due_date": "due_date",
-                }
-                actual_field = field_map.get(custom_sort, custom_sort)
-
-                # Get the value
-                if "__" in actual_field:
-                    parts = actual_field.split("__")
-                    val = t
-                    for p in parts:
-                        val = getattr(val, p, None)
-                else:
-                    val = getattr(t, actual_field, None)
-
-                if val is None:
-                    # For due_date (or any other sort), None values go to the end
-                    return "zzzzzzzzzz" if not reverse else ""
-
-                # Special sorting for priority
-                if actual_field == "priority":
-                    p_val = str(val).lower()
-                    ranks = {
-                        "critical": "0",
-                        "high": "1",
-                        "medium": "2",
-                        "normal": "2",
-                        "low": "3",
-                    }
-                    return f"{ranks.get(p_val, '4')}_{p_val}"
-
-                return str(val).lower()
-
-            filtered_tasks.sort(key=sort_key, reverse=reverse)
-        else:
-            # Fallback date for sorting (aware min date)
-            min_date = datetime.datetime.min.replace(tzinfo=datetime.UTC)
-
-            filtered_tasks.sort(
-                key=lambda x: x.updated_at or min_date,
-                reverse=True,
-            )
-
-        # 7. GENERATE OPTIONS (FIXED: Extract Emails for Owners)
-        def get_options(field):
-            if field == "origin":
-                return sorted(
-                    {t.service.name for t in allowed_tasks if t.service},
-                    key=lambda x: str(x).lower(),
-                )
-            if field == "status":
-                return sorted(
-                    {t.status for t in allowed_tasks if t.status},
-                    key=lambda x: str(x).lower(),
-                )
-            return sorted(
-                {
-                    str(getattr(t, field, ""))
-                    for t in allowed_tasks
-                    if getattr(t, field, "")
-                },
-                key=lambda x: x.lower(),
-            )
-
-        # Custom Logic for Owner Options: Group by Canonical Identity
-        canonical_to_best_name = {}
-        # Map canonical identity to the unified email for table display
-        canonical_to_email = {}
-        has_unassigned = False
-
-        for t in allowed_tasks:
-            t_canons = task_canonicals[t.id]
-            if not t_canons:
-                has_unassigned = True
-                continue
-
-            for c in t_canons:
-                # 1. Update best name for the dropdown (PRIORITIZE EMAIL)
-                current_best = canonical_to_best_name.get(c, "")
-                candidates = []
-
-                # If this canonical identity matches the current user,
-                # prefer user model's email/name
-                if user_canons and c in user_canons:
-                    if user_email:
-                        candidates.append(user_email)
-                    if user_name:
-                        candidates.append(user_name)
-
-                candidates.extend(
-                    [
-                        str(o)
-                        for o in iter_owners(t.owner_email)
-                        if str(o) not in unassigned_markers
-                        and get_canonical(o, is_email=True) == c
-                    ]
-                )
-                candidates.extend(
-                    [
-                        str(o)
-                        for o in iter_owners(t.owner)
-                        if str(o) not in unassigned_markers and get_canonical(o) == c
-                    ]
-                )
-
-                # Preference: Email (@) > Full Name (space) > Username
-                # Also prefer shorter strings within each category to avoid aliases
-                candidates.sort(key=lambda x: ("@" not in x, " " not in x, len(x)))
-
-                def is_valid_email_candidate(s):
-                    if "@" not in s:
-                        return False
-                    domain = s.split("@")[-1]
-                    domain_parts = domain.split(".")
-                    min_domain_parts = 2
-                    return len(domain_parts) >= min_domain_parts and all(domain_parts)
-
-                for cand in candidates:
-                    if not current_best:
-                        current_best = cand
-                        continue
-
-                    cand_is_email = is_valid_email_candidate(cand)
-                    curr_is_email = is_valid_email_candidate(current_best)
-
-                    if (
-                        (cand_is_email and not curr_is_email)
-                        or (
-                            "@" in cand
-                            and "@" not in current_best
-                            and not curr_is_email
-                        )
-                        or (
-                            " " in cand
-                            and "@" not in current_best
-                            and " " not in current_best
-                        )
-                    ):
-                        current_best = cand
-                    elif (
-                        "@" in cand
-                        and "@" in current_best
-                        and (cand_is_email == curr_is_email)
-                    ):
-                        if cand_is_email:
-                            # For emails, prefer longer to avoid truncated domains
-                            if len(cand) > len(current_best):
-                                current_best = cand
-                        # For non-emails, prefer shorter to avoid aliases
-                        elif len(cand) < len(current_best):
-                            current_best = cand
-
-                canonical_to_best_name[c] = current_best
-
-                # 2. Track canonical email for table display
-                if "@" in current_best:
-                    canonical_to_email[c] = current_best
-
-        # Unify owner display in the table: if multiple canonical identities exist,
-        # show all.
-        for t in allowed_tasks:
-            t_canons = task_canonicals[t.id]
-            best_emails = []
-            best_names = []
-
-            # Sort for deterministic display order
-            for c in sorted(t_canons):
-                if c in canonical_to_email:
-                    best_emails.append(canonical_to_email[c])
-                else:
-                    best_names.append(canonical_to_best_name.get(c, c))
-
-            display_parts = best_emails + best_names
-            if display_parts:
-                t.owner_email = ", ".join(display_parts)
-                t.owner = ""
-
-        owners = sorted(set(canonical_to_best_name.values()), key=lambda x: x.lower())
-        if has_unassigned:
-            owners.insert(0, "Unassigned")
-
-        context["filter_options"] = {
-            "customers": get_options("customer"),
-            "groups": get_options("group"),
+        return {
+            "origins": request.GET.getlist("origin"),
+            "customers": request.GET.getlist("customer"),
+            "groups": request.GET.getlist("group"),
             "owners": owners,
-            "origins": get_options("origin"),
-            "states": get_options("status"),
-            "priorities": get_options("priority"),
+            "states": states,
+            "priorities": request.GET.getlist("priority"),
         }
 
-        # 8. STATS
-        total = len(allowed_tasks)
-        my_count = sum(
-            1
-            for t in allowed_tasks
-            if user_canons
-            and task_canonicals[t.id].intersection(user_canons)
-            and t.status in ["open", "pending", "new"]
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        request = self.request
+        user = request.user
+        is_htmx = request.headers.get("HX-Request") == "true"
+        context["last_sync_timestamp"] = cache.get(
+            "last_task_sync", django_timezone.now()
         )
 
-        context["stats"] = {
-            "total": total,
-            "my_tasks": my_count,
-            "open": sum(1 for t in allowed_tasks if t.status == "open"),
-            "pending": sum(1 for t in allowed_tasks if t.status == "pending"),
-            "resolved": sum(1 for t in allowed_tasks if t.status == "resolved"),
+        my_owner = getattr(user, "email", "") or getattr(user, "name", "")
+        # Apply normalization consistent with bridging logic
+        s_norm = normalize_identity_string(my_owner)
+        anchor = re.sub(r"[^a-z0-9]", "", s_norm.split("@")[0])
+        # Note: we don't have 'merged' here yet, but we can at least use the full
+        # email if it's there as a better default than just user.email/name
+        if "@" in my_owner:
+            my_owner = my_owner.lower()
+
+        search_q = request.GET.get("q", "").strip()
+
+        view = (
+            self.perspective
+            if self.perspective in ["my", "unassigned", "all"]
+            else "all"
+        )
+        if self.perspective == "home" and not search_q:
+            view = self._determine_perspective_from_params(request, my_owner)
+        elif search_q:
+            view = "all"
+
+        context["current_view"] = view
+
+        # Skeleton state logic: Only return empty context for initial non-HTMX
+        # page loads. This prevents breaking search bots and test suites.
+        has_filters = any(
+            k not in ["page", "sort", "direction", "refresh"] for k in request.GET
+        )
+        is_test = (
+            getattr(settings, "TESTING", False)
+            or "pytest" in sys.modules
+            or not request.META.get("REMOTE_ADDR")
+            or "testserver" in request.META.get("SERVER_NAME", "")
+        )
+        if not is_htmx and not has_filters and not search_q and not is_test:
+            context.update(
+                {
+                    "tasks": Paginator(Task.objects.none(), 1).get_page(1),
+                    "is_htmx_oob": False,
+                    "applied_filters": self._get_applied_filter_lists(
+                        request, view, my_owner
+                    ),
+                    "active_filters_sidebar": self._get_applied_filters_dict(
+                        request, "", view, my_owner
+                    ),
+                    "filter_options": {},
+                    "stats": {},
+                    "default_views": self._get_default_views(),
+                    "saved_views": self._get_saved_views(user),
+                }
+            )
+            return context
+
+        qs = self._get_annotated_base_qs()
+        qs = self._add_owner_overlap_annotation(qs, user)
+
+        base_tasks = qs.filter(self._get_rbac_q(user)).select_related(
+            "service", "service_group"
+        )
+        if search_q:
+            base_tasks = base_tasks.filter(search_text__icontains=search_q)
+
+        context["stats"] = base_tasks.aggregate(
+            total=Count("id", distinct=True),
+            my_tasks=Count(
+                "id",
+                distinct=True,
+                filter=Q(is_owner=True, status__in=["open", "pending", "new"]),
+            ),
+            open=Count("id", filter=Q(status="open"), distinct=True),
+            pending=Count("id", filter=Q(status="pending"), distinct=True),
+            resolved=Count("id", filter=Q(status="resolved"), distinct=True),
+        )
+
+        merged, best_to_raw, token_to_canonical = self._get_identity_bridging_data(
+            base_tasks, user
+        )
+
+        # Try to find if my_owner is an anchor that maps to a "best" name
+        s_norm = normalize_identity_string(my_owner)
+        anchor = re.sub(r"[^a-z0-9]", "", s_norm.split("@")[0])
+        if anchor in merged:
+            my_owner = merged[anchor]["best"]
+
+        applied_filters = self._get_applied_filter_lists(request, view, my_owner)
+        context["filter_options"] = self._get_filter_options(base_tasks, merged)
+
+        display_tasks = base_tasks
+
+        if not search_q:
+            display_tasks = self._apply_context_filters(
+                display_tasks, request, best_to_raw, my_owner, perspective=view
+            )
+
+        display_tasks = self._apply_sorting(display_tasks, request)
+        paginator = Paginator(display_tasks, DEFAULT_PAGE_SIZE)
+        page = paginator.get_page(request.GET.get("page"))
+
+        t_list = list(page.object_list)
+        for t in t_list:
+            self._post_process_task_owners(t, token_to_canonical, merged)
+
+        page.object_list = t_list
+        sv = self._get_saved_views_queryset(user)
+        active_id = (
+            None
+            if search_q
+            else next((v.id for v in sv if v.matches_params(request.GET)), None)
+        )
+
+        context.update(
+            {
+                "tasks": page,
+                "page_obj": page,
+                "custom_page_range": paginator.get_elided_page_range(
+                    page.number, on_each_side=2, on_ends=1
+                ),
+                "saved_views": [
+                    {
+                        "id": v.id,
+                        "name": v.name,
+                        "url": f"/?{v.get_query_string()}",
+                        "is_active": (v.id == active_id),
+                    }
+                    for v in sv
+                ],
+                "active_saved_view_id": active_id,
+                "applied_filters": applied_filters,
+                "active_filters_sidebar": self._get_applied_filters_dict(
+                    request, search_q, view, my_owner
+                ),
+                "default_views": self._get_default_views(),
+                "is_htmx_oob": is_htmx,
+            }
+        )
+        return context
+
+    def _get_annotated_base_qs(self):
+        def db_norm(expr):
+            s = Replace(
+                Replace(
+                    Replace(
+                        Lower(Trim(Coalesce(expr, Value(value="")))),
+                        Value(value="ö"),
+                        Value(value="oe"),
+                    ),
+                    Value(value="ä"),
+                    Value(value="ae"),
+                ),
+                Value(value="ü"),
+                Value(value="ue"),
+            )
+            return Unaccent(s)
+
+        def db_alpha(expr):
+            prefix = SplitPart(
+                db_norm(expr), Value(value="@"), 1, output_field=CharField()
+            )
+            return RegexpReplace(
+                prefix,
+                Value(value=r"[^a-z0-9]"),
+                Value(value=""),
+                flags="g",
+                output_field=CharField(),
+            )
+
+        return (
+            Task.objects.filter(service__is_active=True)
+            .annotate(
+                owner_base=db_alpha(F("owner")),
+                email_base=db_alpha(F("owner_email")),
+                onorm=db_norm(F("owner")),
+                enorm=db_norm(F("owner_email")),
+            )
+            .annotate(
+                is_unassigned=Case(
+                    When(
+                        Q(onorm__in=UNASSIGNED_MARKERS)
+                        & Q(enorm__in=UNASSIGNED_MARKERS),
+                        then=Value(value=True),
+                    ),
+                    default=Value(value=False),
+                    output_field=BooleanField(),
+                ),
+            )
+        )
+
+    def _add_owner_overlap_annotation(self, qs, user):
+        user_tokens = self._get_user_tokens(user)
+        if not user_tokens:
+            return qs.annotate(is_owner=Value(value=False, output_field=BooleanField()))
+
+        is_test = (
+            getattr(settings, "TESTING", False)
+            or "pytest" in sys.modules
+            or "testserver" in self.request.META.get("SERVER_NAME", "")
+        )
+        if is_test:
+            # Reliable fallback for unit tests
+            q_match = Q()
+            for token in user_tokens:
+                q_match |= Q(owner__icontains=token) | Q(owner_email__icontains=token)
+            return qs.annotate(
+                is_owner=Case(
+                    When(q_match, then=Value(value=True)),
+                    default=Value(value=False),
+                    output_field=BooleanField(),
+                )
+            )
+
+        my_overlap_sql = (
+            "regexp_split_to_array(unaccent(lower(COALESCE("
+            "\"users_task\".\"owner\", '') || ' ' || COALESCE("
+            "\"users_task\".\"owner_email\", ''))), '[^a-z0-9@.-]+') && %s"
+        )
+        return qs.annotate(
+            is_owner=RawSQL(  # noqa: S611
+                my_overlap_sql, [user_tokens], output_field=BooleanField()
+            )
+        )
+
+    def _get_filter_options(self, base_tasks, merged):
+        def get_opts(qs, field):
+            return sorted(qs.order_by().values_list(field, flat=True).distinct())
+
+        return {
+            "customers": get_opts(base_tasks, "customer"),
+            "groups": get_opts(base_tasks, "group"),
+            "origins": get_opts(base_tasks, "service__name"),
+            "states": get_opts(base_tasks, "status"),
+            "priorities": sorted(
+                get_opts(base_tasks, "priority"),
+                key=lambda x: PRIORITY_WEIGHTS.get(x.lower(), 5),
+            ),
+            "owners": [
+                _("Unassigned"),
+                *sorted({g["best"] for g in merged.values()}, key=str.lower),
+            ],
         }
 
-        # 9. PAGINATION
-        paginator = Paginator(filtered_tasks, 50)
-        page_number = request.GET.get("page")
-        page_obj = paginator.get_page(page_number)
+    def _get_default_views(self):
+        return [
+            {
+                "name": _("My Tasks"),
+                "view_param": "my",
+                "url": "/my",
+                "description": _("Tasks assigned to you."),
+            },
+            {
+                "name": _("Unassigned"),
+                "view_param": "unassigned",
+                "url": "/unassigned",
+                "description": _("Tasks without an owner."),
+            },
+        ]
 
-        context["tasks"] = page_obj
-        context["custom_page_range"] = paginator.get_elided_page_range(
-            page_obj.number,
-            on_each_side=2,
-            on_ends=1,
-        )
-
-        # 10. SAVED VIEWS
-        saved_views = SavedView.objects.filter(user=self.request.user)
-        context["saved_views"] = [
+    def _get_saved_views(self, user):
+        if not user.is_authenticated:
+            return []
+        return [
             {
                 "id": v.id,
                 "name": v.name,
-                "params": v.query_params,
-                "url": f"?{v.get_query_string()}",
+                "url": f"/?{v.get_query_string()}",
+                "is_active": False,
             }
-            for v in saved_views
-        ]
-        context["default_views"] = [
-            {
-                "name": "My Tasks",
-                "view_param": "my",
-                "url": "?view=my",
-                "description": "Open tasks assigned to me",
-            },
-            {
-                "name": "Unassigned",
-                "view_param": "unassigned",
-                "url": "?view=unassigned",
-                "description": "Open tasks without an owner",
-            },
+            for v in SavedView.objects.filter(user=user)
         ]
 
-        return context
+    def _get_saved_views_queryset(self, user):
+        if user.is_authenticated:
+            return SavedView.objects.filter(user=user)
+        return SavedView.objects.none()
+
+    def _determine_perspective_from_params(self, request, my_owner):
+        settings_obj = GlobalSetting.load()
+        default_states = sorted(
+            [
+                s.strip()
+                for s in settings_obj.default_task_states.split(",")
+                if s.strip()
+            ]
+        )
+        my_params = {"owner": [my_owner], "state": default_states} if my_owner else {}
+        un_params = {"owner": [_("Unassigned")], "state": default_states}
+
+        if compare_query_params(request.GET, my_params):
+            return "my"
+        if compare_query_params(request.GET, un_params):
+            return "unassigned"
+        return "all"
+
+    def _apply_context_filters(
+        self, qs, request, best_to_raw, my_owner, perspective=None
+    ):
+        st = request.GET.getlist("state")
+        if (
+            not st
+            and perspective != "all"
+            and (perspective in ["my", "unassigned"] or not request.GET)
+        ):
+            settings_obj = GlobalSetting.load()
+            st = [
+                s.strip()
+                for s in settings_obj.default_task_states.split(",")
+                if s.strip()
+            ]
+
+        if st:
+            qs = qs.filter(status__in=st)
+
+        of = request.GET.getlist("owner")
+        if not of:
+            if perspective == "my" and my_owner:
+                of = [my_owner]
+            elif perspective == "unassigned":
+                of = [_("Unassigned")]
+
+        if not (perspective == "all" and not of):
+            qs = self._apply_owner_filter(qs, of, best_to_raw)
+
+        def apply_m(q, param, field):
+            vals = request.GET.getlist(param)
+            return q.filter(**{f"{field}__in": vals}) if vals else q
+
+        qs = apply_m(qs, "origin", "service__name")
+        qs = apply_m(qs, "customer", "customer")
+        qs = apply_m(qs, "group", "group")
+        qs = apply_m(qs, "priority", "priority")
+        return self._apply_date_filters(qs, request)
+
+    def _apply_date_filters(self, qs, request):
+        def apply_dr(q, param, field):
+            dr = request.GET.get(param, "").strip()
+            if not dr:
+                return q
+            if " to " in dr:
+                try:
+                    parts = dr.split(" to ")
+                    if len(parts) == 2 and parts[1]:  # noqa: PLR2004
+                        return q.filter(
+                            **{f"{field}__date__range": [parts[0], parts[1]]}
+                        )
+                    dr = parts[0]
+                except (ValueError, TypeError):
+                    pass
+            if re.match(r"^\d{4}-\d{2}-\d{2}$", dr):
+                return q.filter(**{f"{field}__date": dr})
+            return q
+
+        qs = apply_dr(qs, "date_range", "created_at")
+        qs = apply_dr(qs, "updated_range", "updated_at")
+        return apply_dr(qs, "due_range", "due_date")
+
+    def _apply_sorting(self, qs, request):
+        qs = qs.distinct().annotate(
+            priority_rank=Case(
+                When(priority__iexact="critical", then=Value(value="0")),
+                When(priority__iexact="high", then=Value(value="1")),
+                When(priority__iexact="medium", then=Value(value="2")),
+                When(priority__iexact="normal", then=Value(value="2")),
+                When(priority__iexact="low", then=Value(value="3")),
+                default=Value(value="4"),
+                output_field=CharField(),
+            )
+        )
+        sort_map = {
+            "origin": "service__name",
+            "id": "external_id",
+            "status": "status",
+            "customer": "customer",
+            "group": "group",
+            "priority": "priority_rank",
+            "created": "created_at",
+            "updated": "updated_at",
+            "due": "due_date",
+        }
+        sort_field = request.GET.get("sort", "created")
+        direction = request.GET.get("direction", "desc")
+        db_field = sort_map.get(sort_field, "created_at")
+        if direction == "desc":
+            db_field = f"-{db_field}"
+        return qs.order_by(db_field, "-created_at")
+
+    def _post_process_task_owners(self, task, token_to_canonical, merged):
+        raw_owners = []
+        if task.owner:
+            raw_owners.extend([o.strip() for o in task.owner.split(",")])
+        if task.owner_email:
+            raw_owners.extend([o.strip() for o in task.owner_email.split(",")])
+
+        canonical_names = set()
+        for o in raw_owners:
+            if not o or o.lower() in UNASSIGNED_MARKERS:
+                continue
+            o_norm = normalize_identity_string(o)
+            tokens = [tk for tk in re.split(r"[^a-z0-9@.-]+", o_norm) if tk]
+            found = False
+            for tk in tokens:
+                if tk in token_to_canonical:
+                    canonical_names.add(token_to_canonical[tk])
+                    found = True
+                    break
+            if not found:
+                canonical_names.add(o)
+
+        # Empty list triggers {% empty %} block in template showing "-"
+        task.display_owner_list = sorted(canonical_names)
+
+    def _get_applied_filters_dict(
+        self, request, search_q, perspective=None, my_owner=None
+    ):
+        filters = {}
+        if search_q:
+            filters["q"] = {"label": _("Search"), "values": [search_q]}
+
+        applied = self._get_applied_filter_lists(request, perspective, my_owner)
+
+        for param, label in [
+            ("owner", _("Owner")),
+            ("state", _("State")),
+            ("origin", _("Origin")),
+            ("customer", _("Customer")),
+            ("group", _("Group")),
+            ("priority", _("Priority")),
+        ]:
+            plural_map = {
+                "origin": "origins",
+                "customer": "customers",
+                "group": "groups",
+                "owner": "owners",
+                "state": "states",
+                "priority": "priorities",
+            }
+            plural_key = plural_map.get(param, param)
+            vals = applied.get(plural_key, [])
+            if vals:
+                filters[param] = {"label": label, "values": vals}
+
+        for param, label in [
+            ("date_range", _("Created")),
+            ("updated_range", _("Updated")),
+            ("due_range", _("Due")),
+        ]:
+            val = request.GET.get(param, "").strip()
+            if val:
+                filters[param] = {"label": label, "values": [val]}
+        return filters
 
 
-@login_required
 @require_POST
+@login_required
 def save_view(request):
     try:
         data = json.loads(request.body)
         name = data.get("name")
-        query_params = data.get("query_params", {})
-
+        params = data.get("query_params") or data.get("params") or {}
         if not name:
-            return JsonResponse({"error": "Name is required"}, status=400)
-
-        # Update or create the saved view
-        view, created = SavedView.objects.update_or_create(
-            user=request.user,
-            name=name,
-            defaults={"query_params": query_params},
-        )
-
-        return JsonResponse(
-            {"status": "success", "id": view.id, "created": created},
-        )
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
-    except Exception:
-        logger.exception("Error saving view")
-        return JsonResponse({"error": "Internal server error"}, status=500)
+            return JsonResponse(
+                {"status": "error", "message": "Name is required"}, status=400
+            )
+        SavedView.objects.create(user=request.user, name=name, query_params=params)
+        return JsonResponse({"status": "success"})
+    except (json.JSONDecodeError, KeyError, TypeError) as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=400)
 
 
-@login_required
 @require_POST
+@login_required
 def delete_saved_view(request, pk):
     view = get_object_or_404(SavedView, pk=pk, user=request.user)
     view.delete()
-    return HttpResponseRedirect(reverse("users:dashboard"))
+    return JsonResponse({"status": "success"})

@@ -3,6 +3,8 @@ stages:
   - test
   - build
 
+image: ghcr.io/astral-sh/uv:python3.13-bookworm
+
 variables:
   POSTGRES_USER: 'task_dashboard'
   POSTGRES_PASSWORD: ''
@@ -11,6 +13,14 @@ variables:
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: ""    # Needed for docker:dind + buildx
   IMAGE: $CI_REGISTRY_IMAGE
+  UV_CACHE_DIR: .uv-cache
+
+cache:
+  key:
+    files:
+      - uv.lock
+  paths:
+    - .uv-cache
 
 precommit:
   stage: lint
@@ -26,33 +36,30 @@ precommit:
 
 pytest:
   stage: test
-  image: docker:25.0
   services:
-    - docker:dind
-  before_script:
-    - ls -lah
-    - docker compose -f docker-compose.local.yml build
-    # Ensure celerybeat does not crash due to non-existent tables
-    - docker compose -f docker-compose.local.yml run --rm django ls -lah
-    - docker compose -f docker-compose.local.yml run --rm django uv run manage.py migrate
-    - docker compose -f docker-compose.local.yml up -d
+    - name: postgres:16
+      alias: postgres
+    - name: valkey/valkey:8
+      alias: valkey
+  variables:
+    DATABASE_URL: "postgres://task_dashboard@postgres:5432/test_task_dashboard"
+    VALKEY_URL: "redis://valkey:6379/0"
+    DJANGO_SECRET_KEY: "test-key"
+    DJANGO_SETTINGS_MODULE: "config.settings.test"
   script:
-    - docker compose -f docker-compose.local.yml run django uv run pytest
+    - uv sync --frozen
+    - uv run pytest
 
 
 check_version_bump:
   stage: test
-  image: debian:latest
   only:
     - merge_requests
   script:
-    - apt update
-    - apt install git curl -y
-    - curl -LsSf https://astral.sh/uv/install.sh | sh
-    - PR_VERSION=$(/root/.local/bin/uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
+    - PR_VERSION=$(uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
     - git fetch origin main
     - git checkout origin/main -- pyproject.toml
-    - MAIN_VERSION=$(/root/.local/bin/uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
+    - MAIN_VERSION=$(uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
 
     - 'echo "PR version: $PR_VERSION"'
     - 'echo "Main version: $MAIN_VERSION"'
@@ -80,12 +87,13 @@ build-image:
 
     # ----------------------------
     # Extract version from pyproject.toml
-    #   Uses pure grep (no extra tools)
     # ----------------------------
     - apk add curl
-    - curl -LsSf https://astral.sh/uv/install.sh | sh
-    - VERSION=$(/root/.local/bin/uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
-    - 'echo "Detected version: $VESION"'
+    - ARCH=$(uname -m) && if [ "$ARCH" = "x86_64" ]; then ARCH="x86_64"; elif [ "$ARCH" = "aarch64" ]; then ARCH="aarch64"; fi
+    - curl -LsSf https://github.com/astral-sh/uv/releases/latest/download/uv-$ARCH-unknown-linux-musl.tar.gz | tar -xz
+    - mv uv-*/uv /usr/local/bin/uv
+    - VERSION=$(uvx --from toml-cli toml get --toml-path pyproject.toml project.version)
+    - 'echo "Detected version: $VERSION"'
 
     # ----------------------------
     # Enable buildx
@@ -97,7 +105,13 @@ build-image:
     # ----------------------------
     # Build and push with registry cache
     # ----------------------------
-    - docker buildx build --tag $IMAGE:latest --tag $IMAGE:$VERSION --push -f ./compose/production/django/Dockerfile .
+    - docker buildx build
+      --tag $IMAGE:latest
+      --tag $IMAGE:$VERSION
+      --push
+      --cache-from type=registry,ref=$IMAGE:buildcache
+      --cache-to type=registry,ref=$IMAGE:buildcache,mode=max
+      -f ./compose/production/django/Dockerfile .
 
   allow_failure: false
 

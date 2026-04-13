@@ -34,7 +34,7 @@ LANGUAGE_CODE = "en-us"
 
 LANGUAGES = [
     ("en", _("English")),
-    ("de", _("German")),
+    ("de", _("Deutsch")),
     #     ('fr-fr', _('French')),
     #     ('pt-br', _('Portuguese')),
 ]
@@ -108,7 +108,7 @@ AUTHENTICATION_BACKENDS = [
 # https://docs.djangoproject.com/en/dev/ref/settings/#auth-user-model
 AUTH_USER_MODEL = "users.User"
 # https://docs.djangoproject.com/en/dev/ref/settings/#login-redirect-url
-LOGIN_REDIRECT_URL = "users:redirect"
+LOGIN_REDIRECT_URL = "home"
 # https://docs.djangoproject.com/en/dev/ref/settings/#login-url
 LOGIN_URL = "account_login"
 
@@ -194,6 +194,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "task_dashboard.users.context_processors.allauth_settings",
                 "task_dashboard.context_processors.system_status",
+                "task_dashboard.context_processors.theme",
             ],
         },
     },
@@ -215,6 +216,8 @@ FIXTURE_DIRS = (str(APPS_DIR / "fixtures"),)
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#session-cookie-httponly
 SESSION_COOKIE_HTTPONLY = True
+# https://docs.djangoproject.com/en/dev/ref/settings/#session-engine
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 # https://docs.djangoproject.com/en/dev/ref/settings/#csrf-cookie-httponly
 CSRF_COOKIE_HTTPONLY = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#x-frame-options
@@ -269,8 +272,23 @@ LOGGING = {
     },
 }
 
-REDIS_URL = env("REDIS_URL", default="redis://redis:6379/0")
-REDIS_SSL = REDIS_URL.startswith("rediss://")
+VALKEY_URL = env("VALKEY_URL", default="redis://valkey:6379/0")
+VALKEY_SSL = VALKEY_URL.startswith("rediss://")
+
+# CACHES
+# ------------------------------------------------------------------------------
+# https://docs.djangoproject.com/en/dev/ref/settings/#caches
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": VALKEY_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            # Mimic memcached's default behavior of not connecting if can't
+            "IGNORE_EXCEPTIONS": True,
+        },
+    }
+}
 
 
 # django-allauth
@@ -293,7 +311,10 @@ ACCOUNT_ADAPTER = "task_dashboard.users.adapters.AccountAdapter"
 # login_failed: Block after 5 failed attempts in 5 minutes (300s)
 ACCOUNT_RATE_LIMITS = {"login_failed": "5/5m"}
 # https://docs.allauth.org/en/latest/account/forms.html
-ACCOUNT_FORMS = {"signup": "task_dashboard.users.forms.UserSignupForm"}
+ACCOUNT_FORMS = {
+    "signup": "task_dashboard.users.forms.UserSignupForm",
+    "login": "task_dashboard.users.forms.UserLoginForm",
+}
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
 SOCIALACCOUNT_ADAPTER = "task_dashboard.users.adapters.SocialAccountAdapter"
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
@@ -343,9 +364,8 @@ SOCIALACCOUNT_PROVIDERS = {
 
 SOCIALACCOUNT_AUTO_SIGNUP = True
 
-SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
 
-SOCIALACCOUNT_PROVIDERS["openid_connect"]["APPS"][0]["settings"]["server_url"]
+SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
 
 SOCIALACCOUNT_LOGIN_ON_GET = True
 
@@ -387,5 +407,6 @@ Q_CLUSTER = {
     "queue_limit": 500,
     "cpu_affinity": 1,
     "label": "Django Q",
-    "orm": "default",  # Use Django ORM
+    "broker_class": "django_q.brokers.redis_broker.Redis",
+    "django_redis": "default",  # Use Valkey/Redis via django-redis
 }

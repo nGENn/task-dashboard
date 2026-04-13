@@ -180,8 +180,16 @@ class TaskPermissionAdmin(admin.ModelAdmin):
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ["title", "service", "external_id", "status", "priority", "owner"]
-    list_filter = ["service", "status", "priority", "group"]
+    list_display = [
+        "title",
+        "service",
+        "external_id",
+        "status",
+        "group",
+        "service_group",
+        "owner",
+    ]
+    list_filter = ["service", "status", "priority", "group", "service_group"]
     search_fields = ["title", "external_id", "customer", "owner", "owner_email"]
     ordering = ["-updated_at"]
 

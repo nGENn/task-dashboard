@@ -1,114 +1,67 @@
 # Universal Task Dashboard
 
-An internal operational dashboard aggregating tasks, issues, and risks from Zammad, GitLab, EspoCRM, OpenProject, and Eramba.
+A high-performance aggregation engine for tracking duties across multiple platforms (Zammad, GitLab, EspoCRM, OpenProject, and Eramba).
 
-## Getting Started
+## 🚀 Key Features
+
+- **The Identity Bridge**: Unifies fragmented user identities (emails, full names, usernames) into a single canonical view using PostgreSQL-native tokenization and GIN indexes.
+- **Fetch-Sync-Prune Engine**: High-concurrency synchronization powered by **Django-Q2**, **Valkey**, and **httpx**.
+- **Perspective Routing**: Stateful dashboard views (`/my`, `/unassigned`, `/all`) with HTMX-driven partial updates and bookmarkable URLs.
+- **Multilingual**: Full Internationalization (i18n) support with extensive German localization and dynamic status mapping.
+- **Secure by Design**: Role-Based Access Control (RBAC) enforced at the database level, with OIDC/Keycloak integration and encrypted API credentials.
+
+## 🏗️ Data Strategy & Architecture
+
+The application uses an asynchronous pattern for high performance and minimal perceived latency:
+
+1.  **Parallel Fetching**: **Django-Q2** dispatches workers for each service simultaneously. All sources are updated in parallel.
+2.  **Concurrent Pagination**: Service clients use `asyncio` to fetch multiple API pages concurrently, maximizing I/O throughput.
+3.  **Atomic Upsert**: Data is written via `bulk_create` with `update_conflicts=True`, ensuring high-speed ingestion of thousands of records.
+4.  **Automatic Pruning**: Local tasks are automatically purged if they no longer exist in the remote service, keeping the dashboard lean.
+
+## 🔌 Service Integration Details
+
+- **Zammad**: Concurrent fetching of up to 10 pages. Automatically maps local User IDs to canonical Emails through the Identity Bridge.
+- **GitLab**: Parallel fetching of Issues and Merge Requests. Tracks "updated_at" for real-time priority sorting.
+- **EspoCRM**: Parallel fetching of Cases and Tasks. Requires a user role with "Read All" permissions in Espo.
+- **OpenProject**: Optimized work package fetching with support for custom internal host header mapping.
+- **Eramba**: Integration with Security Incidents, Projects, Achievements, and Review modules. Includes smart future-task filtering and robust departmental group parsing.
+
+## ⚙️ Role-Based Access Control (RBAC)
+
+Access is managed via **Django Groups** and mapped to discovered external service groups:
+
+- **FULL**: View all tasks in the associated service, external group, or project.
+- **LIMITED**: View only tasks assigned to the user OR tasks that are currently unassigned.
+- **OWN**: View only tasks explicitly assigned to the user (strict identity matching).
+
+## 📦 Getting Started
 
 ### Prerequisites
-
 - Python 3.12+
 - [uv](https://github.com/astral-sh/uv) (Python package manager)
 - Docker & Docker Compose
 
-### Installation
+### Local Development
+1. **Setup Env**: `cp .env.example .env` (Add your Service API keys and Keycloak credentials).
+2. **Install & Migrate**: `uv sync && uv run manage.py migrate`
+3. **Run Services**:
+   - `uv run manage.py runserver` (Web Interface at localhost:8000)
+   - `uv run manage.py qcluster` (Background Worker - **Required for Task Sync**)
+4. **CSS Workflow**: `./tailwindcss -i task_dashboard/static/css/input.css -o task_dashboard/static/css/output.css --watch`
 
-1. **Environment Setup:**
-   Copy the example environment file:
+## 🚀 Deployment
 
-   ```bash
-   cp .env.example .env
-   ```
-
-   Update `DJANGO_SECRET_KEY` and other settings in `.env` as needed.
-
-2. **Run the Worker:**
-   This project uses Django-Q for background tasks. In a separate terminal, run:
-
-   ```bash
-   uv run manage.py qcluster
-   ```
-
-### Database Seeding
-
-To populate the local environment with test data:
+The production stack is orchestrated via [**`docker-compose.production.yml`**](docker-compose.production.yml).
 
 ```bash
-uv run manage.py seed_zammad_demo
-uv run manage.py seed_gitlab_demo
-uv run manage.py seed_espocrm_demo
+docker-compose -f docker-compose.production.yml up --build -d
 ```
 
-### CSS / Frontend
+### Production Stack
+- **`django`**: The core application (Gunicorn/WhiteNoise).
+- **`qcluster`**: The background worker process.
+- **`postgres`**: Database (PostgreSQL 18 with `unaccent`).
+- **`valkey`**: In-memory store for task queues and caching.
 
-The project uses standalone Tailwind CSS.
-
-**One-time build:**
-
-```bash
-cd task_dashboard/static/css
-./tailwindcss -i input.css -o project.css
-```
-
-**Watch mode:**
-
-```bash
-cd task_dashboard/static/css
-./tailwindcss -i input.css -o project.css --watch
-```
-
-## 🏗️ Architecture
-
-### Data Strategy
-
-The application uses an asynchronous **"Fetch-Sync-Prune"** pattern for high performance and reliability:
-
-1.  **Parallel Background Fetching:** When a refresh is triggered, **Django-Q** dispatches parallel tasks for each service. All services are fetched simultaneously.
-2.  **Concurrent Pagination:** Individual service clients use **`httpx`** and **`asyncio`** to fetch multiple API pages concurrently, drastically reducing I/O wait times.
-3.  **High-Speed Batch Upserting:** Thousands of tasks are processed and written to the PostgreSQL database in bulk using `bulk_create` with `update_conflicts=True`.
-4.  **Automatic Pruning:** After each sync, the system automatically deletes local tasks that are no longer present in the remote service (e.g., closed or deleted tasks), keeping the database perfectly in sync.
-5.  **Security Gatekeeper:** `views.py` filters the database records in real-time based on **Django Group Permissions (RBAC)**.
-
-### Environment Variables & Security
->
-> [!IMPORTANT]
-> **Encryption Key Requirement:**
-> You **MUST** set a fixed `DJANGO_SECRET_KEY` in `.env` *before* configuring services.
-> If this key changes, encrypted API tokens in the database will become unreadable.
-
-## ⚙️ Configuration & Access Control
-
-### Service Management
-
-Manage services in **Admin > Users > Service Configurations**.
-
-- **Multi-Instance:** Add multiple instances of the same service.
-- **Security:** API Tokens are encrypted at rest.
-- **Optimization:** Disabled services are skipped.
-
-### Admin Access & System Health
-
-- **Obfuscated Admin URL:** The default admin URL is obfuscated to `explicit-declared-follow/`. This can be customized via the `DJANGO_ADMIN_URL` environment variable.
-- **Dashboard Access:** Staff, superusers, and users with the `view_admin_button` permission can access the **"Admin Panel"** via a button inside the System Health dropdown in the top navigation.
-- **System Health:** A system status indicator in the top navigation shows the health and latency of all active services. Visibility is restricted to staff, superusers, and users with the `view_system_health` (for status) or `view_admin_button` (for admin access) permissions.
-
-### Permissions (RBAC)
-
-Access control is decoupled from services and managed via **Django Groups**.
-
-1. **Auto-Discovery:** Synchronizing a service automatically discovers external groups (e.g., "Zammad - Support").
-2. **Assignment:** In **Admin > Auth > Groups**, add a **Task Permission** entry.
-3. **Access Levels:**
-   - **FULL:** View all tasks in the group.
-   - **LIMITED:** View only Unassigned or Own tasks.
-   - **MINIMAL:** View only own tasks.
-
-## 🔌 Service Integration Details
-
-- **Zammad:** Concurrent fetching of up to 10 pages. Maps User IDs to Emails.
-- **GitLab:** Parallel fetching of Issues and Merge Requests.
-- **EspoCRM:** Parallel fetching of Cases and Tasks. Requires "Read All" role.
-- **OpenProject:** Optimized work package fetching with `Host` header injection.
-
-### WIP
-
-- **Eramba:** Parallel fetching of Security Incidents, Projects, Achievements, and various Review modules. Includes smart future-task filtering and robust departmental group parsing.
+For deep-dive technical logic, see [**ARCHITECTURE.md**](ARCHITECTURE.md).

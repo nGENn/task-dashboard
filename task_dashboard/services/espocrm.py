@@ -69,7 +69,11 @@ class EspoService:
                 )
             except httpx.HTTPError:
                 logger.exception("Error fetching EspoCRM data")
-                return []
+                # Raise to ensure prune is skipped
+                raise
+            except Exception:
+                logger.exception("Unexpected error fetching EspoCRM data")
+                raise
             else:
                 cache.set(cache_key, normalized_tasks, timeout=300)
                 return normalized_tasks

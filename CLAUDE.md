@@ -109,4 +109,4 @@ Three stages: lint (pre-commit), test (pytest in Docker), build (multi-arch Dock
 
 ## Environment
 
-Copy `.env.example` to `.env`. Key variables: `DATABASE_URL`, `REDIS_URL`, `DJANGO_SECRET_KEY` (must remain stable — used for EncryptedCharField), `KEYCLOAK_*` for OIDC, `DJANGO_ADMIN_URL`.
+Copy `.env.example` to `.env`. Key variables: `DATABASE_URL`, `VALKEY_URL`, `DJANGO_SECRET_KEY` (must remain stable — used for EncryptedCharField), `KEYCLOAK_*` for OIDC, `DJANGO_ADMIN_URL`.

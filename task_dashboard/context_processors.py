@@ -3,6 +3,7 @@ import math
 
 from django.core.cache import cache
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from django_q.models import Schedule
 
 from task_dashboard.services.eramba import ErambaService
@@ -117,28 +118,38 @@ def _get_services_health(service_map):
 
 def _calculate_global_status(results):
     """Determines the global system health state and color."""
-    latencies = [r["latency"] for r in results if r["status"] == "online"]
+    latencies = [r["latency"] for r in results if r["status"] in ("online", "degraded")]
     max_latency = max(latencies) if latencies else 0
     status_list = [r["status"] for r in results]
 
     if not results:
-        state, color = "No Services", "neutral"
+        state, color = _("No Services"), "neutral"
     elif "offline" in status_list:
-        state, color = "Offline", "error"
+        state, color = _("Offline"), "error"
     elif "auth_error" in status_list:
-        state, color = "Auth Error", "warning"
+        state, color = _("Auth Error"), "warning"
     elif "auth_missing" in status_list:
-        state, color = "Setup Needed", "warning"
+        state, color = _("Setup Needed"), "warning"
     elif (
         any(r["status"] == "degraded" for r in results)
         or max_latency > MAX_HEALTHY_LATENCY_MS
     ):
-        state, color = "Degraded", "warning"
+        state, color = _("Degraded"), "warning"
     else:
-        state, color = "Healthy", "success"
+        state, color = _("Healthy"), "success"
 
     return {
         "state": state,
         "color": color,
         "max_latency": max_latency,
+    }
+
+
+def theme(request):
+    """
+    Adds the current theme from cookies to the template context.
+    Defaults to 'system'.
+    """
+    return {
+        "theme": request.COOKIES.get("theme", "system"),
     }

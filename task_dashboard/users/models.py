@@ -6,6 +6,9 @@ from django.contrib.auth.models import Group
 from django.db import models
 from django.db.models import CharField
 from django.db.models import EmailField
+from django.db.models import F
+from django.db.models import Value
+from django.db.models.functions import Concat
 from django.http import QueryDict
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -37,17 +40,17 @@ class User(AbstractUser):
         """Get URL for user's detail view.
 
         Returns:
-            str: URL for user detail.
+            str: URL for individual user profile.
 
         """
-        return reverse("users:detail", kwargs={"pk": self.id})
+        return reverse("users:detail", kwargs={"pk": self.pk})
 
 
 ACCESS_LEVEL_CHOICES = [
-    ("FULL", "Full Access (See all tasks)"),
-    ("LIMITED", "Limited (Own tasks + Unassigned only)"),
-    ("OWN", "Only own tasks"),
-    ("NONE", "No Access"),
+    ("FULL", _("Full Access (See all tasks)")),
+    ("LIMITED", _("Limited (Own tasks + Unassigned only)")),
+    ("OWN", _("Only own tasks")),
+    ("NONE", _("No Access")),
 ]
 
 
@@ -269,6 +272,46 @@ class ServicePermission(models.Model):
         )
 
 
+def compare_query_params(request_get, target_params) -> bool:
+    """
+    Core logic to compare a QueryDict (request_get) with a target dict of params.
+    """
+    if not isinstance(target_params, dict):
+        return False
+
+    # Parameters to ignore when comparing active view
+    ignore_params = {
+        "page",
+        "sort",
+        "direction",
+        "refresh",
+        "csrfmiddlewaretoken",
+        "view",
+    }
+
+    # Normalize request_get to a dict of sorted lists
+    req_dict = {}
+    for key in request_get:
+        if key not in ignore_params:
+            req_dict[key] = sorted(request_get.getlist(key))
+
+    # Normalize target_params to a dict of sorted lists
+    tp_dict = {}
+    for key, value in target_params.items():
+        if key not in ignore_params:
+            if isinstance(value, list):
+                tp_dict[key] = sorted([str(v) for v in value])
+            else:
+                tp_dict[key] = [str(value)]
+
+    # Clean up other empty values: remove anything that is just [""] or []
+    # This ensures that empty filters match whether they are missing or empty.
+    req_dict = {k: v for k, v in req_dict.items() if v not in ([""], [])}
+    tp_dict = {k: v for k, v in tp_dict.items() if v not in ([""], [])}
+
+    return req_dict == tp_dict
+
+
 class SavedView(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -290,8 +333,14 @@ class SavedView(models.Model):
     def __str__(self):
         return f"{self.user.email} - {self.name}"
 
+    def matches_params(self, request_get) -> bool:
+        """
+        Compares request_get (QueryDict) with this view's query_params.
+        Returns True if they match (ignoring order and specific params like page/sort).
+        """
+        return compare_query_params(request_get, self.query_params)
+
     def get_query_string(self) -> str:
-        """Returns the query parameters as a URL-encoded string."""
         qd = QueryDict(mutable=True)
         for key, value in self.query_params.items():
             if isinstance(value, list):
@@ -314,6 +363,13 @@ class Task(models.Model):
     priority = models.CharField(max_length=50)
     customer = models.CharField(max_length=255, blank=True, default="")
     group = models.CharField(max_length=255, blank=True)
+    service_group = models.ForeignKey(
+        ExternalGroup,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tasks",
+    )
     owner = models.CharField(max_length=255, blank=True)
     owner_email = models.EmailField(blank=True)
     created_at = models.DateTimeField(null=True, blank=True)
@@ -321,9 +377,29 @@ class Task(models.Model):
     due_date = models.DateTimeField(null=True, blank=True)
     url = models.URLField(max_length=500, blank=True)
 
+    # Postgres 18 / Django 5.x GeneratedField for optimized searching
+    search_text = models.GeneratedField(
+        expression=Concat(
+            F("title"),
+            Value(" "),
+            F("external_id"),
+            Value(" "),
+            F("customer"),
+            Value(" "),
+            F("owner"),
+            Value(" "),
+            F("group"),
+        ),
+        output_field=models.TextField(),
+        db_persist=True,
+    )
+
     class Meta:
         unique_together = ("service", "external_id")
         ordering = ["-updated_at"]
+        indexes = [
+            models.Index(fields=["search_text"]),
+        ]
 
     def __str__(self):
         return self.title

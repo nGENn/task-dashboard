@@ -1,3 +1,4 @@
+from allauth.account.forms import LoginForm
 from allauth.account.forms import SignupForm
 from allauth.socialaccount.forms import SignupForm as SocialSignupForm
 from django import forms
@@ -79,3 +80,25 @@ class UserSocialSignupForm(SocialSignupForm):
     Default fields will be added automatically.
     See UserSignupForm otherwise.
     """
+
+
+class UserLoginForm(LoginForm):
+    """
+    Custom Login Form to add autocomplete attributes for Bitwarden/Password Managers.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Email field
+        self.fields["login"].widget.attrs.update(
+            {
+                "autocomplete": "username email",
+                "autofocus": "autofocus",
+            }
+        )
+        # Password field
+        self.fields["password"].widget.attrs.update(
+            {
+                "autocomplete": "current-password",
+            }
+        )

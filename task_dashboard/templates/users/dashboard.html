@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+  {% load dashboard_extras %}
+
+  <div class="w-full max-w-[1920px] mx-auto px-4 lg:px-8 py-8">
+    <main class="w-full">
+      {% include "users/partials/stats_cards.html" %}
+      {% include "users/partials/filter_form.html" %}
+      {% include "users/partials/dashboard_table.html" %}
+    </main>
+  </div>
+  {% include "users/partials/scripts.html" %}
+{% endblock content %}

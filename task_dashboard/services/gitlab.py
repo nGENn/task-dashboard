@@ -72,7 +72,11 @@ class GitLabService:
                 )
             except httpx.HTTPError:
                 logger.exception("Error fetching GitLab tasks")
-                return []
+                # Raise to ensure prune is skipped
+                raise
+            except Exception:
+                logger.exception("Unexpected error fetching GitLab tasks")
+                raise
             else:
                 cache.set(cache_key, normalized_items, timeout=300)
                 return normalized_items

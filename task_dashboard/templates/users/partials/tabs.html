@@ -1,0 +1,46 @@
+{% load i18n %}
+
+<div id="tabs-container"
+     role="tablist"
+     class="tabs mb-2"
+     {% if is_htmx_oob %}hx-swap-oob="true"{% endif %}>
+  <!-- All Tasks -->
+  <a role="tab"
+     class="tab tooltip tooltip-bottom {% if current_view == 'all' and not active_saved_view_id %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
+     data-tip="{% trans 'All sources unfiltered' %}"
+     href="{% url 'all_tasks' %}">{% trans "All Tasks" %}</a>
+  <!-- Default Views -->
+  {% for view in default_views %}
+    <a role="tab"
+       class="tab tooltip tooltip-bottom {% if current_view == view.view_param %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
+       data-tip="{{ view.description }}"
+       href="{{ view.url }}">{{ view.name }}</a>
+  {% endfor %}
+  <!-- Saved Views -->
+  {% for view in saved_views %}
+    <div class="relative flex items-center group">
+      <a role="tab"
+         class="tab pr-8 tooltip tooltip-bottom {% if view.is_active %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
+         data-tip="{% trans 'Custom saved filter:' %} {{ view.name }}"
+         href="{{ view.url }}">{{ view.name }}</a>
+      <button type="button"
+              onclick="deleteView({{ view.id }})"
+              class="absolute right-2 z-20 {% if view.is_active %}opacity-100{% else %}opacity-0 group-hover:opacity-100{% endif %} hover:text-error transition-all"
+              title="{% trans 'Delete View' %}">
+        <svg xmlns="http://www.w3.org/2000/svg"
+             class="h-4 w-4"
+             fill="none"
+             viewBox="0 0 24 24"
+             stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  {% endfor %}
+  <!-- Add View Button -->
+  <button type="button"
+          role="tab"
+          class="tab tooltip tooltip-bottom"
+          data-tip="{% trans 'Save current filters as a custom view' %}"
+          onclick="save_view_modal.showModal()">+</button>
+</div>
