@@ -4089,3 +4089,15 @@
 /* Fix for dynamic status colors */
 .bg-neutral { background-color: var(--color-neutral); }
 .text-neutral { color: var(--color-neutral); }
+
+/* Fixed width date columns */
+.date-column {
+    width: 95px !important;
+    min-width: 95px !important;
+    max-width: 95px !important;
+}
+
+/* Dashboard table minimum width */
+.min-w-dashboard {
+    min-width: 1250px !important;
+}

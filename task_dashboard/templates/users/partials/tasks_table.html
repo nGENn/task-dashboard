@@ -2,13 +2,13 @@
 
 <div class="w-full bg-base-100 rounded-box shadow-sm border border-base-300 overflow-hidden mb-4">
   <div class="overflow-x-auto">
-    <table class="table table-zebra w-full">
+    <table class="table table-zebra w-full table-fixed min-w-dashboard">
       <thead class="bg-base-200 text-base-content/70">
         <tr>
           {% with request.GET.sort as current_sort %}
             {% with request.GET.direction as current_dir %}
               <th class="w-8 px-1"></th>
-              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors px-1 w-1 whitespace-nowrap"
+              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors px-1 w-[80px] whitespace-nowrap"
                   data-min-width="50">
                 <a class="flex items-center justify-between w-full h-full px-1"
                    href="?{% sort_url 'origin' %}"
@@ -16,7 +16,7 @@
                    hx-target="#task-results"
                    hx-swap="outerHTML"
                    hx-push-url="true">
-                  <span>{% trans "Origin" %}</span>
+                  <span class="truncate">{% trans "Origin" %}</span>
                   {% if current_sort == 'origin' %}
                     <span class="text-xs">
                       {% if current_dir == 'asc' %}
@@ -37,7 +37,7 @@
                    hx-target="#task-results"
                    hx-swap="outerHTML"
                    hx-push-url="true">
-                  <span>{% trans "ID" %}</span>
+                  <span class="truncate">{% trans "ID" %}</span>
                   {% if current_sort == 'id' %}
                     <span class="text-xs">
                       {% if current_dir == 'asc' %}
@@ -58,7 +58,7 @@
                    hx-target="#task-results"
                    hx-swap="outerHTML"
                    hx-push-url="true">
-                  <span>{% trans "Title" %}</span>
+                  <span class="truncate">{% trans "Title" %}</span>
                   {% if current_sort == 'title' %}
                     <span class="text-xs">
                       {% if current_dir == 'asc' %}
@@ -79,7 +79,7 @@
                    hx-target="#task-results"
                    hx-swap="outerHTML"
                    hx-push-url="true">
-                  <span>{% trans "Customer" %}</span>
+                  <span class="truncate">{% trans "Customer" %}</span>
                   {% if current_sort == 'customer' %}
                     <span class="text-xs">
                       {% if current_dir == 'asc' %}
@@ -100,7 +100,7 @@
                    hx-target="#task-results"
                    hx-swap="outerHTML"
                    hx-push-url="true">
-                  <span>{% trans "Group" %}</span>
+                  <span class="truncate">{% trans "Group" %}</span>
                   {% if current_sort == 'group' %}
                     <span class="text-xs">
                       {% if current_dir == 'asc' %}
@@ -113,7 +113,7 @@
                 </a>
                 <div class="resizer"></div>
               </th>
-              <th class="font-semibold relative group overflow-hidden cursor-pointer hover:bg-base-300 transition-colors px-1 min-w-[150px] max-w-[250px]"
+              <th class="font-semibold relative group overflow-hidden cursor-pointer hover:bg-base-300 transition-colors px-1 w-[180px] min-w-[150px] max-w-[250px]"
                   data-min-width="80">
                 <a class="flex items-center justify-between w-full h-full px-1"
                    href="?{% sort_url 'owner' %}"
@@ -121,7 +121,7 @@
                    hx-target="#task-results"
                    hx-swap="outerHTML"
                    hx-push-url="true">
-                  <span>{% trans "Owner" %}</span>
+                  <span class="truncate">{% trans "Owner" %}</span>
                   {% if current_sort == 'owner' %}
                     <span class="text-xs">
                       {% if current_dir == 'asc' %}
@@ -142,7 +142,7 @@
                      hx-target="#task-results"
                      hx-swap="outerHTML"
                      hx-push-url="true">
-                    <span>{% trans "State" %}</span>
+                    <span class="truncate">{% trans "State" %}</span>
                     {% if current_sort == 'status' %}
                       <span class="text-xs">
                         {% if current_dir == 'asc' %}
@@ -176,7 +176,7 @@
                      hx-target="#task-results"
                      hx-swap="outerHTML"
                      hx-push-url="true">
-                    <span>{% trans "Priority" %}</span>
+                    <span class="truncate">{% trans "Priority" %}</span>
                     {% if current_sort == 'priority' %}
                       <span class="text-xs">
                         {% if current_dir == 'asc' %}
@@ -202,15 +202,15 @@
                   </button>
                 </div>
               </th>
-              <th class="font-semibold relative group w-[80px] cursor-pointer hover:bg-base-300 transition-colors px-1 tooltip tooltip-bottom"
-                  data-tip="{% trans 'Creation date' %}">
-                <a class="flex items-center justify-between w-full h-full px-1"
+              <th class="font-semibold relative group overflow-hidden cursor-pointer hover:bg-base-300 transition-colors px-1 date-column"
+                  data-min-width="70">
+                <a class="flex items-center justify-start gap-1.5 w-full h-full px-1"
                    href="?{% sort_url 'created_at' %}"
                    hx-get="?{% sort_url 'created_at' %}"
                    hx-target="#task-results"
                    hx-swap="outerHTML"
                    hx-push-url="true">
-                  <span>{% trans "Created" %}</span>
+                  <span class="truncate">{% trans "Created" %}</span>
                   {% if current_sort == 'created_at' %}
                     <span class="text-xs">
                       {% if current_dir == 'asc' %}
@@ -222,15 +222,15 @@
                   {% endif %}
                 </a>
               </th>
-              <th class="font-semibold relative group w-[80px] cursor-pointer hover:bg-base-300 transition-colors px-1 tooltip tooltip-bottom"
-                  data-tip="{% trans 'Last modified' %}">
-                <a class="flex items-center justify-between w-full h-full px-1"
+              <th class="font-semibold relative group overflow-hidden cursor-pointer hover:bg-base-300 transition-colors px-1 date-column"
+                  data-min-width="70">
+                <a class="flex items-center justify-start gap-1.5 w-full h-full px-1"
                    href="?{% sort_url 'updated_at' %}"
                    hx-get="?{% sort_url 'updated_at' %}"
                    hx-target="#task-results"
                    hx-swap="outerHTML"
                    hx-push-url="true">
-                  <span>{% trans "Updated" %}</span>
+                  <span class="truncate">{% trans "Updated" %}</span>
                   {% if current_sort == 'updated_at' %}
                     <span class="text-xs">
                       {% if current_dir == 'asc' %}
@@ -242,15 +242,15 @@
                   {% endif %}
                 </a>
               </th>
-              <th class="font-semibold relative group w-[90px] cursor-pointer hover:bg-base-300 transition-colors px-1 pr-3 tooltip tooltip-bottom"
-                  data-tip="{% trans 'Due Date' %}">
-                <a class="flex items-center justify-between w-full h-full px-1"
+              <th class="font-semibold relative group overflow-hidden cursor-pointer hover:bg-base-300 transition-colors px-1 pr-3 date-column"
+                  data-min-width="70">
+                <a class="flex items-center justify-start gap-1.5 w-full h-full px-1"
                    href="?{% sort_url 'due_date' %}"
                    hx-get="?{% sort_url 'due_date' %}"
                    hx-target="#task-results"
                    hx-swap="outerHTML"
                    hx-push-url="true">
-                  <span>{% trans "Due" %}</span>
+                  <span class="truncate">{% trans "Due" %}</span>
                   {% if current_sort == 'due_date' %}
                     <span class="text-xs">
                       {% if current_dir == 'asc' %}
@@ -297,8 +297,8 @@
               <td class="px-1 w-1 whitespace-nowrap">
                 <span class="badge badge-ghost text-xs">{{ task.service.name }}</span>
               </td>
-              <td class="font-mono text-sm font-bold px-1 max-w-0">
-                <div class="max-w-0 min-w-full flex items-center gap-1">
+              <td class="font-mono text-sm font-bold px-1 overflow-hidden">
+                <div class="flex items-center gap-1">
                   <span class="truncate flex-1" title="{{ task.external_id }}">{{ task.external_id }}</span>
                   <button type="button"
                           class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:text-primary flex-shrink-0 tooltip"
@@ -315,19 +315,15 @@
                   </button>
                 </div>
               </td>
-              <td class="px-1">
-                <div class="max-w-0 min-w-full">
-                  <span class="block font-medium whitespace-normal break-words"
-                        title="{{ task.title }}">{{ task.title }}</span>
-                </div>
+              <td class="px-1 overflow-hidden">
+                <span class="block font-medium whitespace-normal break-words truncate"
+                      title="{{ task.title }}">{{ task.title }}</span>
               </td>
-              <td class="text-sm px-1">
-                <div class="max-w-0 min-w-full truncate whitespace-normal break-all"
-                     title="{{ task.customer }}">{{ task.customer }}</div>
+              <td class="text-sm px-1 overflow-hidden">
+                <div class="truncate" title="{{ task.customer }}">{{ task.customer }}</div>
               </td>
-              <td class="text-sm px-1">
-                <div class="max-w-0 min-w-full whitespace-normal break-all"
-                     title="{{ task.group }}">{{ task.group }}</div>
+              <td class="text-sm px-1 overflow-hidden">
+                <div class="truncate" title="{{ task.group }}">{{ task.group }}</div>
               </td>
               <td class="text-sm px-1 min-w-[150px] max-w-[250px] align-top">
                 <div class="flex flex-wrap gap-1 items-baseline">
@@ -375,9 +371,9 @@
             {% endif %}
           </div>
         </td>
-        <td class="text-xs text-base-content/70 whitespace-nowrap px-1 w-[80px]">{{ task.created_at|dynamic_date }}</td>
-        <td class="text-xs text-base-content/70 whitespace-nowrap px-1 w-[80px]">{{ task.updated_at|dynamic_date }}</td>
-        <td class="text-xs text-base-content/70 whitespace-nowrap px-1 pr-3 w-[90px]">{{ task.due_date|dynamic_date }}</td>
+        <td class="text-xs text-base-content/70 whitespace-nowrap px-1 date-column">{{ task.created_at|dynamic_date }}</td>
+        <td class="text-xs text-base-content/70 whitespace-nowrap px-1 date-column">{{ task.updated_at|dynamic_date }}</td>
+        <td class="text-xs text-base-content/70 whitespace-nowrap px-1 pr-3 date-column">{{ task.due_date|dynamic_date }}</td>
       </tr>
     {% empty %}
       <tr>

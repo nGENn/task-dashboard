@@ -1,3 +1,4 @@
+import datetime
 import json
 import logging
 import re
@@ -980,18 +981,37 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             dr = request.GET.get(param, "").strip()
             if not dr:
                 return q
+
+            start_date_str = None
+            end_date_str = None
+
             if " to " in dr:
                 try:
-                    parts = dr.split(" to ")
-                    if len(parts) == 2 and parts[1]:  # noqa: PLR2004
-                        return q.filter(
-                            **{f"{field}__date__range": [parts[0], parts[1]]}
-                        )
-                    dr = parts[0]
+                    parts = [p.strip() for p in dr.split(" to ") if p.strip()]
+                    if len(parts) == 2:  # noqa: PLR2004
+                        start_date_str, end_date_str = parts[0], parts[1]
+                    elif len(parts) == 1:
+                        start_date_str = end_date_str = parts[0]
                 except (ValueError, TypeError):
                     pass
-            if re.match(r"^\d{4}-\d{2}-\d{2}$", dr):
-                return q.filter(**{f"{field}__date": dr})
+            elif re.match(r"^\d{4}-\d{2}-\d{2}$", dr):
+                start_date_str = end_date_str = dr
+
+            if start_date_str and end_date_str:
+                try:
+                    # Use explicit time boundaries for maximum backend compatibility
+                    start_d = datetime.date.fromisoformat(start_date_str)
+                    end_d = datetime.date.fromisoformat(end_date_str)
+
+                    start_dt = django_timezone.make_aware(
+                        datetime.datetime.combine(start_d, datetime.time.min)
+                    )
+                    end_dt = django_timezone.make_aware(
+                        datetime.datetime.combine(end_d, datetime.time.max)
+                    )
+                    return q.filter(**{f"{field}__range": [start_dt, end_dt]})
+                except (ValueError, TypeError):
+                    pass
             return q
 
         qs = apply_dr(qs, "date_range", "created_at")

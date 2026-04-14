@@ -90,7 +90,7 @@ msgstr ""
 
 #: task_dashboard/templates/base.html:140
 msgid "Track tasks across all platforms"
-msgstr "Plattformübergreifende Aufgabenverwaltung"
+msgstr "Aufgaben plattformweit verfolgen"
 
 #: task_dashboard/templates/base.html:158
 #: task_dashboard/templates/users/partials/system_health.html:6
@@ -250,7 +250,7 @@ msgstr "Priorität"
 
 #: task_dashboard/templates/users/partials/filter_form_content.html:250
 msgid "Creation date"
-msgstr "Erstellungsdatum der Aufgabe"
+msgstr "Erstelldatum"
 
 #: task_dashboard/templates/users/partials/filter_form_content.html:260
 #: task_dashboard/templates/users/partials/scripts.html:46
@@ -260,17 +260,17 @@ msgstr "Erstellt"
 
 #: task_dashboard/templates/users/partials/filter_form_content.html:268
 msgid "Last modified"
-msgstr "Zeitpunkt der letzten Aktualisierung"
+msgstr "Änderungsdatum"
 
 #: task_dashboard/templates/users/partials/filter_form_content.html:278
 #: task_dashboard/templates/users/partials/scripts.html:47
 #: task_dashboard/templates/users/partials/tasks_table.html:201
 msgid "Updated"
-msgstr "Aktualisiert"
+msgstr "Geändert"
 
 #: task_dashboard/templates/users/partials/filter_form_content.html:286
 msgid "Due date"
-msgstr "Fälligkeitsdatum der Aufgabe"
+msgstr "Fälligkeit"
 
 #: task_dashboard/templates/users/partials/filter_form_content.html:296
 #: task_dashboard/templates/users/partials/scripts.html:48
@@ -491,3 +491,21 @@ msgstr "Status-Mapping"
 #: task_dashboard/templates/users/partials/tasks_table.html:442
 msgid "Priority Mapping"
 msgstr "Prioritäts-Mapping"
+
+msgid "This table shows how each external service's original states and priorities are normalized in the dashboard."
+msgstr "Diese Tabelle zeigt, wie die ursprünglichen Zustände und Prioritäten der einzelnen externen Dienste im Dashboard normalisiert werden."
+
+msgid "Normalized"
+msgstr "Normalisiert"
+
+msgid "Original Values"
+msgstr "Ursprüngliche Werte"
+
+msgid "All other values"
+msgstr "Alle anderen Werte"
+
+msgid "Default / Fallback"
+msgstr "Standard / Fallback"
+
+msgid "Close"
+msgstr "Schließen"

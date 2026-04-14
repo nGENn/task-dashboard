@@ -49,29 +49,32 @@ def test_date_range_filters(user, rf):
         context = view.get_context_data()
         return [t.external_id for t in context["tasks"].object_list]
 
+    def to_date_str(dt):
+        return timezone.localtime(dt).strftime("%Y-%m-%d")
+
     # Test created_range (date_range)
-    start = (now - timedelta(days=2)).strftime("%Y-%m-%d")
-    end = now.strftime("%Y-%m-%d")
+    start = to_date_str(now - timedelta(days=2))
+    end = to_date_str(now)
     task_ids = get_tasks(f"date_range={start} to {end}")
     assert "T1" in task_ids
     assert "T2" not in task_ids
 
     # Test created_range (date_range) - single date
-    start_single = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+    start_single = to_date_str(now - timedelta(days=1))
     task_ids = get_tasks(f"date_range={start_single}")
     assert "T1" in task_ids
     assert "T2" not in task_ids
 
     # Test updated_range
-    start = (now - timedelta(days=6)).strftime("%Y-%m-%d")
-    end = (now - timedelta(days=4)).strftime("%Y-%m-%d")
+    start = to_date_str(now - timedelta(days=6))
+    end = to_date_str(now - timedelta(days=4))
     task_ids = get_tasks(f"updated_range={start} to {end}")
     assert "T1" not in task_ids
     assert "T2" in task_ids
 
     # Test due_range
-    start = now.strftime("%Y-%m-%d")
-    end = (now + timedelta(days=2)).strftime("%Y-%m-%d")
+    start = to_date_str(now)
+    end = to_date_str(now + timedelta(days=2))
     task_ids = get_tasks(f"due_range={start} to {end}")
     assert "T1" in task_ids
     assert "T2" not in task_ids
