@@ -14,15 +14,6 @@ SECRET_KEY = env(
     default="TJ1JMb8lTGNXlGDCXBFdclVwq2iZIAWl9x2Y9uktac3KdA0jdyHHJtIJA3krvCpj",
 )
 
-# Provide a default DATABASE_URL if missing for test environments (e.g. mypy)
-if not env("DATABASE_URL", default=None):
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": ":memory:",
-        }
-    }
-
 # https://docs.djangoproject.com/en/dev/ref/settings/#test-runner
 TEST_RUNNER = "django.test.runner.DiscoverRunner"
 TESTING = True
