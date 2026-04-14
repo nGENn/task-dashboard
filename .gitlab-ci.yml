@@ -25,6 +25,9 @@ stages:
 variables:
   # Python log flushing: immediately see logs even on crash
   PYTHONUNBUFFERED: "1"
+  # Resolve git fetch issues with pipelines refs
+  GIT_DEPTH: "0"
+  GIT_STRATEGY: clone
   # Aligned with ARCHITECTURE.md: PostgreSQL 18
   POSTGRES_USER: 'task_dashboard'
   POSTGRES_PASSWORD: 'password'
