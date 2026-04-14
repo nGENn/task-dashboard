@@ -172,15 +172,10 @@ build-image:
   stage: build
   # Final gate: require all quality/security checks to pass
   needs: ["pytest", "django_check", "mypy", "precommit", "bandit", "dependency_audit"]
-  image:
-    name: docker:24.0.9
-    pull_policy: [always, if-not-present]
+  image: docker:latest
   services:
-    - name: docker:24.0.9-dind
-      alias: docker
-      pull_policy: [always, if-not-present]
+    - name: docker:dind
   variables:
-    DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
   script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
