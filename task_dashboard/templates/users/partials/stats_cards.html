@@ -18,7 +18,7 @@
     </a>
     <a href="{% url 'unassigned_tasks' %}"
        class="btn btn-ghost btn-sm h-auto min-h-0 px-3 py-1.5 bg-base-200 hover:bg-base-300 rounded-full text-xs font-semibold text-info normal-case tooltip tooltip-bottom border border-base-300"
-       data-tip="{% trans 'Tasks without an owner' %}">
+       data-tip="{% trans 'Tasks without an owner.' %}">
       <span>{% trans "Unassigned" %}</span>
       <span class="badge badge-info badge-sm border-none">{{ stats.unassigned|default:"0" }}</span>
     </a>

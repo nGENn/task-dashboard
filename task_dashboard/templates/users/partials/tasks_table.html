@@ -202,7 +202,8 @@
                   </button>
                 </div>
               </th>
-              <th class="font-semibold relative group w-[80px] cursor-pointer hover:bg-base-300 transition-colors px-1">
+              <th class="font-semibold relative group w-[80px] cursor-pointer hover:bg-base-300 transition-colors px-1 tooltip tooltip-bottom"
+                  data-tip="{% trans 'Creation date' %}">
                 <a class="flex items-center justify-between w-full h-full px-1"
                    href="?{% sort_url 'created_at' %}"
                    hx-get="?{% sort_url 'created_at' %}"
@@ -221,7 +222,8 @@
                   {% endif %}
                 </a>
               </th>
-              <th class="font-semibold relative group w-[80px] cursor-pointer hover:bg-base-300 transition-colors px-1">
+              <th class="font-semibold relative group w-[80px] cursor-pointer hover:bg-base-300 transition-colors px-1 tooltip tooltip-bottom"
+                  data-tip="{% trans 'Last modified' %}">
                 <a class="flex items-center justify-between w-full h-full px-1"
                    href="?{% sort_url 'updated_at' %}"
                    hx-get="?{% sort_url 'updated_at' %}"
@@ -240,7 +242,8 @@
                   {% endif %}
                 </a>
               </th>
-              <th class="font-semibold relative group w-[90px] cursor-pointer hover:bg-base-300 transition-colors px-1 pr-3">
+              <th class="font-semibold relative group w-[90px] cursor-pointer hover:bg-base-300 transition-colors px-1 pr-3 tooltip tooltip-bottom"
+                  data-tip="{% trans 'Due Date' %}">
                 <a class="flex items-center justify-between w-full h-full px-1"
                    href="?{% sort_url 'due_date' %}"
                    hx-get="?{% sort_url 'due_date' %}"
