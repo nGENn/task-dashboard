@@ -2,7 +2,7 @@
 
 @source "../../templates/**/*.html";
 @source "../js/**/*.js";
-@source "../../task_dashboard/**/*.py";
+@source "../../**/*.py";
 
 @plugin "./daisyui.mjs";
 

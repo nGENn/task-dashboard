@@ -8,16 +8,19 @@ WORKDIR /app
 ARG TAILWIND_VERSION=v4.0.9
 
 RUN apt-get update && apt-get install -y curl ca-certificates && rm -rf /var/lib/apt/lists/*
-RUN curl -sLO https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_VERSION}/tailwindcss-linux-x64 \
-    && chmod +x tailwindcss-linux-x64 \
-    && mv tailwindcss-linux-x64 /usr/local/bin/tailwindcss
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then TAILWIND_ARCH="x64"; elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then TAILWIND_ARCH="arm64"; else echo "Unsupported architecture: $ARCH" && exit 1; fi && \
+    curl -sLO https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_VERSION}/tailwindcss-linux-${TAILWIND_ARCH} && \
+    chmod +x tailwindcss-linux-${TAILWIND_ARCH} && \
+    mv tailwindcss-linux-${TAILWIND_ARCH} /usr/local/bin/tailwindcss
 
 # Copy project files for Tailwind to scan
 COPY ./task_dashboard /app/task_dashboard
 
 # Build the CSS
 RUN cd task_dashboard/static/css && \
-    tailwindcss -i input.css -o output.css --minify
+    tailwindcss -i input.css -o output.css --minify && \
+    rm input.css
 
 # Python build stage
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS python-build-stage
@@ -42,7 +45,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Now copy the project and install it
 COPY . ${APP_HOME}
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev
+    uv sync --frozen --no-dev && \
+    rm -rf task_dashboard/static/css/input.css
 
 # Python 'run' stage
 FROM python:3.13-slim-bookworm AS python-run-stage
@@ -73,13 +77,12 @@ COPY --from=python-build-stage --chown=django:django ${APP_HOME} ${APP_HOME}
 # Copy the compiled CSS from the css-build-stage
 COPY --from=css-build-stage --chown=django:django /app/task_dashboard/static/css/output.css ${APP_HOME}/task_dashboard/static/css/output.css
 
-# Prepare media folder
-RUN mkdir -p ${APP_HOME}/task_dashboard/media && chown django:django ${APP_HOME}/task_dashboard/media
+# Prepare folders and permissions
+RUN mkdir -p ${APP_HOME}/task_dashboard/media ${APP_HOME}/staticfiles && \
+    chown -R django:django ${APP_HOME}/task_dashboard/media ${APP_HOME}/staticfiles
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
-
-USER django
 
 # Run collectstatic and compilemessages during build
 # We use dummy values to satisfy Django's check without a real DB/Redis
@@ -91,6 +94,8 @@ ENV DATABASE_URL="postgres://localhost/dummy" \
 
 RUN python manage.py compilemessages && \
     python manage.py collectstatic --noinput
+
+USER django
 
 CMD ["/start"]
 ENTRYPOINT ["/entrypoint"]
