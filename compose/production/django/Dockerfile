@@ -5,7 +5,7 @@ FROM debian:bookworm-slim AS css-build-stage
 WORKDIR /app
 
 # Pin Tailwind CLI version for reproducible builds
-ARG TAILWIND_VERSION=v4.0.0
+ARG TAILWIND_VERSION=v4.0.9
 
 RUN apt-get update && apt-get install -y curl ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN curl -sLO https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_VERSION}/tailwindcss-linux-x64 \
