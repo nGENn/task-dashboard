@@ -5,6 +5,7 @@ from .views import delete_saved_view
 from .views import force_refresh_view
 from .views import refresh_single_task_view
 from .views import save_view
+from .views import stats_view
 from .views import user_detail_view
 from .views import user_update_view
 
@@ -22,5 +23,6 @@ urlpatterns = [
         delete_saved_view,
         name="delete_saved_view",
     ),
+    path("stats/", stats_view, name="stats"),
     path("", DashboardView.as_view(), name="home"),
 ]

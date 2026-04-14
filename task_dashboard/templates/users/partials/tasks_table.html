@@ -268,7 +268,7 @@
                 <div class="max-w-0 min-w-full flex items-center gap-1">
                   <span class="truncate flex-1" title="{{ task.external_id }}">{{ task.external_id }}</span>
                   <button type="button"
-                          class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:text-primary flex-shrink-0 tooltip tooltip-bottom"
+                          class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:text-primary flex-shrink-0 tooltip"
                           data-tip="{% trans 'Copy ID & Link' %}"
                           onclick="event.stopPropagation(); window.copyToClipboard('{{ task.external_id }}', '{% trans "ID copied to clipboard!" %}');">
                     <svg xmlns="http://www.w3.org/2000/svg"

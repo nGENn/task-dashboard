@@ -147,6 +147,36 @@ def refresh_single_task_view(request, pk):
     return HttpResponseRedirect(reverse("home"))
 
 
+@login_required
+def stats_view(request):
+    user = request.user
+    dv = DashboardView()
+    dv.setup(request)
+
+    qs = dv._get_annotated_base_qs()  # noqa: SLF001
+    qs = dv._add_owner_overlap_annotation(qs, user)  # noqa: SLF001
+    base_tasks = qs.filter(dv._get_rbac_q(user))  # noqa: SLF001
+
+    search_q = request.GET.get("q", "").strip()
+    if search_q:
+        base_tasks = base_tasks.filter(search_text__icontains=search_q)
+
+    stats = base_tasks.aggregate(
+        total=Count("id", distinct=True),
+        my_tasks=Count(
+            "id",
+            distinct=True,
+            filter=Q(is_owner=True, status__in=["open", "pending", "new"]),
+        ),
+        open=Count("id", filter=Q(status="open"), distinct=True),
+        pending=Count("id", filter=Q(status="pending"), distinct=True),
+        unassigned=Count("id", filter=Q(is_unassigned=True), distinct=True),
+        resolved=Count("id", filter=Q(status="resolved"), distinct=True),
+    )
+
+    return render(request, "users/partials/stats_cards.html", {"stats": stats})
+
+
 # --- MAIN DASHBOARD VIEW ---
 
 
@@ -804,7 +834,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 "name": _("My Tasks"),
                 "view_param": "my",
                 "url": "/my",
-                "description": _("Tasks assigned to you."),
+                "description": _("Tasks assigned to you"),
             },
             {
                 "name": _("Unassigned"),

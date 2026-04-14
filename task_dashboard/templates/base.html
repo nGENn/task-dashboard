@@ -111,6 +111,45 @@
       <script defer src="{% static 'js/project.js' %}"></script>
       <!-- HTMX -->
       <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+      <style>
+        /* Scope the tooltip-bottom fix specifically to navbar stats, tabs, and system health */
+        #stats-container .tooltip-bottom,
+        #tabs-container .tooltip-bottom,
+        #system-status-button.tooltip-bottom {
+          --tt-pos: 0.25rem;
+        }
+
+        #stats-container .tooltip-bottom:before,
+        #stats-container .tooltip-bottom[data-tip]:before,
+        #stats-container .tooltip-bottom:after,
+        #tabs-container .tooltip-bottom:before,
+        #tabs-container .tooltip-bottom[data-tip]:before,
+        #tabs-container .tooltip-bottom:after,
+        #system-status-button.tooltip-bottom:before,
+        #system-status-button.tooltip-bottom[data-tip]:before,
+        #system-status-button.tooltip-bottom:after {
+          bottom: auto !important;
+          inset-block-end: auto !important;
+        }
+
+        #stats-container .tooltip-bottom:before,
+        #stats-container .tooltip-bottom[data-tip]:before,
+        #tabs-container .tooltip-bottom:before,
+        #tabs-container .tooltip-bottom[data-tip]:before,
+        #system-status-button.tooltip-bottom:before,
+        #system-status-button.tooltip-bottom[data-tip]:before {
+          top: var(--tt-off) !important;
+          inset-block-start: var(--tt-off) !important;
+        }
+
+        #stats-container .tooltip-bottom:after,
+        #tabs-container .tooltip-bottom:after,
+        #system-status-button.tooltip-bottom:after {
+          top: var(--tt-tail) !important;
+          inset-block-start: var(--tt-tail) !important;
+          transform: translateX(-50%) rotate(180deg) !important;
+        }
+      </style>
     {% endblock javascript %}
   </head>
   <body class="{% block bodyclass %}{% endblock bodyclass %}">
@@ -144,24 +183,33 @@
               </div>
             </a>
           </div>
+          <!-- Center: Stats Bar -->
+          <div class="navbar-center flex overflow-visible">
+            {% if request.user.is_authenticated %}
+              <div hx-get="{% url 'users:stats' %}"
+                   hx-trigger="load"
+                   hx-swap="outerHTML">
+                <div id="stats-container" class="flex gap-2 items-center">
+                  <span class="loading loading-spinner loading-xs text-primary"></span>
+                </div>
+              </div>
+            {% endif %}
+          </div>
           <!-- Right: Status, Theme, User -->
           <div class="navbar-end gap-2">
             <!-- System Status Indicator -->
             {% if request.user.is_staff or request.user.is_superuser or perms.users.view_system_health or perms.users.view_admin_button %}
               <div class="dropdown dropdown-end">
-                <div tabindex="0"
+                <div id="system-status-button"
+                     tabindex="0"
                      role="button"
-                     class="btn btn-ghost btn-sm gap-1.5 normal-case min-h-fit h-auto py-2 items-center">
+                     class="btn btn-ghost btn-sm gap-1.5 normal-case min-h-fit h-auto py-2 items-center tooltip tooltip-bottom"
+                     data-tip="{% trans 'System Status:' %} {% trans global_system_status.state %}">
                   <span class="relative flex h-2 w-2 flex-shrink-0">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-{{ global_system_status.color }} opacity-75"></span>
                     <span class="relative inline-flex rounded-full h-2 w-2 bg-{{ global_system_status.color }}"></span>
                   </span>
-                  <div id="system-health-indicator" class="inline-flex">
-                    <span class="hidden md:inline text-sm whitespace-nowrap text-{{ global_system_status.color }}">
-                      {% trans "System:" %} {% trans global_system_status.state %}
-                      {% if global_system_status.max_latency > 0 %}({{ global_system_status.max_latency }}ms){% endif %}
-                    </span>
-                  </div>
+                  <!-- System status icon only -->
                 </div>
                 <div tabindex="0"
                      class="dropdown-content z-[100] card card-compact w-72 p-2 shadow-xl bg-base-100 border border-base-300 mt-2">

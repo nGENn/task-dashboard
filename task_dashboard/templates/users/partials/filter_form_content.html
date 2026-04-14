@@ -7,7 +7,7 @@
   <div id="filter-options-container"
        class="flex flex-wrap gap-3 mb-3 w-full">
     <!-- Dropdowns -->
-    <div class="dropdown tooltip tooltip-bottom filter-dropdown-container"
+    <div class="dropdown tooltip filter-dropdown-container"
          data-tip="{% trans 'Source platform' %}">
       <div tabindex="0"
            role="button"
@@ -167,7 +167,7 @@
         {% endfor %}
       </ul>
     </div>
-    <div class="dropdown dropdown-end tooltip tooltip-bottom filter-dropdown-container"
+    <div class="dropdown dropdown-end tooltip filter-dropdown-container"
          data-tip="{% trans 'Filter by current task status' %}">
       <div tabindex="0"
            role="button"
@@ -207,7 +207,7 @@
         {% endfor %}
       </ul>
     </div>
-    <div class="dropdown dropdown-end tooltip tooltip-bottom filter-dropdown-container"
+    <div class="dropdown dropdown-end tooltip filter-dropdown-container"
          data-tip="{% trans 'Filter by task priority level' %}">
       <div tabindex="0"
            role="button"
@@ -248,7 +248,7 @@
       </ul>
     </div>
     <!-- Date Ranges using completely static DIVs to prevent text shifting -->
-    <div class="tooltip tooltip-bottom filter-dropdown-container"
+    <div class="tooltip filter-dropdown-container"
          data-tip="{% trans 'Creation date' %}">
       <div id="date-range-picker"
            class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer w-full">
@@ -266,7 +266,7 @@
            id="date-range-input"
            {% if request.GET.date_range %}name="date_range"{% endif %}
            value="{{ request.GET.date_range }}" />
-    <div class="tooltip tooltip-bottom filter-dropdown-container"
+    <div class="tooltip filter-dropdown-container"
          data-tip="{% trans 'Last modified' %}">
       <div id="updated-range-picker"
            class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer w-full">
@@ -284,7 +284,7 @@
            id="updated-range-input"
            {% if request.GET.updated_range %}name="updated_range"{% endif %}
            value="{{ request.GET.updated_range }}" />
-    <div class="tooltip tooltip-bottom filter-dropdown-container"
+    <div class="tooltip filter-dropdown-container"
          data-tip="{% trans 'Due date' %}">
       <div id="due-range-picker"
            class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer w-full">
@@ -310,7 +310,7 @@
             id="active-filters-label">{% trans "Active filters:" %}</span>
       {% for key, data in active_filters_sidebar.items %}
         {% with count=data.values|length %}
-          <div class="badge badge-primary gap-1 pr-0 py-1 tooltip tooltip-bottom before:text-xs before:max-w-xs before:whitespace-normal"
+          <div class="badge badge-primary gap-1 pr-0 py-1 tooltip before:text-xs before:max-w-xs before:whitespace-normal"
                data-tip="{{ data.values|join:', ' }}">
             {% if key == 'q' %}
               {% trans "Search" %}: <span class="ml-1 font-semibold">{{ data.values.0 }}</span>
