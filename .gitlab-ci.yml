@@ -80,7 +80,7 @@ pytest:
   stage: test
   needs: []
   services:
-    - name: postgres:18-alpine
+    - name: postgres:18
       alias: postgres
     - name: valkey/valkey:8
       alias: valkey
@@ -90,6 +90,7 @@ pytest:
     DJANGO_SETTINGS_MODULE: "config.settings.test"
     # Ensure the DB is created by the service itself if needed
     POSTGRES_DB: 'test_task_dashboard'
+    POSTGRES_INITDB_ARGS: "--nosync"
   script:
     - uv sync --frozen
     # Wait for postgres to be ready
