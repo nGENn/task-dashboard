@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import logging
 from http import HTTPStatus
+from typing import Any
 from urllib.parse import quote
 from urllib.parse import urlparse
 
@@ -39,7 +40,7 @@ class GitLabService:
 
         async with httpx.AsyncClient() as client:
             user_map = await self._get_user_map(client)
-            normalized_items = []
+            normalized_items: list[dict[str, Any]] = []
 
             try:
                 # Fetch Issues and Merge Requests in parallel
@@ -118,7 +119,7 @@ class GitLabService:
 
         async with httpx.AsyncClient() as client:
             user_map = await self._get_user_map(client)
-            normalized_items = []
+            normalized_items: list[dict[str, Any]] = []
             ctx = {"target": normalized_items, "user_map": user_map}
 
             try:

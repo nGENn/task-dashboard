@@ -3,6 +3,7 @@ import base64
 import logging
 import re
 from http import HTTPStatus
+from typing import Any
 
 import httpx
 from django.conf import settings
@@ -51,7 +52,7 @@ class OpenProjectService:
 
         async with httpx.AsyncClient() as client:
             user_map = await self._get_user_map(client)
-            normalized_tasks = []
+            normalized_tasks: list[dict[str, Any]] = []
 
             try:
                 # Fetch all open work packages
@@ -90,7 +91,7 @@ class OpenProjectService:
 
         async with httpx.AsyncClient() as client:
             user_map = await self._get_user_map(client)
-            normalized_tasks = []
+            normalized_tasks: list[dict[str, Any]] = []
             try:
                 resp = await client.get(url, headers=self._get_headers(), timeout=20.0)
                 resp.raise_for_status()

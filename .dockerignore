@@ -1,16 +1,40 @@
-.editorconfig
-.gitattributes
-.github
+# Ignore all version control
+.git
 .gitignore
 .gitlab-ci.yml
-.idea
 .pre-commit-config.yaml
-.readthedocs.yml
-.travis.yml
-venv
-.venv
-.git
-.envs/
+.python-version
+.editorconfig
+.dockerignore
 
-# Keep CSS source files allowed for build context
-# (Modified by Antigravity)
+# Build artifacts
+.pytest_cache
+.ruff_cache
+.uv-cache
+.venv
+node_modules
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# Local data
+db.sqlite3
+.env
+staticfiles
+media
+
+# CSS artifacts
+task_dashboard/static/css/tailwindcss
+task_dashboard/static/css/daisyui.mjs
+task_dashboard/static/css/daisyui-theme.mjs
+task_dashboard/static/css/output.css
+
+# Documentation
+README.md
+ARCHITECTURE.md
+TODO.md
+LICENSE
+SCRATCH
+SCRIPTS
+docs

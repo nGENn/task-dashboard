@@ -3,6 +3,8 @@ import logging
 import re
 from datetime import datetime
 from http import HTTPStatus
+from typing import Any
+from typing import cast
 
 import httpx
 from django.core.cache import cache
@@ -41,7 +43,7 @@ class ZammadService:
                 resp = await client.get(
                     url,
                     headers=self.headers,
-                    params={"page": page, "per_page": per_page},
+                    params=cast("dict[str, Any]", {"page": page, "per_page": per_page}),
                     timeout=30.0,
                 )
                 if resp.status_code == HTTPStatus.OK:
@@ -149,7 +151,7 @@ class ZammadService:
         per_page = 100
 
         # Fetch first page to see how many we have
-        first_page_params = {
+        first_page_params: dict[str, str | int] = {
             "expand": "true",
             "page": 1,
             "per_page": per_page,
@@ -186,7 +188,7 @@ class ZammadService:
 
         async def fetch_page(page_num):
             async with semaphore:
-                params = {**first_page_params, "page": page_num}
+                params = cast("dict[str, Any]", {**first_page_params, "page": page_num})
                 r = await client.get(
                     url, headers=self.headers, params=params, timeout=45.0
                 )

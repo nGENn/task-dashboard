@@ -335,7 +335,7 @@ class TestDashboardView:
             title="Name Only",
             status="open",
             service=service_config,
-            owner="Other Person",
+            owner="Unique Owner Name",
             owner_email="",
             updated_at=timezone.now(),
         )
@@ -382,7 +382,7 @@ class TestDashboardView:
 
         # Check filter options too
         assert "Unassigned" in context["filter_options"]["owners"]
-        assert "Other Person" in context["filter_options"]["owners"]
+        assert "Unique Owner Name" in context["filter_options"]["owners"]
         assert "test@example.com" in context["filter_options"]["owners"]
 
     def test_reversed_name_mapping(self, user: User, rf: RequestFactory):

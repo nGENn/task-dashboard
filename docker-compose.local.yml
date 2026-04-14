@@ -10,6 +10,7 @@ services:
       dockerfile: ./compose/local/django/Dockerfile
     image: task_dashboard_local_django
     container_name: task_dashboard_django
+    init: true
     environment:
       USE_DOCKER: ${USE_DOCKER:-yes}
       IPYTHONDIR: ${IPYTHONDIR:-/app/.ipython}
@@ -55,3 +56,8 @@ services:
   valkey:
     image: valkey/valkey:8
     container_name: task_dashboard_valkey
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

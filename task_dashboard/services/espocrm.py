@@ -2,6 +2,8 @@ import asyncio
 import logging
 import re
 from http import HTTPStatus
+from typing import Any
+from typing import cast
 
 import httpx
 from django.core.cache import cache
@@ -40,7 +42,7 @@ class EspoService:
 
         async with httpx.AsyncClient() as client:
             user_map = await self._get_user_map(client)
-            normalized_tasks = []
+            normalized_tasks: list[dict[str, Any]] = []
 
             try:
                 # Fetch Cases and Tasks in parallel
@@ -99,7 +101,7 @@ class EspoService:
 
         async with httpx.AsyncClient() as client:
             user_map = await self._get_user_map(client)
-            normalized_tasks = []
+            normalized_tasks: list[dict[str, Any]] = []
 
             try:
                 resp = await client.get(url, headers=self.headers, timeout=15.0)
@@ -126,11 +128,14 @@ class EspoService:
             max_size = 200
 
             while True:
-                params = {
-                    "offset": offset,
-                    "maxSize": max_size,
-                    "select": "id,emailAddress,userName",
-                }
+                params = cast(
+                    "dict[str, Any]",
+                    {
+                        "offset": offset,
+                        "maxSize": max_size,
+                        "select": "id,emailAddress,userName",
+                    },
+                )
                 resp = await client.get(
                     url, headers=self.headers, params=params, timeout=10.0
                 )
@@ -164,7 +169,9 @@ class EspoService:
             max_size = 100
 
             while True:
-                request_params = {**params, "offset": offset, "maxSize": max_size}
+                request_params = cast(
+                    "dict[str, Any]", {**params, "offset": offset, "maxSize": max_size}
+                )
                 resp = await client.get(
                     url, headers=self.headers, params=request_params, timeout=15.0
                 )

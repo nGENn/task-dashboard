@@ -7,7 +7,7 @@ default_language_version:
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
+    rev: v5.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -20,6 +20,8 @@ repos:
       - id: check-case-conflict
       - id: check-docstring-first
       - id: detect-private-key
+      - id: check-added-large-files
+      - id: check-merge-conflict
 
   - repo: https://github.com/adamchainz/django-upgrade
     rev: '1.29.1'
@@ -27,14 +29,11 @@ repos:
       - id: django-upgrade
         args: ['--target-version', '5.2']
 
-  # Run the Ruff linter.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.6
+    rev: v0.9.9
     hooks:
-      # Linter
-      - id: ruff-check
+      - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
-      # Formatter
       - id: ruff-format
 
   - repo: https://github.com/Riverside-Healthcare/djLint
@@ -43,8 +42,24 @@ repos:
       - id: djlint-reformat-django
       - id: djlint-django
 
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.3
+    hooks:
+      - id: bandit
+        # Let pre-commit handle the file list; remove conflicted -r and target path
+        args: ["-ll"]
+
   - repo: local
     hooks:
+      - id: mypy
+        name: mypy
+        # Use system language so it has access to uv-installed dependencies (like django-environ)
+        entry: uv run mypy .
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
       - id: pytest
         name: pytest
         entry: uv run pytest
