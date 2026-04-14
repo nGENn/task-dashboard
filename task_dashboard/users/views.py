@@ -259,12 +259,12 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             if meaningful_keys:
                 return HttpResponseRedirect(f"/?{request.GET.urlencode()}")
 
-        if self.perspective in ["my", "unassigned"] and request.GET:
+        if self.perspective in ["my", "open", "unassigned"] and request.GET:
             nav_keys = {"page", "sort", "direction"}
             meaningful_keys = set(request.GET.keys()) - nav_keys
             if meaningful_keys:
                 q = request.GET.copy()
-                if not q.getlist("owner"):
+                if not q.getlist("owner") and not q.getlist("state"):
                     return HttpResponseRedirect(f"/?{q.urlencode()}")
 
                 has_adhoc = any(
@@ -528,13 +528,16 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 owners = [_("Unassigned")]
 
         states = request.GET.getlist("state")
-        if not states and perspective in ["my", "unassigned"]:
-            settings_obj = GlobalSetting.load()
-            states = [
-                s.strip()
-                for s in settings_obj.default_task_states.split(",")
-                if s.strip()
-            ]
+        if not states and perspective in ["my", "open", "unassigned"]:
+            if perspective == "open":
+                states = ["open"]
+            else:
+                settings_obj = GlobalSetting.load()
+                states = [
+                    s.strip()
+                    for s in settings_obj.default_task_states.split(",")
+                    if s.strip()
+                ]
 
         return {
             "origins": request.GET.getlist("origin"),
@@ -567,7 +570,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         view = (
             self.perspective
-            if self.perspective in ["my", "unassigned", "all"]
+            if self.perspective in ["my", "open", "unassigned", "all"]
             else "all"
         )
         if self.perspective == "home" and not search_q:
@@ -625,6 +628,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             ),
             open=Count("id", filter=Q(status="open"), distinct=True),
             pending=Count("id", filter=Q(status="pending"), distinct=True),
+            unassigned=Count("id", filter=Q(is_unassigned=True), distinct=True),
             resolved=Count("id", filter=Q(status="resolved"), distinct=True),
         )
 
@@ -853,14 +857,17 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         if (
             not st
             and perspective != "all"
-            and (perspective in ["my", "unassigned"] or not request.GET)
+            and (perspective in ["my", "open", "unassigned"] or not request.GET)
         ):
-            settings_obj = GlobalSetting.load()
-            st = [
-                s.strip()
-                for s in settings_obj.default_task_states.split(",")
-                if s.strip()
-            ]
+            if perspective == "open":
+                st = ["open"]
+            else:
+                settings_obj = GlobalSetting.load()
+                st = [
+                    s.strip()
+                    for s in settings_obj.default_task_states.split(",")
+                    if s.strip()
+                ]
 
         if st:
             qs = qs.filter(status__in=st)

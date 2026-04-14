@@ -12,6 +12,7 @@ from task_dashboard.users.views import DashboardView
 urlpatterns = [
     path("", DashboardView.as_view(perspective="home"), name="home"),
     path("my", DashboardView.as_view(perspective="my"), name="my_tasks"),
+    path("open", DashboardView.as_view(perspective="open"), name="open_tasks"),
     path("all", DashboardView.as_view(perspective="all"), name="all_tasks"),
     path(
         "unassigned",
