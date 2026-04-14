@@ -75,6 +75,18 @@ class ErambaService:
     Handles parallel fetching of incidents, projects, and various reviews.
     """
 
+    STATUS_MAPPING: dict[str, list[str]] = {
+        "open": [],  # Default
+        "closed": ["close", "completed"],
+        "pending": ["pending", "plan"],
+    }
+    PRIORITY_MAPPING: dict[str, list[str]] = {
+        "Critical": ["critical", "immediate"],
+        "High": ["high", "urgent"],
+        "Low": ["low"],
+        "Medium": [],  # Default
+    }
+
     # Eramba often wraps API items in a dictionary named after the model class or 'Item'
     POSSIBLE_WRAPPERS = {
         "Item",
@@ -463,6 +475,7 @@ class ErambaService:
             return None
 
         # Determine status first to allow filtering
+        original_status = str(item.get("status", "")).strip() or "Open"
         status = self._determine_status(item)
 
         # Filtering logic: Only keep open tasks that are due within the window
@@ -474,11 +487,15 @@ class ErambaService:
         title = self._get_item_title(item, model_class, group_label, item_id)
         view_url = f"{self.base_url}/{web_path}/view/{model_class}/{item_id}"
 
+        original_priority = self._get_priority_raw(item)
+
         return {
             "id": f"ERA-{group_label[:3].upper()}-{item_id}",
             "title": str(title)[:250],
             "status": status,
-            "priority": self._determine_priority(item),
+            "priority": self._determine_priority(original_priority),
+            "original_status": original_status,
+            "original_priority": original_priority,
             "origin": self.config.name,
             "customer": company_name,
             "group": group_label,
@@ -511,6 +528,13 @@ class ErambaService:
             or item.get("end")
             or item.get("planned_end")
         )
+
+    def _get_priority_raw(self, item):
+        """Extracts the raw priority from Eramba custom fields."""
+        custom_prio = item.get("custom_field_9")
+        if isinstance(custom_prio, dict) and custom_prio.get("value"):
+            return str(custom_prio["value"])
+        return "Medium"
 
     def _get_owners_raw(self, item):
         """Collects all potential owner/reviewer data from an Eramba item."""
@@ -555,21 +579,27 @@ class ErambaService:
         if (
             item.get("closure_date")
             or item.get("actual_date")
-            or any(x in status_raw for x in ["close", "completed"])
+            or any(x in status_raw for x in self.STATUS_MAPPING["closed"])
             or pid == STATUS_DONE
         ):
             return "closed"
 
-        if pid == STATUS_PLANNED or any(x in status_raw for x in ["pending", "plan"]):
+        if pid == STATUS_PLANNED or any(
+            x in status_raw for x in self.STATUS_MAPPING["pending"]
+        ):
             return "pending"
 
         return "open"
 
-    def _determine_priority(self, item):
-        """Extracts priority from Eramba custom field 9 (default priority field)."""
-        custom_prio = item.get("custom_field_9")
-        if isinstance(custom_prio, dict) and custom_prio.get("value"):
-            return str(custom_prio["value"]).capitalize()
+    def _determine_priority(self, priority_text):
+        """Extracts priority using dynamic mapping."""
+        p = str(priority_text).lower()
+        if any(x in p for x in self.PRIORITY_MAPPING["Critical"]):
+            return "Critical"
+        if any(x in p for x in self.PRIORITY_MAPPING["High"]):
+            return "High"
+        if any(x in p for x in self.PRIORITY_MAPPING["Low"]):
+            return "Low"
         return "Medium"
 
     def _parse_owners(self, owners_field):

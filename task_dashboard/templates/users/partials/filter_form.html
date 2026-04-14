@@ -7,34 +7,11 @@
       hx-target="#task-results"
       hx-swap="outerHTML"
       hx-push-url="true"
-      hx-on::config-request=" const p = event.detail.parameters; // Remove empty values for (let key in p) if (p[key] === '') delete p[key]; // Global search: strip all filter params when q is active if (p.q && p.q.trim()) { ['state','owner','origin','customer','group','priority','date_range','updated_range','due_range'].forEach(k => delete p[k]); } ">
+      hx-on::config-request=" const p = event.detail.parameters; // Remove empty values for (let key in p) if (p[key] === '') delete p[key]; ">
   {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}" />{% endif %}
   {% if request.GET.direction %}<input type="hidden" name="direction" value="{{ request.GET.direction }}" />{% endif %}
-  <div class="w-full flex flex-row items-end justify-between gap-4 mb-3">
-    <!-- View Tabs -->
-    <div class="flex-1 min-w-0">{% include "users/partials/tabs.html" %}</div>
-    <!-- Search Input -->
-    <div class="form-control flex-none w-full max-w-[200px] md:max-w-xs lg:max-w-md">
-      <div class="relative w-full">
-        {# djlint:off H026 #}
-        <input type="text"
-               name="q"
-               placeholder="{% trans 'Search...' %}"
-               class="input input-bordered w-full pl-12"
-               {% if request.GET.q %}value="{{ request.GET.q }}"{% endif %} />
-        {# djlint:on #}
-        <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-          <svg xmlns="http://www.w3.org/2000/svg"
-               class="h-5 w-5 text-base-content/50"
-               fill="none"
-               viewBox="0 0 24 24"
-               stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- Top Flow: View Tabs & Search Bar -->
+  {% include "users/partials/tabs.html" %}
   <!-- Filter Form Content -->
   {% include "users/partials/filter_form_content.html" %}
 </form>
@@ -49,7 +26,9 @@
       <input type="text"
              id="view_name"
              class="input input-bordered w-full"
-             placeholder="{% trans 'e.g. My High Priority Tasks' %}" />
+             placeholder="{% trans 'e.g. My High Priority Tasks' %}"
+             autofocus
+             onkeydown="if(event.key === 'Enter'){ event.preventDefault(); saveView(); }" />
     </div>
     <div class="modal-action">
       <form method="dialog">

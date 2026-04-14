@@ -135,42 +135,72 @@
                 <div class="resizer"></div>
               </th>
               <th class="font-semibold relative group w-[80px] cursor-pointer hover:bg-base-300 transition-colors px-1">
-                <a class="flex items-center justify-between w-full h-full px-1"
-                   href="?{% sort_url 'status' %}"
-                   hx-get="?{% sort_url 'status' %}"
-                   hx-target="#task-results"
-                   hx-swap="outerHTML"
-                   hx-push-url="true">
-                  <span>{% trans "State" %}</span>
-                  {% if current_sort == 'status' %}
-                    <span class="text-xs">
-                      {% if current_dir == 'asc' %}
-                        ▲
-                      {% else %}
-                        ▼
-                      {% endif %}
-                    </span>
-                  {% endif %}
-                </a>
+                <div class="flex items-center justify-between w-full h-full px-1">
+                  <a class="flex-1 h-full"
+                     href="?{% sort_url 'status' %}"
+                     hx-get="?{% sort_url 'status' %}"
+                     hx-target="#task-results"
+                     hx-swap="outerHTML"
+                     hx-push-url="true">
+                    <span>{% trans "State" %}</span>
+                    {% if current_sort == 'status' %}
+                      <span class="text-xs">
+                        {% if current_dir == 'asc' %}
+                          ▲
+                        {% else %}
+                          ▼
+                        {% endif %}
+                      </span>
+                    {% endif %}
+                  </a>
+                  <button type="button"
+                          onclick="event.stopPropagation(); status_mapping_modal.showModal()"
+                          class="btn btn-ghost btn-xs btn-circle text-base-content/30 hover:text-primary tooltip tooltip-left"
+                          data-tip="{% trans 'View status mapping rules' %}">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         fill="none"
+                         viewBox="0 0 24 24"
+                         stroke-width="1.5"
+                         stroke="currentColor"
+                         class="w-3.5 h-3.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                    </svg>
+                  </button>
+                </div>
               </th>
               <th class="font-semibold relative group w-[80px] cursor-pointer hover:bg-base-300 transition-colors px-1">
-                <a class="flex items-center justify-between w-full h-full px-1"
-                   href="?{% sort_url 'priority' %}"
-                   hx-get="?{% sort_url 'priority' %}"
-                   hx-target="#task-results"
-                   hx-swap="outerHTML"
-                   hx-push-url="true">
-                  <span>{% trans "Priority" %}</span>
-                  {% if current_sort == 'priority' %}
-                    <span class="text-xs">
-                      {% if current_dir == 'asc' %}
-                        ▲
-                      {% else %}
-                        ▼
-                      {% endif %}
-                    </span>
-                  {% endif %}
-                </a>
+                <div class="flex items-center justify-between w-full h-full px-1">
+                  <a class="flex-1 h-full"
+                     href="?{% sort_url 'priority' %}"
+                     hx-get="?{% sort_url 'priority' %}"
+                     hx-target="#task-results"
+                     hx-swap="outerHTML"
+                     hx-push-url="true">
+                    <span>{% trans "Priority" %}</span>
+                    {% if current_sort == 'priority' %}
+                      <span class="text-xs">
+                        {% if current_dir == 'asc' %}
+                          ▲
+                        {% else %}
+                          ▼
+                        {% endif %}
+                      </span>
+                    {% endif %}
+                  </a>
+                  <button type="button"
+                          onclick="event.stopPropagation(); status_mapping_modal.showModal()"
+                          class="btn btn-ghost btn-xs btn-circle text-base-content/30 hover:text-primary tooltip tooltip-left"
+                          data-tip="{% trans 'View priority mapping rules' %}">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         fill="none"
+                         viewBox="0 0 24 24"
+                         stroke-width="1.5"
+                         stroke="currentColor"
+                         class="w-3.5 h-3.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                    </svg>
+                  </button>
+                </div>
               </th>
               <th class="font-semibold relative group w-[80px] cursor-pointer hover:bg-base-300 transition-colors px-1">
                 <a class="flex items-center justify-between w-full h-full px-1"
@@ -210,14 +240,14 @@
                   {% endif %}
                 </a>
               </th>
-              <th class="font-semibold relative group w-[80px] cursor-pointer hover:bg-base-300 transition-colors px-1">
+              <th class="font-semibold relative group w-[90px] cursor-pointer hover:bg-base-300 transition-colors px-1 pr-3">
                 <a class="flex items-center justify-between w-full h-full px-1"
                    href="?{% sort_url 'due_date' %}"
                    hx-get="?{% sort_url 'due_date' %}"
                    hx-target="#task-results"
                    hx-swap="outerHTML"
                    hx-push-url="true">
-                  <span>{% trans "Due Date" %}</span>
+                  <span>{% trans "Due" %}</span>
                   {% if current_sort == 'due_date' %}
                     <span class="text-xs">
                       {% if current_dir == 'asc' %}
@@ -310,35 +340,41 @@
                 </div>
               </td>
               <td class="px-1 w-[80px]">
-                {% if task.status == 'open' %}
-                  <span class="badge badge-warning gap-1 text-xs whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full bg-warning-content/60"></span>
-                {% trans "Open" %}</span>
-              {% elif task.status == 'resolved' %}
-                <span class="badge badge-success gap-1 text-xs whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full bg-success-content/60"></span>
-              {% trans "Resolved" %}</span>
-            {% else %}
-              <span class="badge badge-info gap-1 text-xs whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full bg-info-content/60"></span>
-            {{ task.status|title }}</span>
-          {% endif %}
+                <div class="tooltip tooltip-left"
+                     data-tip="{% trans 'Original' %}: {{ task.original_status|default:'-' }} ({{ task.service.name }})">
+                  {% if task.status == 'open' %}
+                    <span class="badge badge-warning gap-1 text-xs whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full bg-warning-content/60"></span>
+                  {% trans "Open" %}</span>
+                {% elif task.status == 'resolved' %}
+                  <span class="badge badge-success gap-1 text-xs whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full bg-success-content/60"></span>
+                {% trans "Resolved" %}</span>
+              {% else %}
+                <span class="badge badge-info gap-1 text-xs whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full bg-info-content/60"></span>
+              {{ task.status|title }}</span>
+            {% endif %}
+          </div>
         </td>
         <td class="px-1 w-[80px]">
-          {% if task.priority == 'Critical' %}
-            <span class="text-error flex items-center gap-1 font-semibold text-xs whitespace-nowrap">
-              <svg xmlns="http://www.w3.org/2000/svg"
-                   class="h-3 w-3"
-                   viewBox="0 0 20 20"
-                   fill="currentColor">
-                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-              </svg>
-              Critical
-            </span>
-          {% else %}
-            <span class="text-base-content/70 text-xs whitespace-nowrap">{{ task.priority }}</span>
-          {% endif %}
+          <div class="tooltip tooltip-left"
+               data-tip="{% trans 'Original' %}: {{ task.original_priority|default:'-' }} ({{ task.service.name }})">
+            {% if task.priority == 'Critical' %}
+              <span class="text-error flex items-center gap-1 font-semibold text-xs whitespace-nowrap">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     class="h-3 w-3"
+                     viewBox="0 0 20 20"
+                     fill="currentColor">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                </svg>
+                Critical
+              </span>
+            {% else %}
+              <span class="text-base-content/70 text-xs whitespace-nowrap">{{ task.priority }}</span>
+            {% endif %}
+          </div>
         </td>
         <td class="text-xs text-base-content/70 whitespace-nowrap px-1 w-[80px]">{{ task.created_at|dynamic_date }}</td>
         <td class="text-xs text-base-content/70 whitespace-nowrap px-1 w-[80px]">{{ task.updated_at|dynamic_date }}</td>
-        <td class="text-xs text-base-content/70 whitespace-nowrap px-1 w-[80px]">{{ task.due_date|dynamic_date }}</td>
+        <td class="text-xs text-base-content/70 whitespace-nowrap px-1 pr-3 w-[90px]">{{ task.due_date|dynamic_date }}</td>
       </tr>
     {% empty %}
       <tr>
@@ -353,3 +389,97 @@
 </table>
 </div>
 </div>
+{# Mapping Transparency Modal #}
+<dialog id="status_mapping_modal" class="modal">
+  <div class="modal-box w-11/12 max-w-5xl">
+    <form method="dialog">
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+    </form>
+    <h3 class="font-bold text-lg mb-4">{% trans "Service Mapping Transparency" %}</h3>
+    <p class="text-sm text-base-content/60 mb-6">
+      {% trans "This table shows how each external service's original states and priorities are normalized in the dashboard." %}
+    </p>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {% for service_name, mappings in service_mappings.items %}
+        <div class="card bg-base-200 shadow-sm border border-base-300">
+          <div class="card-body p-4">
+            <h4 class="card-title text-md flex flex-wrap items-center gap-2">
+              <span class="badge badge-primary">{{ service_name }}</span>
+              <span class="text-xs text-base-content/50 uppercase tracking-widest font-bold">({{ mappings.type }})</span>
+            </h4>
+            <div class="mt-4">
+              <h5 class="text-xs font-bold uppercase tracking-wider text-base-content/50 mb-2">{% trans "Status Mapping" %}</h5>
+              <div class="overflow-x-auto">
+                <table class="table table-xs w-full bg-base-100">
+                  <thead>
+                    <tr>
+                      <th>{% trans "Normalized" %}</th>
+                      <th>{% trans "Original Values" %}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for norm, originals in mappings.status.items %}
+                      <tr>
+                        <td class="font-medium">
+                          <span class="badge badge-outline badge-sm {% if norm == 'open' %}badge-warning {% elif norm == 'closed' %}badge-success {% else %}badge-info{% endif %}">
+                            {{ norm|title }}
+                          </span>
+                        </td>
+                        <td class="font-mono text-[11px] opacity-70">
+                          {% if originals %}
+                            {{ originals|join:", " }}
+                          {% else %}
+                            <span class="italic opacity-50">{% trans "All other values" %}</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="mt-6">
+              <h5 class="text-xs font-bold uppercase tracking-wider text-base-content/50 mb-2">{% trans "Priority Mapping" %}</h5>
+              <div class="overflow-x-auto">
+                <table class="table table-xs w-full bg-base-100">
+                  <thead>
+                    <tr>
+                      <th>{% trans "Normalized" %}</th>
+                      <th>{% trans "Original Values" %}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for norm, originals in mappings.priority.items %}
+                      <tr>
+                        <td class="font-medium">
+                          <span class="text-xs {% if norm == 'Critical' %}text-error font-bold{% else %}text-base-content/70{% endif %}">
+                            {{ norm }}
+                          </span>
+                        </td>
+                        <td class="font-mono text-[11px] opacity-70">
+                          {% if originals %}
+                            {{ originals|join:", " }}
+                          {% else %}
+                            <span class="italic opacity-50">{% trans "Default / Fallback" %}</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+    <div class="modal-action">
+      <form method="dialog">
+        <button class="btn">{% trans "Close" %}</button>
+      </form>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>

@@ -36,6 +36,12 @@
       color: var(--color-primary, #b4befe) !important;
       border-color: var(--color-primary, #b4befe) !important;
   }
+
+  /* Filter footer fluid layout */
+  #active-filters-container > .badge { order: 10; }
+  .clear-all-link { order: 20; }
+  #filter-buttons-group { order: 100; }
+  #active-filters-label { order: 1; }
 </style>
 <script>
   document.addEventListener("DOMContentLoaded", function() {
@@ -89,23 +95,6 @@
     window.reinitializeUI = function(isHtmxUpdate=false, targetId=null) {
       if (!isHtmxUpdate || targetId === 'task-results') {
         initTableResizers();
-
-        // Ghost Exorcism: clear draft filters when a search query is active
-        const currentParams = new URLSearchParams(window.location.search);
-        if (currentParams.get('q') && currentParams.get('q').trim()) {
-          document.querySelectorAll('.filter-checkbox:checked').forEach(cb => cb.checked = false);
-          if (window.datePickersConfigList) {
-            window.datePickersConfigList.forEach(picker => {
-              const input = document.getElementById(picker.inputId);
-              if (input) {
-                input.value = '';
-                input.removeAttribute('name');
-              }
-              const box = document.getElementById(picker.boxId);
-              if (box && box._flatpickr) box._flatpickr.clear();
-            });
-          }
-        }
       }
       initDatePickers();
       updateBadges();
@@ -119,12 +108,22 @@
         // Blur the active element when mouse leaves to hide pseudo-element tooltips
         tooltip.addEventListener('mouseleave', function() {
           if (document.activeElement && document.activeElement !== document.body) {
+            // Do not blur if the active element is an input, textarea, or inside a modal
+            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) ||
+                document.activeElement.closest('dialog')) {
+              return;
+            }
             document.activeElement.blur();
           }
         });
         tooltip.addEventListener('click', function() {
           setTimeout(() => {
             if (document.activeElement && document.activeElement !== document.body) {
+              // Do not blur if the active element is an input, textarea, or inside a modal
+              if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) ||
+                  document.activeElement.closest('dialog')) {
+                return;
+              }
               document.activeElement.blur();
             }
           }, 1500); // Allow time for toast message before blurring, closing tooltip
@@ -284,6 +283,7 @@
           const clearBtn = document.createElement("button");
           clearBtn.type = "button";
           clearBtn.className = "btn btn-ghost btn-xs text-error clear-all-link";
+          clearBtn.style.order = "20";
           clearBtn.innerText = "{% trans 'Clear all' %}";
           clearBtn.onclick = function() { window.clearFilters(); };
           container.appendChild(clearBtn);
@@ -309,6 +309,7 @@
           classes += ' tooltip before:text-xs before:max-w-xs before:whitespace-normal';
       }
       badge.className = classes;
+      badge.style.order = "10";
       if (tooltipText) {
           badge.setAttribute('data-tip', tooltipText);
       }

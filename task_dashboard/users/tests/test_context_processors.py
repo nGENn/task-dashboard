@@ -116,3 +116,24 @@ class TestSystemStatusContextProcessor:
         service_status = context["services_status"][0]
         assert service_status["name"] == "Eramba"
         assert service_status["status"] == "online"
+
+    def test_service_mappings_presence(self, user: UserFactory, rf: RequestFactory):
+        # Setup active service
+        ServiceConfiguration.objects.create(
+            name="ErambaService",
+            service_type="eramba",
+            is_active=True,
+        )
+
+        request = rf.get("/")
+        user.is_staff = True
+        request.user = user
+        context = system_status(request)
+
+        assert "service_mappings" in context
+        assert "ErambaService" in context["service_mappings"]
+        assert "status" in context["service_mappings"]["ErambaService"]
+        assert "priority" in context["service_mappings"]["ErambaService"]
+        # Eramba has "closed" and "pending" in its mapping
+        assert "closed" in context["service_mappings"]["ErambaService"]["status"]
+        assert "High" in context["service_mappings"]["ErambaService"]["priority"]

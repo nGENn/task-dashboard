@@ -27,6 +27,8 @@ logger = logging.getLogger(__name__)
 class TaskService(Protocol):
     def get_tasks(self, *, force_refresh: bool = False) -> list[dict[str, Any]]: ...
 
+    def get_single_task(self, task: Task) -> dict[str, Any] | None: ...
+
 
 SERVICE_CLASSES = {
     "zammad": ZammadService,
@@ -67,6 +69,8 @@ def _prepare_upsert_data(config, tasks_data, group_map=None):
             title=task_dict.get("title") or "",
             status=task_dict.get("status") or "",
             priority=task_dict.get("priority") or "",
+            original_status=task_dict.get("original_status") or "",
+            original_priority=task_dict.get("original_priority") or "",
             customer=task_dict.get("customer") or "",
             group=group_name,
             service_group=service_group,
@@ -150,6 +154,8 @@ def fetch_service_tasks(config_id: int):
                         "title",
                         "status",
                         "priority",
+                        "original_status",
+                        "original_priority",
                         "customer",
                         "group",
                         "service_group",

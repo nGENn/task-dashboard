@@ -16,6 +16,17 @@ logger = logging.getLogger(__name__)
 
 
 class GitLabService:
+    STATUS_MAPPING: dict[str, list[str]] = {
+        "open": ["opened"],
+        "closed": ["closed", "merged", "locked"],
+    }
+    PRIORITY_MAPPING: dict[str, list[str]] = {
+        "Critical": [],
+        "High": [],
+        "Low": [],
+        "Medium": [],  # Default
+    }
+
     def __init__(self, config):
         self.config = config
         self.base_url = config.api_url
@@ -123,16 +134,10 @@ class GitLabService:
             ctx = {"target": normalized_items, "user_map": user_map}
 
             try:
-                # We need a slightly custom fetch because _fetch_and_normalize
-                # expects a list
                 resp = await client.get(url, headers=self.headers, timeout=15.0)
                 resp.raise_for_status()
 
                 item = resp.json()
-                # Mock a list wrapper to reuse _fetch_and_normalize logic if we
-                # wanted, but it's simpler to just do what it does inline,
-                # or monkey patch the response:
-                # To reuse code, we can just process this single item:
 
                 assignee = item.get("assignee") or {}
                 if not assignee and item.get("assignees"):
@@ -145,12 +150,16 @@ class GitLabService:
                 )
 
                 group_name = project_path
+                original_status = item.get("state") or "unknown"
+                original_priority = "Medium"
 
                 return {
                     "id": f"GL-{item_type[0]}-{item.get('iid')}",
                     "title": item.get("title"),
-                    "status": "open" if item.get("state") == "opened" else "resolved",
-                    "priority": "Medium",
+                    "status": self._map_status(original_status),
+                    "priority": self._map_priority(original_priority),
+                    "original_status": original_status,
+                    "original_priority": original_priority,
                     "origin": self.config.name,
                     "customer": company_name,
                     "group": group_name,
@@ -270,8 +279,10 @@ class GitLabService:
         return {
             "id": f"GL-{item_type[0]}-{item.get('iid')}",
             "title": item.get("title"),
-            "status": "open",
-            "priority": "Medium",
+            "status": self._map_status(item.get("state")),
+            "priority": self._map_priority("Medium"),
+            "original_status": item.get("state") or "unknown",
+            "original_priority": "Medium",
             "origin": self.config.name,
             "customer": ctx["company_name"],
             "group": group_name,
@@ -285,6 +296,19 @@ class GitLabService:
                 "project_id": item.get("project_id"),
             },
         }
+
+    def _map_status(self, state_name):
+        s = str(state_name).lower()
+        if any(x in s for x in self.STATUS_MAPPING["open"]):
+            return "open"
+        if any(x in s for x in self.STATUS_MAPPING["closed"]):
+            return "closed"
+        return "pending"
+
+    def _map_priority(self, prio_name):
+        # GitLab doesn't have a standard priority field in the base API,
+        # usually labels are used.
+        return "Medium"
 
     def _format_date(self, dt_str):
         if not dt_str:

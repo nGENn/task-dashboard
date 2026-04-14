@@ -15,6 +15,17 @@ logger = logging.getLogger(__name__)
 
 
 class EspoService:
+    STATUS_MAPPING: dict[str, list[str]] = {
+        "open": ["new", "assigned", "pending", "not started", "in progress"],
+        "closed": ["closed", "rejected", "merged", "completed"],
+    }
+    PRIORITY_MAPPING: dict[str, list[str]] = {
+        "Critical": ["urgent", "critical"],
+        "High": ["high"],
+        "Low": ["low"],
+        "Medium": ["normal"],  # Fallback
+    }
+
     def __init__(self, config):
         self.config = config
         self.base_url = config.api_url
@@ -201,14 +212,18 @@ class EspoService:
         for item in items:
             owner_id = item.get("assignedUserId")
             owner_email = user_map.get(owner_id)
+            original_status = item.get("status") or "unknown"
+            original_priority = item.get("priority") or "Medium"
             target_list.append(
                 {
                     "id": (
                         f"ESPO-{entity_type[0]}-{item.get('number') or item.get('id')}"
                     ),
                     "title": item.get("name"),
-                    "status": self._map_status(item.get("status")),
-                    "priority": self._map_priority(item.get("priority", "Medium")),
+                    "status": self._map_status(original_status),
+                    "priority": self._map_priority(original_priority),
+                    "original_status": original_status,
+                    "original_priority": original_priority,
                     "origin": self.config.name,
                     "customer": item.get("accountName") or company_name,
                     "group": entity_type,
@@ -226,19 +241,19 @@ class EspoService:
 
     def _map_status(self, espo_status):
         s = str(espo_status).lower()
-        if s in ["new", "assigned", "pending", "not started", "in progress"]:
+        if any(x in s for x in self.STATUS_MAPPING["open"]):
             return "open"
-        if s in ["closed", "rejected", "merged", "completed"]:
+        if any(x in s for x in self.STATUS_MAPPING["closed"]):
             return "closed"
         return "pending"
 
     def _map_priority(self, priority_text):
         p = str(priority_text).lower()
-        if any(x in p for x in ["urgent", "critical"]):
+        if any(x in p for x in self.PRIORITY_MAPPING["Critical"]):
             return "Critical"
-        if any(x in p for x in ["high"]):
+        if any(x in p for x in self.PRIORITY_MAPPING["High"]):
             return "High"
-        if any(x in p for x in ["low"]):
+        if any(x in p for x in self.PRIORITY_MAPPING["Low"]):
             return "Low"
         return "Medium"
 

@@ -16,6 +16,17 @@ logger = logging.getLogger(__name__)
 
 
 class ZammadService:
+    STATUS_MAPPING: dict[str, list[str]] = {
+        "open": ["new", "open"],
+        "closed": ["closed", "merged"],
+    }
+    PRIORITY_MAPPING: dict[str, list[str]] = {
+        "Critical": ["4", "urgent"],
+        "High": ["3", "high"],
+        "Low": ["1", "low"],
+        "Medium": ["2", "normal"],  # Fallback
+    }
+
     def __init__(self, config):
         self.config = config
         self.base_url = config.api_url
@@ -233,12 +244,26 @@ class ZammadService:
             owner_name = user_info.get("name", "Unassigned")
             owner_email = user_info.get("email")
 
+            raw_state = task.get("state")
+            if isinstance(raw_state, dict):
+                original_status = raw_state.get("name", "Unknown")
+            else:
+                original_status = str(raw_state)
+
+            raw_prio = task.get("priority")
+            if isinstance(raw_prio, dict):
+                original_priority = raw_prio.get("name", "Unknown")
+            else:
+                original_priority = str(raw_prio)
+
             normalized_tasks.append(
                 {
                     "id": f"ZAM-{task.get('number')}",
                     "title": task.get("title"),
-                    "status": self._map_status(task.get("state")),
-                    "priority": self._map_priority(task.get("priority")),
+                    "status": self._map_status(original_status),
+                    "priority": self._map_priority(original_priority),
+                    "original_status": original_status,
+                    "original_priority": original_priority,
                     "origin": self.config.name,
                     "customer": task.get("customer") or company_name,
                     "group": task.get("group", "Support"),
@@ -256,33 +281,21 @@ class ZammadService:
             )
         return normalized_tasks
 
-    def _map_status(self, zammad_state):
-        """Map Zammad specific states to our Dashboard states
-        (open, pending, resolved)"""
-        # Note: Depending on your Zammad setup, 'state' might be an ID or a
-        # Dict if expanded. This handles the text representation.
-        if isinstance(zammad_state, dict):
-            state_name = zammad_state.get("name", "").lower()
-        else:
-            state_name = str(zammad_state).lower()
-
-        if state_name in ["new", "open"]:
+    def _map_status(self, state_name):
+        s = str(state_name).lower()
+        if any(x in s for x in self.STATUS_MAPPING["open"]):
             return "open"
-        if state_name in ["closed", "merged"]:
+        if any(x in s for x in self.STATUS_MAPPING["closed"]):
             return "closed"
         return "pending"
 
-    def _map_priority(self, zammad_priority):
-        if isinstance(zammad_priority, dict):
-            prio = zammad_priority.get("name", "").lower()
-        else:
-            prio = str(zammad_priority).lower()
-
-        if "3" in prio or "high" in prio:
-            return "High"
-        if "4" in prio or "urgent" in prio:
+    def _map_priority(self, prio_name):
+        p = str(prio_name).lower()
+        if any(x in p for x in self.PRIORITY_MAPPING["Critical"]):
             return "Critical"
-        if "1" in prio or "low" in prio:
+        if any(x in p for x in self.PRIORITY_MAPPING["High"]):
+            return "High"
+        if any(x in p for x in self.PRIORITY_MAPPING["Low"]):
             return "Low"
         return "Medium"
 

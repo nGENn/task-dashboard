@@ -4085,3 +4085,7 @@
     }
   }
 }
+
+/* Fix for dynamic status colors */
+.bg-neutral { background-color: var(--color-neutral); }
+.text-neutral { color: var(--color-neutral); }

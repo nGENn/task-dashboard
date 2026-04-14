@@ -43,8 +43,10 @@ from task_dashboard.users.models import Task
 from task_dashboard.users.models import TaskPermission
 from task_dashboard.users.models import User
 from task_dashboard.users.models import compare_query_params
+from task_dashboard.users.tasks import SERVICE_CLASSES
+from task_dashboard.users.tasks import TaskService
 from task_dashboard.users.tasks import fetch_all_tasks_task
-from task_dashboard.users.tasks import fetch_service_tasks
+from task_dashboard.users.tasks import parse_dt
 
 logger = logging.getLogger(__name__)
 
@@ -136,14 +138,64 @@ def user_detail_view(request, pk):
 
 @login_required
 def force_refresh_view(request):
+    """
+    Triggers a background task to refresh all services.
+    Returns to the previous page if possible.
+    """
     fetch_all_tasks_task()
+    messages.success(request, _("Refresh started for all services."))
+    referer = request.headers.get("referer")
+    if referer:
+        return HttpResponseRedirect(referer)
     return HttpResponseRedirect(reverse("home"))
 
 
 @login_required
 def refresh_single_task_view(request, pk):
+    """
+    Refreshes a single task by calling the service's get_single_task method.
+    This is faster than a full service sync and preserves the current page.
+    """
     task = get_object_or_404(Task, pk=pk)
-    fetch_service_tasks(task.service_id)
+    service_class = SERVICE_CLASSES.get(task.service.service_type)
+
+    if not service_class:
+        messages.error(request, _("Service type not supported for single refresh."))
+    else:
+        try:
+            from typing import cast
+
+            service_instance = cast(TaskService, service_class(task.service))
+            # This is a synchronous call in the view for immediate feedback
+            task_data = service_instance.get_single_task(task)
+            if task_data:
+                # Update the existing task instance
+                task.title = task_data.get("title") or ""
+                task.status = task_data.get("status") or ""
+                task.priority = task_data.get("priority") or ""
+                task.original_status = task_data.get("original_status") or ""
+                task.original_priority = task_data.get("original_priority") or ""
+                task.customer = task_data.get("customer") or ""
+                task.group = task_data.get("group") or ""
+                task.owner = task_data.get("owner") or ""
+                task.owner_email = task_data.get("owner_email") or ""
+                task.url = task_data.get("url") or ""
+                task.created_at = parse_dt(task_data.get("created_at"))
+                task.updated_at = parse_dt(task_data.get("updated_at"))
+                task.due_date = parse_dt(task_data.get("due_date"))
+                task.save()
+                messages.success(request, _("Task updated successfully."))
+            else:
+                messages.warning(
+                    request, _("Task could not be found in the remote service.")
+                )
+        except Exception:
+            logger.exception("Error refreshing single task %s", pk)
+            messages.error(request, _("Failed to refresh task."))
+
+    referer = request.headers.get("referer")
+    if referer:
+        return HttpResponseRedirect(referer)
     return HttpResponseRedirect(reverse("home"))
 
 
@@ -293,17 +345,16 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             nav_keys = {"page", "sort", "direction"}
             meaningful_keys = set(request.GET.keys()) - nav_keys
             if meaningful_keys:
-                q = request.GET.copy()
-                if not q.getlist("owner") and not q.getlist("state"):
-                    return HttpResponseRedirect(f"/?{q.urlencode()}")
-
+                q_copy = request.GET.copy()
+                # If any filter is set (including search q), redirect to root /all
+                # unless it matches the simple default (which is rare with q)
                 has_adhoc = any(
                     k not in ["owner", "state", "page", "sort", "direction"]
                     for k in request.GET
                 )
-                if has_adhoc:
-                    self._redirect_with_defaults(q)
-                    return HttpResponseRedirect(f"/?{q.urlencode()}")
+                if has_adhoc or q_copy.get("q"):
+                    self._redirect_with_defaults(q_copy)
+                    return HttpResponseRedirect(f"/?{q_copy.urlencode()}")
 
         # Empty-to-All redirect
         if request.GET and self.perspective != "all":
@@ -603,12 +654,6 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             if self.perspective in ["my", "open", "unassigned", "all"]
             else "all"
         )
-        if self.perspective == "home" and not search_q:
-            view = self._determine_perspective_from_params(request, my_owner)
-        elif search_q:
-            view = "all"
-
-        context["current_view"] = view
 
         # Skeleton state logic: Only return empty context for initial non-HTMX
         # page loads. This prevents breaking search bots and test suites.
@@ -646,6 +691,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         base_tasks = qs.filter(self._get_rbac_q(user)).select_related(
             "service", "service_group"
         )
+        # 1. Apply search (narrow down by text)
         if search_q:
             base_tasks = base_tasks.filter(search_text__icontains=search_q)
 
@@ -672,15 +718,21 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         if anchor in merged:
             my_owner = merged[anchor]["best"]
 
+        # Recalculate view perspective with refined identity
+        if self.perspective == "home":
+            view = self._determine_perspective_from_params(request, my_owner)
+        context["current_view"] = view
+
         applied_filters = self._get_applied_filter_lists(request, view, my_owner)
         context["filter_options"] = self._get_filter_options(base_tasks, merged)
 
         display_tasks = base_tasks
 
-        if not search_q:
-            display_tasks = self._apply_context_filters(
-                display_tasks, request, best_to_raw, my_owner, perspective=view
-            )
+        # 2. Apply all other filters (state, owner, origin, etc.)
+        # Removed "if not search_q" to allow combined filtering
+        display_tasks = self._apply_context_filters(
+            display_tasks, request, best_to_raw, my_owner, perspective=view
+        )
 
         display_tasks = self._apply_sorting(display_tasks, request)
         paginator = Paginator(display_tasks, DEFAULT_PAGE_SIZE)
@@ -692,11 +744,8 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         page.object_list = t_list
         sv = self._get_saved_views_queryset(user)
-        active_id = (
-            None
-            if search_q
-            else next((v.id for v in sv if v.matches_params(request.GET)), None)
-        )
+        # Allow active view matching even when search is active
+        active_id = next((v.id for v in sv if v.matches_params(request.GET)), None)
 
         context.update(
             {
@@ -863,6 +912,10 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         return SavedView.objects.none()
 
     def _determine_perspective_from_params(self, request, my_owner):
+        # If no identity found, we can't be in 'my' perspective
+        if not my_owner:
+            return "all"
+
         settings_obj = GlobalSetting.load()
         default_states = sorted(
             [
@@ -871,7 +924,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 if s.strip()
             ]
         )
-        my_params = {"owner": [my_owner], "state": default_states} if my_owner else {}
+        my_params = {"owner": [my_owner], "state": default_states}
         un_params = {"owner": [_("Unassigned")], "state": default_states}
 
         if compare_query_params(request.GET, my_params):

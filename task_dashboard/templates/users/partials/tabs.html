@@ -1,24 +1,23 @@
 {% load i18n %}
 
 <div id="tabs-container"
-     role="tablist"
-     class="tabs"
+     class="tabs flex flex-wrap items-end gap-x-2 gap-y-3 mb-3 w-full"
      {% if is_htmx_oob %}hx-swap-oob="true"{% endif %}>
   <!-- All Tasks -->
   <a role="tab"
-     class="tab tooltip tooltip-top {% if current_view == 'all' and not active_saved_view_id %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
+     class="tab tooltip tooltip-top {% if current_view == 'all' and not active_saved_view_id %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %} order-[10]"
      data-tip="{% trans 'All sources unfiltered' %}"
      href="{% url 'all_tasks' %}">{% trans "All Tasks" %}</a>
   <!-- Default Views -->
   {% for view in default_views %}
     <a role="tab"
-       class="tab tooltip tooltip-top {% if current_view == view.view_param %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
+       class="tab tooltip tooltip-top {% if current_view == view.view_param %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %} order-[10]"
        data-tip="{% trans view.description %}"
        href="{{ view.url }}">{{ view.name }}</a>
   {% endfor %}
   <!-- Saved Views -->
   {% for view in saved_views %}
-    <div class="relative flex items-center group">
+    <div class="relative flex items-center group order-[10]">
       <a role="tab"
          class="tab pr-8 tooltip tooltip-top {% if view.is_active %}tab-active bg-base-200 border border-base-300 rounded-lg{% endif %}"
          data-tip="{% trans 'Custom saved filter:' %} {{ view.name }}"
@@ -40,7 +39,26 @@
   <!-- Add View Button -->
   <button type="button"
           role="tab"
-          class="tab tooltip tooltip-top"
+          class="tab tooltip tooltip-top order-[20]"
           data-tip="{% trans 'Save current filters as a custom view' %}"
           onclick="save_view_modal.showModal()">+</button>
+  <!-- Search Input (Pinned to Right Bottom of flow) -->
+  <div class="form-control flex-none w-64 md:w-96 lg:w-[30rem] ml-auto order-[100]">
+    <div class="relative w-full">
+      <input type="text"
+             name="q"
+             placeholder="{% trans 'Search by Task ID, Title, etc.' %}"
+             class="input input-bordered w-full pl-12 !w-full !max-w-none"
+             {% if request.GET.q %}value="{{ request.GET.q }}"{% endif %} />
+      <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+        <svg xmlns="http://www.w3.org/2000/svg"
+             class="h-5 w-5 text-base-content/50"
+             fill="none"
+             viewBox="0 0 24 24"
+             stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      </div>
+    </div>
+  </div>
 </div>

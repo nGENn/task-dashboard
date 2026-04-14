@@ -361,6 +361,8 @@ class Task(models.Model):
     title = models.CharField(max_length=255)
     status = models.CharField(max_length=50)
     priority = models.CharField(max_length=50)
+    original_status = models.CharField(max_length=50, blank=True)
+    original_priority = models.CharField(max_length=50, blank=True)
     customer = models.CharField(max_length=255, blank=True, default="")
     group = models.CharField(max_length=255, blank=True)
     service_group = models.ForeignKey(
