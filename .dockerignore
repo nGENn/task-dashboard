@@ -26,8 +26,6 @@ media
 
 # CSS artifacts
 task_dashboard/static/css/tailwindcss
-task_dashboard/static/css/daisyui.mjs
-task_dashboard/static/css/daisyui-theme.mjs
 task_dashboard/static/css/output.css
 
 # Documentation
