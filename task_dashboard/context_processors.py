@@ -18,6 +18,37 @@ logger = logging.getLogger(__name__)
 MAX_HEALTHY_LATENCY_MS = 2000
 
 
+def service_mappings(request):
+    """
+    Adds dynamic mapping rules for the transparency modal to the template context.
+    Available for all authenticated users.
+    """
+    if not request.user.is_authenticated:
+        return {}
+
+    # Map is defined inside to allow for easier patching in tests
+    service_map = {
+        "eramba": ErambaService,
+        "espocrm": EspoService,
+        "gitlab": GitLabService,
+        "openproject": OpenProjectService,
+        "zammad": ZammadService,
+    }
+
+    service_mappings = {}
+    active_configs = ServiceConfiguration.objects.filter(is_active=True)
+    for config in active_configs:
+        s_class = service_map.get(config.service_type)
+        if s_class:
+            service_mappings[config.name] = {
+                "type": config.get_service_type_display(),
+                "status": getattr(s_class, "STATUS_MAPPING", {}),
+                "priority": getattr(s_class, "PRIORITY_MAPPING", {}),
+            }
+
+    return {"service_mappings": service_mappings}
+
+
 def system_status(request):
     """
     Adds system status information to the template context.
@@ -41,22 +72,9 @@ def system_status(request):
     results = _get_services_health(service_map)
     global_status = _calculate_global_status(results)
 
-    # Gather dynamic mapping rules for the transparency modal
-    service_mappings = {}
-    active_configs = ServiceConfiguration.objects.filter(is_active=True)
-    for config in active_configs:
-        s_class = service_map.get(config.service_type)
-        if s_class:
-            service_mappings[config.name] = {
-                "type": config.get_service_type_display(),
-                "status": getattr(s_class, "STATUS_MAPPING", {}),
-                "priority": getattr(s_class, "PRIORITY_MAPPING", {}),
-            }
-
     return {
         "services_status": results,
         "global_system_status": global_status,
-        "service_mappings": service_mappings,
         "next_refresh_seconds": next_refresh_seconds,
         "refresh_interval": refresh_interval,
     }
