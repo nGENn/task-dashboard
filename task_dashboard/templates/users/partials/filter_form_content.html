@@ -38,9 +38,9 @@
           <li class="disabled">
             <span class="text-xs opacity-50">
               {% if not request.htmx %}
-                <span class="loading loading-dots loading-xs"></span> Loading...
+                <span class="loading loading-dots loading-xs"></span> {% trans "Loading..." %}
               {% else %}
-                No data
+                {% trans "No data" %}
               {% endif %}
             </span>
           </li>
@@ -78,9 +78,9 @@
           <li class="disabled">
             <span class="text-xs opacity-50">
               {% if not request.htmx %}
-                <span class="loading loading-dots loading-xs"></span> Loading...
+                <span class="loading loading-dots loading-xs"></span> {% trans "Loading..." %}
               {% else %}
-                No data
+                {% trans "No data" %}
               {% endif %}
             </span>
           </li>
@@ -118,9 +118,9 @@
           <li class="disabled">
             <span class="text-xs opacity-50">
               {% if not request.htmx %}
-                <span class="loading loading-dots loading-xs"></span> Loading...
+                <span class="loading loading-dots loading-xs"></span> {% trans "Loading..." %}
               {% else %}
-                No data
+                {% trans "No data" %}
               {% endif %}
             </span>
           </li>
@@ -158,9 +158,9 @@
           <li class="disabled">
             <span class="text-xs opacity-50">
               {% if not request.htmx %}
-                <span class="loading loading-dots loading-xs"></span> Loading...
+                <span class="loading loading-dots loading-xs"></span> {% trans "Loading..." %}
               {% else %}
-                No data
+                {% trans "No data" %}
               {% endif %}
             </span>
           </li>
@@ -191,16 +191,16 @@
                      value="{{ state }}"
                      class="checkbox checkbox-sm checkbox-primary filter-checkbox"
                      {% if state in applied_filters.states %}checked{% endif %} />
-              <span class="text-sm whitespace-nowrap capitalize">{{ state }}</span>
+              <span class="text-sm whitespace-nowrap capitalize">{{ state|translate }}</span>
             </label>
           </li>
         {% empty %}
           <li class="disabled">
             <span class="text-xs opacity-50">
               {% if not request.htmx %}
-                <span class="loading loading-dots loading-xs"></span> Loading...
+                <span class="loading loading-dots loading-xs"></span> {% trans "Loading..." %}
               {% else %}
-                No data
+                {% trans "No data" %}
               {% endif %}
             </span>
           </li>
@@ -231,16 +231,16 @@
                      value="{{ priority }}"
                      class="checkbox checkbox-sm checkbox-primary filter-checkbox"
                      {% if priority in applied_filters.priorities %}checked{% endif %} />
-              <span class="text-sm whitespace-nowrap capitalize">{{ priority }}</span>
+              <span class="text-sm whitespace-nowrap capitalize">{{ priority|translate }}</span>
             </label>
           </li>
         {% empty %}
           <li class="disabled">
             <span class="text-xs opacity-50">
               {% if not request.htmx %}
-                <span class="loading loading-dots loading-xs"></span> Loading...
+                <span class="loading loading-dots loading-xs"></span> {% trans "Loading..." %}
               {% else %}
-                No data
+                {% trans "No data" %}
               {% endif %}
             </span>
           </li>
@@ -310,7 +310,7 @@
     {% for key, data in active_filters_sidebar.items %}
       {% with count=data.values|length %}
         <div class="badge badge-primary gap-1 pr-0 py-1 tooltip before:text-xs before:max-w-xs before:whitespace-normal order-[10]"
-             data-tip="{{ data.values|join:', ' }}">
+             data-tip="{% if key == 'state' or key == 'priority' %}{{ data.values|translate_list }}{% else %}{{ data.values|join:', ' }}{% endif %}">
           {% if key == 'q' %}
             {% trans "Search" %}: <span class="ml-1 font-semibold">{{ data.values.0 }}</span>
           {% elif key == 'date_range' or key == 'updated_range' or key == 'due_range' %}
@@ -321,9 +321,9 @@
                  stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            {{ data.label }}
+            {{ data.label|translate }}
           {% else %}
-            {{ data.label }} <span class="badge badge-xs bg-primary-content text-primary border-none ml-1">{{ count }}</span>
+            {{ data.label|translate }} <span class="badge badge-xs bg-primary-content text-primary border-none ml-1">{{ count }}</span>
           {% endif %}
           <button type="button"
                   class="btn btn-ghost btn-xs text-primary-content hover:bg-transparent"

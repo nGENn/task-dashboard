@@ -2,6 +2,8 @@ import datetime
 
 from django import template
 from django.utils import timezone
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _lazy
 
 from task_dashboard.users.models import compare_query_params
 
@@ -69,6 +71,38 @@ def is_active_view(request_get, view_params):
     return compare_query_params(request_get, view_params)
 
 
+@register.filter(name="translate")
+def translate_filter(value):
+    """
+    Simple filter to translate a string value dynamically.
+    Normalizes to title case for common states/priorities to match PO file.
+    """
+    if not value:
+        return value
+    s_value = str(value)
+    # Try direct translation
+    translated = _(s_value)
+    if translated != s_value:
+        return translated
+
+    # Try Title Case (matches our DUMMY_STRINGS)
+    title_value = s_value.title()
+    translated = _(title_value)
+    return translated
+
+
+@register.filter(name="translate_list")
+def translate_list_filter(value_list):
+    """
+    Translates a list of strings and joins them.
+    """
+    if not value_list:
+        return ""
+    if isinstance(value_list, str):
+        return translate_filter(value_list)
+    return ", ".join([str(translate_filter(v)) for v in value_list])
+
+
 @register.filter
 def dynamic_date(value):
     """
@@ -121,7 +155,7 @@ def dynamic_date(value):
         return dt_for_comparison.strftime("%d/%m/%Y")
 
     if not has_time:
-        return "Today"
+        return _("Today")
 
     # If dt_full has no timezone, make it aware
     if timezone.is_naive(dt_full):
@@ -134,8 +168,32 @@ def dynamic_date(value):
 
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)
-    suffix = " left" if is_future else " ago"
 
-    if hours > 0:
-        return f"{hours}h {minutes}m{suffix}"
-    return f"{minutes}m{suffix}"
+    if is_future:
+        if hours > 0:
+            return _("%(hours)dh %(minutes)dm left") % {
+                "hours": hours,
+                "minutes": minutes,
+            }
+        return _("%(minutes)dm left") % {"minutes": minutes}
+    else:
+        if hours > 0:
+            return _("%(hours)dh %(minutes)dm ago") % {
+                "hours": hours,
+                "minutes": minutes,
+            }
+        return _("%(minutes)dm ago") % {"minutes": minutes}
+
+
+# Dummy strings for makemessages to pick up common normalized values
+_DUMMY_STRINGS = [
+    _("Critical"),
+    _("High"),
+    _("Medium"),
+    _("Low"),
+    _("Open"),
+    _("Pending"),
+    _("Resolved"),
+    _("Closed"),
+    _("New"),
+]

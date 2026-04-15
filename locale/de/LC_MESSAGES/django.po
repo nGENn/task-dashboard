@@ -7,11 +7,11 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-13 05:56+0200\n"
+"POT-Creation-Date: 2026-04-15 18:41+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -19,320 +19,365 @@ msgstr ""
 
 #: config/settings/base.py:36
 msgid "English"
-msgstr ""
+msgstr "Englisch"
 
 #: config/settings/base.py:37
 msgid "Deutsch"
-msgstr ""
+msgstr "Deutsch"
 
-#: task_dashboard/context_processors.py:126
+#: task_dashboard/context_processors.py:157
 msgid "No Services"
 msgstr "Keine Dienste"
 
-#: task_dashboard/context_processors.py:128
-#: task_dashboard/templates/base.html:200
+#: task_dashboard/context_processors.py:159
+#: task_dashboard/templates/base.html:265
 msgid "Offline"
 msgstr "Offline"
 
-#: task_dashboard/context_processors.py:130
-#: task_dashboard/templates/base.html:204
+#: task_dashboard/context_processors.py:161
+#: task_dashboard/templates/base.html:269
 msgid "Auth Error"
 msgstr "Authentifizierungsfehler"
 
-#: task_dashboard/context_processors.py:132
+#: task_dashboard/context_processors.py:163
 msgid "Setup Needed"
 msgstr "Einrichtung nötig"
 
-#: task_dashboard/context_processors.py:137
+#: task_dashboard/context_processors.py:168
 msgid "Degraded"
 msgstr "Eingeschränkt"
 
-#: task_dashboard/context_processors.py:139
+#: task_dashboard/context_processors.py:170
 msgid "Healthy"
 msgstr "Gesund"
 
 #: task_dashboard/templates/account/login.html:8
 #: task_dashboard/templates/allauth/layouts/entrance.html:13
 msgid "Sign In"
-msgstr ""
+msgstr "Anmelden"
 
 #: task_dashboard/templates/account/login.html:92
 msgid "Forgot Password?"
-msgstr ""
+msgstr "Passwort vergessen?"
 
 #: task_dashboard/templates/account/logout.html:6
 #: task_dashboard/templates/account/logout.html:12
 #: task_dashboard/templates/account/logout.html:21
 msgid "Sign Out"
-msgstr ""
+msgstr "Abmelden"
 
 #: task_dashboard/templates/account/logout.html:13
 msgid "Are you sure you want to sign out?"
-msgstr ""
+msgstr "Sind Sie sicher, dass Sie sich abmelden möchten?"
 
 #: task_dashboard/templates/account/password_reset.html:7
 msgid "Password Reset"
-msgstr ""
+msgstr "Passwort zurücksetzen"
 
 #: task_dashboard/templates/account/password_reset.html:24
 msgid "Reset Password"
-msgstr ""
+msgstr "Passwort zurücksetzen"
 
 #: task_dashboard/templates/account/password_reset.html:29
 msgid ""
 "Forgotten your password? Enter your email address below, and we'll send you "
 "an email allowing you to reset it."
 msgstr ""
+"Haben Sie Ihr Passwort vergessen? Geben Sie unten Ihre E-Mail-Adresse ein, "
+"und wir senden Ihnen eine E-Mail, mit der Sie es zurücksetzen können."
 
 #: task_dashboard/templates/account/password_reset.html:39
 msgid "Reset My Password"
-msgstr ""
+msgstr "Mein Passwort zurücksetzen"
 
-#: task_dashboard/templates/base.html:140
+#: task_dashboard/templates/base.html:194
 msgid "Track tasks across all platforms"
 msgstr "Aufgaben plattformweit verfolgen"
 
-#: task_dashboard/templates/base.html:158
-#: task_dashboard/templates/users/partials/system_health.html:6
-msgid "System:"
-msgstr "System:"
+#: task_dashboard/templates/base.html:220
+msgid "System Status:"
+msgstr "Systemstatus:"
 
-#: task_dashboard/templates/base.html:176
+#: task_dashboard/templates/base.html:241
 msgid "Service status and latency."
 msgstr "Service-Status & Latenz."
 
-#: task_dashboard/templates/base.html:178
+#: task_dashboard/templates/base.html:243
 msgid "Service Health"
 msgstr "Dienststatus"
 
-#: task_dashboard/templates/base.html:202
+#: task_dashboard/templates/base.html:267
 msgid "Setup"
 msgstr "Einrichtung"
 
-#: task_dashboard/templates/base.html:211
+#: task_dashboard/templates/base.html:276
 msgid "No services configured."
 msgstr "Keine Dienste konfiguriert."
 
-#: task_dashboard/templates/base.html:220
+#: task_dashboard/templates/base.html:285
 msgid "Access administrative settings"
 msgstr "Admin-Einstellungen öffnen"
 
-#: task_dashboard/templates/base.html:229
+#: task_dashboard/templates/base.html:294
 msgid "Admin"
 msgstr "Admin"
 
-#: task_dashboard/templates/base.html:244
+#: task_dashboard/templates/base.html:309
 msgid "Fetch fresh data from all platforms"
 msgstr "Alle Daten aktualisieren"
 
-#: task_dashboard/templates/base.html:263
+#: task_dashboard/templates/base.html:331
 msgid "Change Language"
 msgstr "Sprache wechseln"
 
-#: task_dashboard/templates/base.html:307
+#: task_dashboard/templates/base.html:381
 msgid "Light"
 msgstr "Hell"
 
-#: task_dashboard/templates/base.html:319
+#: task_dashboard/templates/base.html:393
 msgid "Dark"
 msgstr "Dunkel"
 
-#: task_dashboard/templates/base.html:331
+#: task_dashboard/templates/base.html:405
 msgid "System"
 msgstr "System"
 
-#: task_dashboard/templates/base.html:342
+#: task_dashboard/templates/base.html:416
 msgid "Log Out"
 msgstr "Abmelden"
 
-#: task_dashboard/templates/users/partials/filter_form.html:26
-msgid "Search by Task ID, Title, or Customer..."
-msgstr "Suche ID, Titel, Kunde..."
-
-#: task_dashboard/templates/users/partials/filter_form.html:48
+#: task_dashboard/templates/users/partials/filter_form.html:20
 msgid "Save Current View"
 msgstr "Aktuelle Ansicht speichern"
 
-#: task_dashboard/templates/users/partials/filter_form.html:49
+#: task_dashboard/templates/users/partials/filter_form.html:21
 msgid "Enter a name for your current filter configuration."
 msgstr "Namen für diese Filter eingeben."
 
-#: task_dashboard/templates/users/partials/filter_form.html:52
+#: task_dashboard/templates/users/partials/filter_form.html:24
 msgid "View Name"
 msgstr "Ansichtsname"
 
-#: task_dashboard/templates/users/partials/filter_form.html:57
+#: task_dashboard/templates/users/partials/filter_form.html:29
 msgid "e.g. My High Priority Tasks"
 msgstr "z.B. Wichtige Aufgaben"
 
-#: task_dashboard/templates/users/partials/filter_form.html:61
-#: task_dashboard/templates/users/partials/filter_form.html:80
+#: task_dashboard/templates/users/partials/filter_form.html:35
+#: task_dashboard/templates/users/partials/filter_form.html:55
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: task_dashboard/templates/users/partials/filter_form.html:63
+#: task_dashboard/templates/users/partials/filter_form.html:38
 msgid "Click to save these filters"
 msgstr "Filter speichern"
 
-#: task_dashboard/templates/users/partials/filter_form.html:64
+#: task_dashboard/templates/users/partials/filter_form.html:39
 msgid "Save View"
 msgstr "Ansicht speichern"
 
-#: task_dashboard/templates/users/partials/filter_form.html:74
+#: task_dashboard/templates/users/partials/filter_form.html:49
 msgid "Delete Saved View"
 msgstr "Ansicht löschen"
 
-#: task_dashboard/templates/users/partials/filter_form.html:76
+#: task_dashboard/templates/users/partials/filter_form.html:51
 msgid ""
 "Are you sure you want to delete this view? This action cannot be undone."
 msgstr ""
-"Ansicht unwiderruflich löschen?Sind Sie sicher, dass Sie diese Ansicht "
-"löschen möchten? Dies kann nicht rückgängig gemacht werden."
+"Sind Sie sicher, dass Sie diese Ansicht löschen möchten? Dies kann nicht "
+"rückgängig gemacht werden."
 
-#: task_dashboard/templates/users/partials/filter_form.html:82
+#: task_dashboard/templates/users/partials/filter_form.html:57
 #: task_dashboard/templates/users/partials/tabs.html:28
 msgid "Delete View"
 msgstr "Ansicht löschen"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:9
+#: task_dashboard/templates/users/partials/filter_form_content.html:11
 msgid "Source platform"
 msgstr "Quellplattform"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:13
+#: task_dashboard/templates/users/partials/filter_form_content.html:15
+#: task_dashboard/templates/users/partials/scripts.html:238
 #: task_dashboard/templates/users/partials/tasks_table.html:19
+#: task_dashboard/users/views.py:1088
 msgid "Origin"
 msgstr "Herkunft"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:49
+#: task_dashboard/templates/users/partials/filter_form_content.html:41
+#: task_dashboard/templates/users/partials/filter_form_content.html:81
+#: task_dashboard/templates/users/partials/filter_form_content.html:121
+#: task_dashboard/templates/users/partials/filter_form_content.html:161
+#: task_dashboard/templates/users/partials/filter_form_content.html:201
+#: task_dashboard/templates/users/partials/filter_form_content.html:241
+msgid "Loading..."
+msgstr "Lädt..."
+
+#: task_dashboard/templates/users/partials/filter_form_content.html:43
+#: task_dashboard/templates/users/partials/filter_form_content.html:83
+#: task_dashboard/templates/users/partials/filter_form_content.html:123
+#: task_dashboard/templates/users/partials/filter_form_content.html:163
+#: task_dashboard/templates/users/partials/filter_form_content.html:203
+#: task_dashboard/templates/users/partials/filter_form_content.html:243
+msgid "No data"
+msgstr "Keine Daten"
+
+#: task_dashboard/templates/users/partials/filter_form_content.html:51
 msgid "Filter by customer name"
 msgstr "Nach Kunde filtern"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:53
+#: task_dashboard/templates/users/partials/filter_form_content.html:55
+#: task_dashboard/templates/users/partials/scripts.html:239
 #: task_dashboard/templates/users/partials/tasks_table.html:82
+#: task_dashboard/users/views.py:1089
 msgid "Customer"
 msgstr "Kunde"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:89
+#: task_dashboard/templates/users/partials/filter_form_content.html:91
 msgid "Filter by functional group or department"
 msgstr "Nach Gruppe filtern"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:93
+#: task_dashboard/templates/users/partials/filter_form_content.html:95
+#: task_dashboard/templates/users/partials/scripts.html:240
 #: task_dashboard/templates/users/partials/tasks_table.html:103
+#: task_dashboard/users/views.py:1090
 msgid "Group"
 msgstr "Gruppe"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:129
+#: task_dashboard/templates/users/partials/filter_form_content.html:131
 msgid "Filter by assigned user in source system"
-msgstr "Nach Benutzer filtern"
+msgstr "Nach Besitzer filtern"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:133
+#: task_dashboard/templates/users/partials/filter_form_content.html:135
+#: task_dashboard/templates/users/partials/scripts.html:241
 #: task_dashboard/templates/users/partials/tasks_table.html:124
+#: task_dashboard/users/views.py:1086
 msgid "Owner"
 msgstr "Besitzer"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:169
+#: task_dashboard/templates/users/partials/filter_form_content.html:171
 msgid "Filter by current task status"
 msgstr "Nach Status filtern"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:173
-#: task_dashboard/templates/users/partials/tasks_table.html:144
+#: task_dashboard/templates/users/partials/filter_form_content.html:175
+#: task_dashboard/templates/users/partials/scripts.html:242
+#: task_dashboard/templates/users/partials/tasks_table.html:145
+#: task_dashboard/users/views.py:1087
 msgid "State"
 msgstr "Status"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:209
+#: task_dashboard/templates/users/partials/filter_form_content.html:211
 msgid "Filter by task priority level"
 msgstr "Nach Priorität filtern"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:213
-#: task_dashboard/templates/users/partials/tasks_table.html:163
+#: task_dashboard/templates/users/partials/filter_form_content.html:215
+#: task_dashboard/templates/users/partials/scripts.html:243
+#: task_dashboard/templates/users/partials/tasks_table.html:179
+#: task_dashboard/users/views.py:1091
 msgid "Priority"
 msgstr "Priorität"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:250
+#: task_dashboard/templates/users/partials/filter_form_content.html:252
 msgid "Creation date"
 msgstr "Erstelldatum"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:260
-#: task_dashboard/templates/users/partials/scripts.html:46
-#: task_dashboard/templates/users/partials/tasks_table.html:182
+#: task_dashboard/templates/users/partials/filter_form_content.html:262
+#: task_dashboard/templates/users/partials/scripts.html:62
+#: task_dashboard/templates/users/partials/tasks_table.html:213
+#: task_dashboard/users/views.py:1107
 msgid "Created"
 msgstr "Erstellt"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:268
+#: task_dashboard/templates/users/partials/filter_form_content.html:270
 msgid "Last modified"
 msgstr "Änderungsdatum"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:278
-#: task_dashboard/templates/users/partials/scripts.html:47
-#: task_dashboard/templates/users/partials/tasks_table.html:201
+#: task_dashboard/templates/users/partials/filter_form_content.html:280
+#: task_dashboard/templates/users/partials/scripts.html:63
+#: task_dashboard/templates/users/partials/tasks_table.html:233
+#: task_dashboard/users/views.py:1108
 msgid "Updated"
 msgstr "Geändert"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:286
+#: task_dashboard/templates/users/partials/filter_form_content.html:288
 msgid "Due date"
 msgstr "Fälligkeit"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:296
-#: task_dashboard/templates/users/partials/scripts.html:48
+#: task_dashboard/templates/users/partials/filter_form_content.html:298
+#: task_dashboard/templates/users/partials/scripts.html:64
+#: task_dashboard/templates/users/partials/tasks_table.html:253
+#: task_dashboard/users/views.py:1109
 msgid "Due"
 msgstr "Fällig"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:308
+#: task_dashboard/templates/users/partials/filter_form_content.html:309
 msgid "Active filters:"
 msgstr "Aktive Filter:"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:313
-msgid "Hard reset to global view with no filters"
-msgstr "Alle Filter zurücksetzen"
+#: task_dashboard/templates/users/partials/filter_form_content.html:315
+#: task_dashboard/templates/users/partials/scripts.html:211
+#: task_dashboard/users/views.py:1081
+msgid "Search"
+msgstr "Suche"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:313
-msgid "Reset"
-msgstr "Zurücksetzen"
-
-#: task_dashboard/templates/users/partials/filter_form_content.html:316
-msgid "Apply filters"
-msgstr "Filter anwenden"
-
-#: task_dashboard/templates/users/partials/filter_form_content.html:316
-msgid "Apply Filters"
-msgstr "Filter anwenden"
-
-#: task_dashboard/templates/users/partials/scripts.html:256
+#: task_dashboard/templates/users/partials/filter_form_content.html:345
+#: task_dashboard/templates/users/partials/scripts.html:308
 msgid "Clear all"
 msgstr "Alles löschen"
 
-#: task_dashboard/templates/users/partials/stats_cards.html:6
-msgid "Total tasks across all platforms"
-msgstr "Aufgaben (Alle)"
+#: task_dashboard/templates/users/partials/filter_form_content.html:351
+msgid "Hard reset to global view with no filters"
+msgstr "Alle Filter zurücksetzen"
 
-#: task_dashboard/templates/users/partials/stats_cards.html:16
-msgid "Total Tasks"
-msgstr "Gesamtaufgaben"
+#: task_dashboard/templates/users/partials/filter_form_content.html:351
+msgid "Reset"
+msgstr "Zurücksetzen"
 
-#: task_dashboard/templates/users/partials/stats_cards.html:20
+#: task_dashboard/templates/users/partials/filter_form_content.html:354
+msgid "Apply filters"
+msgstr "Filter anwenden"
+
+#: task_dashboard/templates/users/partials/filter_form_content.html:354
+msgid "Apply Filters"
+msgstr "Filter anwenden"
+
+#: task_dashboard/templates/users/partials/scripts.html:213
+msgid "Clear search query"
+msgstr "Suche löschen"
+
+#: task_dashboard/templates/users/partials/stats_cards.html:9
+#: task_dashboard/users/views.py:887
 msgid "Tasks assigned to you"
 msgstr "Dir zugewiesene Aufgaben"
 
-#: task_dashboard/templates/users/partials/stats_cards.html:30
+#: task_dashboard/templates/users/partials/stats_cards.html:10
 msgid "Assigned to Me"
 msgstr "Mir zugewiesen"
 
-#: task_dashboard/templates/users/partials/stats_cards.html:34
+#: task_dashboard/templates/users/partials/stats_cards.html:15
 msgid "Tasks requiring immediate attention"
 msgstr "Dringende Aufgaben"
 
-#: task_dashboard/templates/users/partials/stats_cards.html:44
-#: task_dashboard/templates/users/partials/tasks_table.html:310
+#: task_dashboard/templates/users/partials/stats_cards.html:16
+#: task_dashboard/templates/users/partials/tasks_table.html:346
+#: task_dashboard/users/templatetags/dashboard_extras.py:194
 msgid "Open"
 msgstr "Offen"
 
-#: task_dashboard/templates/users/partials/stats_cards.html:48
-msgid "Tasks waiting on feedback"
-msgstr "Warten auf Feedback"
+#: task_dashboard/templates/users/partials/stats_cards.html:21
+#: task_dashboard/users/views.py:893
+msgid "Tasks without an owner."
+msgstr "Aufgaben ohne Besitzer."
 
-#: task_dashboard/templates/users/partials/stats_cards.html:58
-msgid "Pending"
-msgstr "Ausstehend"
+#: task_dashboard/templates/users/partials/stats_cards.html:22
+#: task_dashboard/users/views.py:259 task_dashboard/users/views.py:278
+#: task_dashboard/users/views.py:610 task_dashboard/users/views.py:876
+#: task_dashboard/users/views.py:890 task_dashboard/users/views.py:929
+#: task_dashboard/users/views.py:964
+msgid "Unassigned"
+msgstr "Nicht zugewiesen"
+
+#: task_dashboard/templates/users/partials/system_health.html:7
+msgid "System:"
+msgstr "System:"
 
 #: task_dashboard/templates/users/partials/tabs.html:9
 msgid "All sources unfiltered"
@@ -350,127 +395,17 @@ msgstr "Eigener Filter:"
 msgid "Save current filters as a custom view"
 msgstr "Filter als Ansicht speichern"
 
+#: task_dashboard/templates/users/partials/tabs.html:50
+msgid "Search by Task ID, Title, or Customer..."
+msgstr "Suche ID, Titel, Kunde..."
+
 #: task_dashboard/templates/users/partials/tasks_table.html:40
 msgid "ID"
-msgstr ""
+msgstr "ID"
 
 #: task_dashboard/templates/users/partials/tasks_table.html:61
 msgid "Title"
 msgstr "Titel"
-
-#: task_dashboard/templates/users/partials/tasks_table.html:220
-msgid "Due Date"
-msgstr "Fälligkeitsdatum der Aufgabe"
-
-#: task_dashboard/templates/users/partials/tasks_table.html:244
-msgid "Re-sync this task"
-msgstr "Task synchronisieren"
-
-#: task_dashboard/templates/users/partials/tasks_table.html:271
-msgid "Copy ID & Link"
-msgstr "ID kopieren"
-
-#: task_dashboard/templates/users/partials/tasks_table.html:272
-msgid "ID copied to clipboard!"
-msgstr "ID kopiert!"
-
-#: task_dashboard/templates/users/partials/tasks_table.html:313
-msgid "Resolved"
-msgstr ""
-
-#: task_dashboard/templates/users/partials/tasks_table.html:340
-msgid "No tasks found matching your filters."
-msgstr ""
-
-#: task_dashboard/users/admin.py:42
-msgid "Personal info"
-msgstr ""
-
-#: task_dashboard/users/admin.py:44
-msgid "Permissions"
-msgstr ""
-
-#: task_dashboard/users/admin.py:55
-msgid "Important dates"
-msgstr ""
-
-#: task_dashboard/users/admin.py:116
-msgid "API Configuration"
-msgstr ""
-
-#: task_dashboard/users/apps.py:34
-msgid "Users"
-msgstr ""
-
-#: task_dashboard/users/forms.py:65 task_dashboard/users/tests/test_forms.py:35
-msgid "This email has already been taken."
-msgstr ""
-
-#: task_dashboard/users/models.py:25
-msgid "Name of User"
-msgstr ""
-
-#: task_dashboard/users/models.py:28
-msgid "email address"
-msgstr ""
-
-#: task_dashboard/users/models.py:47
-msgid "Full Access (See all tasks)"
-msgstr ""
-
-#: task_dashboard/users/models.py:48
-msgid "Limited (Own tasks + Unassigned only)"
-msgstr ""
-
-#: task_dashboard/users/models.py:49
-msgid "Only own tasks"
-msgstr ""
-
-#: task_dashboard/users/models.py:50
-msgid "No Access"
-msgstr ""
-
-#: task_dashboard/users/tests/test_views.py:81 task_dashboard/users/views.py:79
-msgid "Information successfully updated"
-msgstr ""
-
-#: task_dashboard/users/views.py:122 task_dashboard/users/views.py:123
-#: task_dashboard/users/views.py:254 task_dashboard/users/views.py:443
-#: task_dashboard/users/views.py:488 task_dashboard/users/views.py:627
-msgid "Unassigned"
-msgstr "Nicht zugewiesen"
-
-#: task_dashboard/users/views.py:253 task_dashboard/users/views.py:626
-msgid "My Tasks"
-msgstr "Meine Aufgaben"
-
-#: task_dashboard/users/views.py:253 task_dashboard/users/views.py:626
-msgid "Tasks assigned to you."
-msgstr "Dir zugewiesene Aufgaben"
-
-#: task_dashboard/users/views.py:254 task_dashboard/users/views.py:627
-msgid "Tasks without an owner."
-msgstr "Aufgaben ohne Besitzer."
-
-#: task_dashboard/users/views.py:639
-msgid "Name is required"
-msgstr ""
-
-#: task_dashboard/users/views.py:642
-msgid "Internal server error"
-msgstr ""
-
-#~ msgid "Force immediate re-sync for this task."
-#~ msgstr "Synchronisierung"
-
-#: task_dashboard/templates/users/partials/scripts.html:200
-#: task_dashboard/templates/users/partials/filter_form_content.html:315
-msgid "Search"
-msgstr "Suche"
-
-#: task_dashboard/templates/users/partials/scripts.html:202
-msgid "Clear search query"
-msgstr "Suche löschen"
 
 #: task_dashboard/templates/users/partials/tasks_table.html:159
 msgid "View status mapping rules"
@@ -480,32 +415,202 @@ msgstr "Status-Mapping-Regeln anzeigen"
 msgid "View priority mapping rules"
 msgstr "Prioritäts-Mapping-Regeln anzeigen"
 
-#: task_dashboard/templates/users/partials/tasks_table.html:398
+#: task_dashboard/templates/users/partials/tasks_table.html:285
+msgid "Re-sync this task"
+msgstr "Task synchronisieren"
+
+#: task_dashboard/templates/users/partials/tasks_table.html:305
+msgid "Copy ID & Link"
+msgstr "ID kopieren"
+
+#: task_dashboard/templates/users/partials/tasks_table.html:306
+msgid "ID copied to clipboard!"
+msgstr "ID kopiert!"
+
+#: task_dashboard/templates/users/partials/tasks_table.html:343
+#: task_dashboard/templates/users/partials/tasks_table.html:361
+msgid "Original"
+msgstr "Original"
+
+#: task_dashboard/templates/users/partials/tasks_table.html:349
+#: task_dashboard/users/templatetags/dashboard_extras.py:195
+msgid "Pending"
+msgstr "Ausstehend"
+
+#: task_dashboard/templates/users/partials/tasks_table.html:352
+#: task_dashboard/users/templatetags/dashboard_extras.py:196
+msgid "Resolved"
+msgstr "Gelöst"
+
+#: task_dashboard/templates/users/partials/tasks_table.html:352
+#: task_dashboard/users/templatetags/dashboard_extras.py:197
+msgid "Closed"
+msgstr "Geschlossen"
+
+#: task_dashboard/templates/users/partials/tasks_table.html:370
+#: task_dashboard/users/templatetags/dashboard_extras.py:190
+msgid "Critical"
+msgstr "Kritisch"
+
+#: task_dashboard/templates/users/partials/tasks_table.html:384
+msgid "No tasks found matching your filters."
+msgstr "Keine Aufgaben gefunden, die Ihren Filtern entsprechen."
+
+#: task_dashboard/templates/users/partials/tasks_table.html:400
 msgid "Service Mapping Transparency"
 msgstr "Service-Mapping-Transparenz"
 
-#: task_dashboard/templates/users/partials/tasks_table.html:411
+#: task_dashboard/templates/users/partials/tasks_table.html:402
+msgid ""
+"This table shows how each external service's original states and priorities "
+"are normalized in the dashboard."
+msgstr ""
+"Diese Tabelle zeigt, wie die ursprünglichen Zustände und Prioritäten der "
+"einzelnen externen Dienste im Dashboard normalisiert werden."
+
+#: task_dashboard/templates/users/partials/tasks_table.html:413
 msgid "Status Mapping"
 msgstr "Status-Mapping"
 
-#: task_dashboard/templates/users/partials/tasks_table.html:442
-msgid "Priority Mapping"
-msgstr "Prioritäts-Mapping"
-
-msgid "This table shows how each external service's original states and priorities are normalized in the dashboard."
-msgstr "Diese Tabelle zeigt, wie die ursprünglichen Zustände und Prioritäten der einzelnen externen Dienste im Dashboard normalisiert werden."
-
+#: task_dashboard/templates/users/partials/tasks_table.html:418
+#: task_dashboard/templates/users/partials/tasks_table.html:449
 msgid "Normalized"
 msgstr "Normalisiert"
 
+#: task_dashboard/templates/users/partials/tasks_table.html:419
+#: task_dashboard/templates/users/partials/tasks_table.html:450
 msgid "Original Values"
 msgstr "Ursprüngliche Werte"
 
+#: task_dashboard/templates/users/partials/tasks_table.html:434
 msgid "All other values"
 msgstr "Alle anderen Werte"
 
+#: task_dashboard/templates/users/partials/tasks_table.html:444
+msgid "Priority Mapping"
+msgstr "Prioritäts-Mapping"
+
+#: task_dashboard/templates/users/partials/tasks_table.html:465
 msgid "Default / Fallback"
 msgstr "Standard / Fallback"
 
+#: task_dashboard/templates/users/partials/tasks_table.html:480
 msgid "Close"
 msgstr "Schließen"
+
+#: task_dashboard/users/admin.py:43
+msgid "Personal info"
+msgstr "Persönliche Daten"
+
+#: task_dashboard/users/admin.py:45
+msgid "Permissions"
+msgstr "Berechtigungen"
+
+#: task_dashboard/users/admin.py:56
+msgid "Important dates"
+msgstr "Wichtige Daten"
+
+#: task_dashboard/users/admin.py:117
+msgid "API Configuration"
+msgstr "API-Konfiguration"
+
+#: task_dashboard/users/apps.py:34
+msgid "Users"
+msgstr "Benutzer"
+
+#: task_dashboard/users/forms.py:65 task_dashboard/users/tests/test_forms.py:35
+msgid "This email has already been taken."
+msgstr "Diese E-Mail-Adresse wird bereits verwendet."
+
+#: task_dashboard/users/models.py:28
+msgid "Name of User"
+msgstr "Name des Benutzers"
+
+#: task_dashboard/users/models.py:31
+msgid "email address"
+msgstr "E-Mail-Adresse"
+
+#: task_dashboard/users/models.py:50
+msgid "Full Access (See all tasks)"
+msgstr "Vollzugriff (Alle Aufgaben sehen)"
+
+#: task_dashboard/users/models.py:51
+msgid "Limited (Own tasks + Unassigned only)"
+msgstr "Eingeschränkt (Eigene + nicht zugewiesene Aufgaben)"
+
+#: task_dashboard/users/models.py:52
+msgid "Only own tasks"
+msgstr "Nur eigene Aufgaben"
+
+#: task_dashboard/users/models.py:53
+msgid "No Access"
+msgstr "Kein Zugriff"
+
+#: task_dashboard/users/templatetags/dashboard_extras.py:158
+msgid "Today"
+msgstr "Heute"
+
+#: task_dashboard/users/templatetags/dashboard_extras.py:174
+#, python-format
+msgid "%(hours)dh %(minutes)dm left"
+msgstr "%(hours)dh %(minutes)dm verbleibend"
+
+#: task_dashboard/users/templatetags/dashboard_extras.py:178
+#, python-format
+msgid "%(minutes)dm left"
+msgstr "%(minutes)dm verbleibend"
+
+#: task_dashboard/users/templatetags/dashboard_extras.py:181
+#, python-format
+msgid "%(hours)dh %(minutes)dm ago"
+msgstr "vor %(hours)dh %(minutes)dm"
+
+#: task_dashboard/users/templatetags/dashboard_extras.py:185
+#, python-format
+msgid "%(minutes)dm ago"
+msgstr "vor %(minutes)dm"
+
+#: task_dashboard/users/templatetags/dashboard_extras.py:191
+msgid "High"
+msgstr "Hoch"
+
+#: task_dashboard/users/templatetags/dashboard_extras.py:192
+msgid "Medium"
+msgstr "Mittel"
+
+#: task_dashboard/users/templatetags/dashboard_extras.py:193
+msgid "Low"
+msgstr "Niedrig"
+
+#: task_dashboard/users/templatetags/dashboard_extras.py:198
+msgid "New"
+msgstr "Neu"
+
+#: task_dashboard/users/tests/test_views.py:80
+#: task_dashboard/users/views.py:127
+msgid "Information successfully updated"
+msgstr "Informationen erfolgreich aktualisiert"
+
+#: task_dashboard/users/views.py:147
+msgid "Refresh started for all services."
+msgstr "Aktualisierung für alle Dienste gestartet."
+
+#: task_dashboard/users/views.py:164
+msgid "Service type not supported for single refresh."
+msgstr "Service-Typ unterstützt keine Einzelaktualisierung."
+
+#: task_dashboard/users/views.py:188
+msgid "Task updated successfully."
+msgstr "Task erfolgreich aktualisiert."
+
+#: task_dashboard/users/views.py:191
+msgid "Task could not be found in the remote service."
+msgstr "Task konnte im Remote-Dienst nicht gefunden werden."
+
+#: task_dashboard/users/views.py:195
+msgid "Failed to refresh task."
+msgstr "Task-Aktualisierung fehlgeschlagen."
+
+#: task_dashboard/users/views.py:884
+msgid "My Tasks"
+msgstr "Meine Aufgaben"
