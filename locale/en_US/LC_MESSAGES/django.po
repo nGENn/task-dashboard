@@ -196,7 +196,7 @@ msgstr ""
 
 #: task_dashboard/users/views.py:251 task_dashboard/users/views.py:624
 msgid "Tasks assigned to you."
-msgstr "Dir zugewiesene Aufgaben"
+msgstr ""
 
 #: task_dashboard/users/views.py:252 task_dashboard/users/views.py:625
 msgid "Unassigned"

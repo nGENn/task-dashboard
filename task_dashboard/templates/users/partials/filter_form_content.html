@@ -7,7 +7,7 @@
   <div id="filter-options-container"
        class="flex flex-wrap gap-3 mb-3 w-full">
     <!-- Dropdowns -->
-    <div class="dropdown tooltip tooltip-bottom filter-dropdown-container"
+    <div class="dropdown tooltip filter-dropdown-container"
          data-tip="{% trans 'Source platform' %}">
       <div tabindex="0"
            role="button"
@@ -167,7 +167,7 @@
         {% endfor %}
       </ul>
     </div>
-    <div class="dropdown dropdown-end tooltip tooltip-bottom filter-dropdown-container"
+    <div class="dropdown dropdown-end tooltip filter-dropdown-container"
          data-tip="{% trans 'Filter by current task status' %}">
       <div tabindex="0"
            role="button"
@@ -207,7 +207,7 @@
         {% endfor %}
       </ul>
     </div>
-    <div class="dropdown dropdown-end tooltip tooltip-bottom filter-dropdown-container"
+    <div class="dropdown dropdown-end tooltip filter-dropdown-container"
          data-tip="{% trans 'Filter by task priority level' %}">
       <div tabindex="0"
            role="button"
@@ -248,7 +248,7 @@
       </ul>
     </div>
     <!-- Date Ranges using completely static DIVs to prevent text shifting -->
-    <div class="tooltip tooltip-bottom filter-dropdown-container"
+    <div class="tooltip filter-dropdown-container"
          data-tip="{% trans 'Creation date' %}">
       <div id="date-range-picker"
            class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer w-full">
@@ -266,7 +266,7 @@
            id="date-range-input"
            {% if request.GET.date_range %}name="date_range"{% endif %}
            value="{{ request.GET.date_range }}" />
-    <div class="tooltip tooltip-bottom filter-dropdown-container"
+    <div class="tooltip filter-dropdown-container"
          data-tip="{% trans 'Last modified' %}">
       <div id="updated-range-picker"
            class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer w-full">
@@ -284,7 +284,7 @@
            id="updated-range-input"
            {% if request.GET.updated_range %}name="updated_range"{% endif %}
            value="{{ request.GET.updated_range }}" />
-    <div class="tooltip tooltip-bottom filter-dropdown-container"
+    <div class="tooltip filter-dropdown-container"
          data-tip="{% trans 'Due date' %}">
       <div id="due-range-picker"
            class="select select-bordered flex items-center justify-start gap-2 px-3 cursor-pointer w-full">
@@ -303,50 +303,49 @@
            {% if request.GET.due_range %}name="due_range"{% endif %}
            value="{{ request.GET.due_range }}" />
   </div>
-  <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-t border-base-200 pt-4">
-    <div id="active-filters-container"
-         class="flex flex-wrap items-center gap-2 min-h-[2rem]">
-      <span class="text-sm text-base-content/60 mr-1 {% if not active_filters_sidebar %}hidden{% endif %}"
-            id="active-filters-label">{% trans "Active filters:" %}</span>
-      {% for key, data in active_filters_sidebar.items %}
-        {% with count=data.values|length %}
-          <div class="badge badge-primary gap-1 pr-0 py-1 tooltip tooltip-bottom before:text-xs before:max-w-xs before:whitespace-normal"
-               data-tip="{{ data.values|join:', ' }}">
-            {% if key == 'q' %}
-              {% trans "Search" %}: <span class="ml-1 font-semibold">{{ data.values.0 }}</span>
-            {% elif key == 'date_range' or key == 'updated_range' or key == 'due_range' %}
-              <svg xmlns="http://www.w3.org/2000/svg"
-                   class="h-3 w-3"
-                   fill="none"
-                   viewBox="0 0 24 24"
-                   stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              {{ data.label }}
-            {% else %}
-              {{ data.label }} <span class="badge badge-xs bg-primary-content text-primary border-none ml-1">{{ count }}</span>
-            {% endif %}
-            <button type="button"
-                    class="btn btn-ghost btn-xs text-primary-content hover:bg-transparent"
-                    onclick="removeBadge('{{ key }}', '{% if key == 'q' or key == 'date_range' or key == 'updated_range' or key == 'due_range' %}{{ data.values.0 }}{% else %}all{% endif %}')">
-              <svg xmlns="http://www.w3.org/2000/svg"
-                   class="h-3 w-3"
-                   fill="none"
-                   viewBox="0 0 24 24"
-                   stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        {% endwith %}
-      {% endfor %}
-      {% if active_filters_sidebar %}
-        <button type="button"
-                class="btn btn-ghost btn-xs text-error clear-all-link"
-                onclick="window.clearFilters()">{% trans 'Clear all' %}</button>
-      {% endif %}
-    </div>
-    <div class="flex items-center gap-2 whitespace-nowrap">
+  <div id="active-filters-container"
+       class="flex flex-wrap items-end gap-x-2 gap-y-3 min-h-[2rem] border-t border-base-200 pt-4">
+    <span class="text-sm text-base-content/60 mr-1 {% if not active_filters_sidebar %}hidden{% endif %} pb-1"
+          id="active-filters-label">{% trans "Active filters:" %}</span>
+    {% for key, data in active_filters_sidebar.items %}
+      {% with count=data.values|length %}
+        <div class="badge badge-primary gap-1 pr-0 py-1 tooltip before:text-xs before:max-w-xs before:whitespace-normal order-[10]"
+             data-tip="{{ data.values|join:', ' }}">
+          {% if key == 'q' %}
+            {% trans "Search" %}: <span class="ml-1 font-semibold">{{ data.values.0 }}</span>
+          {% elif key == 'date_range' or key == 'updated_range' or key == 'due_range' %}
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 class="h-3 w-3"
+                 fill="none"
+                 viewBox="0 0 24 24"
+                 stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            {{ data.label }}
+          {% else %}
+            {{ data.label }} <span class="badge badge-xs bg-primary-content text-primary border-none ml-1">{{ count }}</span>
+          {% endif %}
+          <button type="button"
+                  class="btn btn-ghost btn-xs text-primary-content hover:bg-transparent"
+                  onclick="removeBadge('{{ key }}', '{% if key == 'q' or key == 'date_range' or key == 'updated_range' or key == 'due_range' %}{{ data.values.0 }}{% else %}all{% endif %}')">
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 class="h-3 w-3"
+                 fill="none"
+                 viewBox="0 0 24 24"
+                 stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      {% endwith %}
+    {% endfor %}
+    {% if active_filters_sidebar %}
+      <button type="button"
+              class="btn btn-ghost btn-xs text-error clear-all-link order-[20]"
+              onclick="window.clearFilters()">{% trans 'Clear all' %}</button>
+    {% endif %}
+    <div id="filter-buttons-group"
+         class="flex items-center gap-2 whitespace-nowrap ml-auto">
       <a href="{% url 'all_tasks' %}"
          class="btn btn-ghost btn-sm tooltip tooltip-left"
          data-tip="{% trans 'Hard reset to global view with no filters' %}">{% trans "Reset" %}</a>

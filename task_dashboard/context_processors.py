@@ -41,9 +41,22 @@ def system_status(request):
     results = _get_services_health(service_map)
     global_status = _calculate_global_status(results)
 
+    # Gather dynamic mapping rules for the transparency modal
+    service_mappings = {}
+    active_configs = ServiceConfiguration.objects.filter(is_active=True)
+    for config in active_configs:
+        s_class = service_map.get(config.service_type)
+        if s_class:
+            service_mappings[config.name] = {
+                "type": config.get_service_type_display(),
+                "status": getattr(s_class, "STATUS_MAPPING", {}),
+                "priority": getattr(s_class, "PRIORITY_MAPPING", {}),
+            }
+
     return {
         "services_status": results,
         "global_system_status": global_status,
+        "service_mappings": service_mappings,
         "next_refresh_seconds": next_refresh_seconds,
         "refresh_interval": refresh_interval,
     }
@@ -123,7 +136,7 @@ def _calculate_global_status(results):
     status_list = [r["status"] for r in results]
 
     if not results:
-        state, color = _("No Services"), "neutral"
+        state, color = _("No Services"), "info"
     elif "offline" in status_list:
         state, color = _("Offline"), "error"
     elif "auth_error" in status_list:
