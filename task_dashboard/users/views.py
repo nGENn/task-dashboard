@@ -166,7 +166,7 @@ def refresh_single_task_view(request, pk):
         try:
             from typing import cast
 
-            service_instance = cast(TaskService, service_class(task.service))
+            service_instance = cast("TaskService", service_class(task.service))
             # This is a synchronous call in the view for immediate feedback
             task_data = service_instance.get_single_task(task)
             if task_data:
