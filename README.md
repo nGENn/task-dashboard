@@ -5,7 +5,7 @@ A high-performance aggregation engine for tracking duties across multiple platfo
 ## 🚀 Key Features
 
 - **The Identity Bridge**: Unifies fragmented user identities (emails, full names, usernames) into a single canonical view using PostgreSQL-native tokenization and GIN indexes.
-- **Fetch-Sync-Prune Engine**: High-concurrency synchronization powered by **Django-Q2**, **Valkey**, and **httpx**.
+- **Fetch-Sync-Prune Engine**: High-concurrency synchronization powered by **Django-Q2**, **Valkey 9**, and **httpx**.
 - **Perspective Routing**: Stateful dashboard views (`/my`, `/unassigned`, `/all`) with HTMX-driven partial updates and bookmarkable URLs.
 - **Multilingual**: Full Internationalization (i18n) support with extensive German localization and dynamic status mapping.
 - **Secure by Design**: Role-Based Access Control (RBAC) enforced at the database level, with OIDC/Keycloak integration and encrypted API credentials.
@@ -41,27 +41,33 @@ Access is managed via **Django Groups** and mapped to discovered external servic
 - Python 3.12+
 - [uv](https://github.com/astral-sh/uv) (Python package manager)
 - Docker & Docker Compose
+- **Valkey 9** (Recommended) or Redis (Fallback)
 
 ### Local Development
 1. **Setup Env**: `cp .env.example .env` (Add your Service API keys and Keycloak credentials).
-2. **Install & Migrate**: `uv sync && uv run manage.py migrate`
-3. **Run Services**:
+2. **Infrastructure**: Start PostgreSQL and Valkey.
+3. **Install & Migrate**: `uv sync && uv run manage.py migrate`
+4. **Run Services**:
    - `uv run manage.py runserver` (Web Interface at localhost:8000)
    - `uv run manage.py qcluster` (Background Worker - **Required for Task Sync**)
-4. **CSS Workflow**: `./tailwindcss -i task_dashboard/static/css/input.css -o task_dashboard/static/css/output.css --watch`
+5. **CSS Workflow**: `./tailwindcss -i task_dashboard/static/css/input.css -o task_dashboard/static/css/output.css --watch`
 
 ## 🚀 Deployment
 
 The production stack is orchestrated via [**`docker-compose.production.yml`**](docker-compose.production.yml).
 
-```bash
-docker-compose -f docker-compose.production.yml up --build -d
-```
+### Production Configuration
+1. **Environment**: Configure `.env` with production-grade secrets.
+2. **Valkey Infrastructure**: Ensure `VALKEY_URL` uses the `redis://` scheme for library compatibility (e.g., `redis://valkey:6379/0`).
+3. **Orchestration**:
+   ```bash
+   docker compose -f docker-compose.production.yml up --build -d
+   ```
 
 ### Production Stack
 - **`django`**: The core application (Gunicorn/WhiteNoise).
-- **`qcluster`**: The background worker process.
+- **`qcluster`**: The background worker process (Parallel fetch engine).
 - **`postgres`**: Database (PostgreSQL 18 with `unaccent`).
-- **`valkey`**: In-memory store for task queues and caching.
+- **`valkey`**: In-memory store (Valkey 9.0.3) for task queues and caching.
 
 For deep-dive technical logic, see [**ARCHITECTURE.md**](ARCHITECTURE.md).

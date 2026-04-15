@@ -8,7 +8,7 @@ Django-based multi-service task aggregation dashboard that pulls tasks/tasks fro
 
 ## Tech Stack
 
-- **Backend:** Django 5.2, Python 3.13, PostgreSQL 18, Redis, Django-Q2 (background tasks)
+- **Backend:** Django 5.2, Python 3.13, PostgreSQL 18, Valkey 9.0.3, Django-Q2 (background tasks)
 - **Frontend:** Django templates, Tailwind CSS (standalone binary), DaisyUI, Flatpickr
 - **Auth:** django-allauth (local + Keycloak OIDC), Argon2 password hashing
 - **Package manager:** uv
@@ -63,7 +63,7 @@ uv version 1.2.3          # set an explicit version
 
 ### Settings (config/settings/)
 
-Split settings: `base.py` (shared), `local.py` (dev with LocMem cache + debug toolbar), `production.py` (Redis cache + Sentry + SSL), `test.py` (fast hashing, no external deps). Test settings are used by pytest via `--ds=config.settings.test` in pyproject.toml.
+Split settings: `base.py` (shared), `local.py` (dev with LocMem cache + debug toolbar), `production.py` (Valkey cache + Sentry + SSL), `test.py` (fast hashing, no external deps). Test settings are used by pytest via `--ds=config.settings.test` in pyproject.toml.
 
 ### Single Django App (task_dashboard/)
 

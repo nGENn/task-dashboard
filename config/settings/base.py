@@ -193,6 +193,7 @@ TEMPLATES = [
                 "django.template.context_processors.tz",
                 "django.contrib.messages.context_processors.messages",
                 "task_dashboard.users.context_processors.allauth_settings",
+                "task_dashboard.context_processors.service_mappings",
                 "task_dashboard.context_processors.system_status",
                 "task_dashboard.context_processors.theme",
             ],

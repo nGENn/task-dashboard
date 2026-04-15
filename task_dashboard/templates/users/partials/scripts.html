@@ -1,53 +1,27 @@
 {# djlint:off #}
 {% load i18n %}
 <style>
-  /* Flatpickr Lavender Override */
-  .flatpickr-calendar .flatpickr-day.selected,
-  .flatpickr-calendar .flatpickr-day.startRange,
-  .flatpickr-calendar .flatpickr-day.endRange,
-  .flatpickr-calendar .flatpickr-day.selected.inRange,
-  .flatpickr-calendar .flatpickr-day.startRange.inRange,
-  .flatpickr-calendar .flatpickr-day.endRange.inRange,
-  .flatpickr-calendar .flatpickr-day.selected:focus,
-  .flatpickr-calendar .flatpickr-day.startRange:focus,
-  .flatpickr-calendar .flatpickr-day.endRange:focus,
-  .flatpickr-calendar .flatpickr-day.selected:hover,
-  .flatpickr-calendar .flatpickr-day.startRange:hover,
-  .flatpickr-calendar .flatpickr-day.endRange:hover,
-  .flatpickr-calendar .flatpickr-day.selected.prevMonthDay,
-  .flatpickr-calendar .flatpickr-day.startRange.prevMonthDay,
-  .flatpickr-calendar .flatpickr-day.endRange.prevMonthDay,
-  .flatpickr-calendar .flatpickr-day.selected.nextMonthDay,
-  .flatpickr-calendar .flatpickr-day.startRange.nextMonthDay,
-  .flatpickr-calendar .flatpickr-day.endRange.nextMonthDay {
-      background: var(--color-primary, #b4befe) !important;
-      background-color: var(--color-primary, #b4befe) !important;
-      border-color: var(--color-primary, #b4befe) !important;
-      color: var(--color-base-100, #1e1e2e) !important;
-  }
-
-  .flatpickr-calendar .flatpickr-day:hover,
-  .flatpickr-calendar .flatpickr-day.prevMonthDay:hover,
-  .flatpickr-calendar .flatpickr-day.nextMonthDay:hover,
-  .flatpickr-calendar .flatpickr-day:focus,
-  .flatpickr-calendar .flatpickr-day.prevMonthDay:focus,
-  .flatpickr-calendar .flatpickr-day.nextMonthDay:focus,
-  .flatpickr-calendar .flatpickr-day.today {
-      color: var(--color-primary, #b4befe) !important;
-      border-color: var(--color-primary, #b4befe) !important;
-  }
-
   /* Filter footer fluid layout */
   #active-filters-container > .badge { order: 10; }
   .clear-all-link { order: 20; }
   #filter-buttons-group { order: 100; }
   #active-filters-label { order: 1; }
 </style>
+<!-- Include flatpickr locale based on user language -->
+{% if request.LANGUAGE_CODE and request.LANGUAGE_CODE != 'en' %}
+  {% with lang=request.LANGUAGE_CODE|slice:":2" %}
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/{{ lang }}.js"></script>
+  {% endwith %}
+{% endif %}
+
 <script>
   document.addEventListener("DOMContentLoaded", function() {
     // 1. Initialize Flatpickr
     window.initDatePickers = function() {
       const isMobile = window.innerWidth < 768;
+      const langCode = "{{ request.LANGUAGE_CODE|default:'en' }}".split('-')[0];
+      const flatpickrLocale = (langCode === 'en') ? 'default' : langCode;
+
       const datePickersConfigList = [
         { boxId: "date-range-picker", inputId: "date-range-input", name: "date_range", label: "{% trans 'Created' %}" },
         { boxId: "updated-range-picker", inputId: "updated-range-input", name: "updated_range", label: "{% trans 'Updated' %}" },
@@ -74,6 +48,7 @@
             mode: "range",
             dateFormat: "Y-m-d",
             defaultDate: defaultDate,
+            locale: flatpickrLocale,
             position: isMobile ? "auto right" : "auto left",
             onChange: function(selectedDates, dateStr, instance) {
               if (hiddenInput) {
@@ -222,11 +197,21 @@
           groupedFilters[box.name].push(labelText);
         });
 
+        // Mapping for filter group labels
+        const groupLabels = {
+          'origin': "{% trans 'Origin' %}",
+          'customer': "{% trans 'Customer' %}",
+          'group': "{% trans 'Group' %}",
+          'owner': "{% trans 'Owner' %}",
+          'state': "{% trans 'State' %}",
+          'priority': "{% trans 'Priority' %}"
+        };
+
         Object.keys(groupedFilters).forEach((key) => {
           const items = groupedFilters[key];
           const count = items.length;
-          // Capitalize key for display text (e.g., 'origin' -> 'Origin')
-          const displayName = key.charAt(0).toUpperCase() + key.slice(1);
+          // Use translated group label
+          const displayName = groupLabels[key] || (key.charAt(0).toUpperCase() + key.slice(1));
           const displayText = `${displayName} <span class="badge badge-xs bg-primary-content text-primary border-none ml-1">${count}</span>`;
           const tooltipText = items.join(', ');
 
@@ -258,7 +243,7 @@
           // Compact Label with Icon
           const displayText = `
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             ${picker.label}
           `;

@@ -76,29 +76,7 @@
       <link href="{% static 'css/project.css' %}" rel="stylesheet" />
       <link rel="stylesheet"
             href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
-      <link id="flatpickr-dark-theme"
-            rel="stylesheet"
-            href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css"
-            disabled />
       <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-      <script>
-        // Sync flatpickr dark theme with DaisyUI data-theme
-        (function() {
-          function syncFlatpickrTheme() {
-            const link = document.getElementById('flatpickr-dark-theme');
-            if (!link) return;
-            const theme = document.documentElement.getAttribute('data-theme');
-            link.disabled = (theme !== 'mocha');
-          }
-          syncFlatpickrTheme();
-          new MutationObserver(syncFlatpickrTheme).observe(
-            document.documentElement, {
-              attributes: true,
-              attributeFilter: ['data-theme']
-            }
-          );
-        })();
-      </script>
     {% endblock css %}
     <!-- Le javascript
     ================================================== -->

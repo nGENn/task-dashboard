@@ -54,7 +54,7 @@ services:
       - task_dashboard_local_postgres_data_backups:/backups
 
   valkey:
-    image: valkey/valkey:8
+    image: valkey/valkey:9.0.3
     container_name: task_dashboard_valkey
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]

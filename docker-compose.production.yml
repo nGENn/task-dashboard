@@ -1,53 +1,120 @@
-version: '3'
+# Universal Task Dashboard - Production Orchestration
+# Architecture: Django (Gunicorn/WhiteNoise) + Valkey (Task Queue) + PostgreSQL 18
+version: '3.8'
 
 volumes:
-  production_postgres_data: {}
-  production_postgres_data_backups: {}
-  production_django_media: {}
-  production_staticfiles: {}
+  production_postgres_data:
+    name: task_dashboard_postgres_data
+  production_postgres_data_backups:
+    name: task_dashboard_postgres_backups
+  production_django_media:
+    name: task_dashboard_django_media
+  production_staticfiles:
+    name: task_dashboard_staticfiles
+  production_valkey_data:
+    name: task_dashboard_valkey_data
+
+networks:
+  dashboard-network:
+    driver: bridge
 
 services:
+  # --- 1. Main Application (Web Interface) ---
   django:
     build:
       context: .
       dockerfile: ./compose/production/django/Dockerfile
-    image: task_dashboard_production_django
-    volumes:
-      - production_django_media:/app/task_dashboard/media
-      - production_staticfiles:/app/staticfiles
+    image: task_dashboard_production_django:latest
+    restart: always
     depends_on:
-      - postgres
-      - valkey
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
     env_file:
       - .env
+    volumes:
+      - production_django_media:/app/task_dashboard/media
+      - production_staticfiles:/app/staticfiles:ro
+    networks:
+      - dashboard-network
+    # Gunicorn handles requests; WhiteNoise serves static files.
     command: /start
-    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          memory: 256M
 
+  # --- 2. Background Worker (Django-Q2 Cluster) ---
+  qcluster:
+    image: task_dashboard_production_django:latest
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    env_file:
+      - .env
+    volumes:
+      - production_django_media:/app/task_dashboard/media
+      - production_staticfiles:/app/staticfiles:ro
+    networks:
+      - dashboard-network
+    # Required for the parallel fetch-sync-prune engine.
+    command: python manage.py qcluster
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # --- 3. Database (PostgreSQL 18) ---
   postgres:
     build:
       context: .
       dockerfile: ./compose/production/postgres/Dockerfile
-    image: task_dashboard_production_postgres
+    image: task_dashboard_production_postgres:latest
+    restart: always
+    env_file:
+      - .env
     volumes:
       - production_postgres_data:/var/lib/postgresql/data
       - production_postgres_data_backups:/backups
-    env_file:
-      - .env
-    restart: always
+    networks:
+      - dashboard-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 2G
 
+  # --- 4. In-Memory Store (Valkey 9) ---
+  # Fork of Redis, used for task queuing (Django-Q) and caching.
   valkey:
-    image: docker.io/valkey/valkey:8.0
+    image: docker.io/valkey/valkey:9.0.3
     restart: always
-
-  qcluster:
-    image: task_dashboard_production_django
-    command: python manage.py qcluster
-    env_file:
-      - .env
-    depends_on:
-      - postgres
-      - valkey
     volumes:
-      - production_django_media:/app/task_dashboard/media
-      - production_staticfiles:/app/staticfiles
-    restart: always
+      - production_valkey_data:/data
+    networks:
+      - dashboard-network
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Recommended for Valkey in production.
+    command: valkey-server --save 60 1 --loglevel warning
+    deploy:
+      resources:
+        limits:
+          memory: 512M
