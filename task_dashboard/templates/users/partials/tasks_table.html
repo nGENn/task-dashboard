@@ -2,13 +2,13 @@
 
 <div class="w-full bg-base-100 rounded-box shadow-sm border border-base-300 overflow-hidden mb-4">
   <div class="overflow-x-auto">
-    <table class="table table-zebra w-full table-fixed min-w-dashboard">
+    <table class="table table-zebra w-full table-auto min-w-dashboard">
       <thead class="bg-base-200 text-base-content/70">
         <tr>
           {% with request.GET.sort as current_sort %}
             {% with request.GET.direction as current_dir %}
               <th class="w-8 px-1"></th>
-              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors px-1 w-[80px] whitespace-nowrap"
+              <th class="font-semibold relative group cursor-pointer hover:bg-base-300 transition-colors px-1 whitespace-nowrap"
                   data-min-width="50">
                 <a class="flex items-center justify-between w-full h-full px-1"
                    href="?{% sort_url 'origin' %}"
@@ -16,7 +16,7 @@
                    hx-target="#task-results"
                    hx-swap="outerHTML"
                    hx-push-url="true">
-                  <span class="truncate">{% trans "Origin" %}</span>
+                  <span>{% trans "Origin" %}</span>
                   {% if current_sort == 'origin' %}
                     <span class="text-xs">
                       {% if current_dir == 'asc' %}
@@ -71,7 +71,7 @@
                 </a>
                 <div class="resizer"></div>
               </th>
-              <th class="font-semibold relative group overflow-hidden cursor-pointer hover:bg-base-300 transition-colors px-1 w-[150px] min-w-[150px]"
+              <th class="font-semibold relative group overflow-hidden cursor-pointer hover:bg-base-300 transition-colors px-1 w-[150px] min-w-[150px] max-w-[150px]"
                   data-min-width="80">
                 <a class="flex items-center justify-between w-full h-full px-1"
                    href="?{% sort_url 'customer' %}"
@@ -92,7 +92,7 @@
                 </a>
                 <div class="resizer"></div>
               </th>
-              <th class="font-semibold relative group overflow-hidden cursor-pointer hover:bg-base-300 transition-colors px-1 w-[150px] min-w-[150px]"
+              <th class="font-semibold relative group overflow-hidden cursor-pointer hover:bg-base-300 transition-colors px-1 w-[150px] min-w-[150px] max-w-[150px]"
                   data-min-width="80">
                 <a class="flex items-center justify-between w-full h-full px-1"
                    href="?{% sort_url 'group' %}"
@@ -294,10 +294,10 @@
                   </button>
                 </form>
               </td>
-              <td class="px-1 w-1 whitespace-nowrap">
+              <td class="px-1 whitespace-nowrap">
                 <span class="badge badge-ghost text-xs">{{ task.service.name }}</span>
               </td>
-              <td class="font-mono text-sm font-bold px-1 overflow-hidden">
+              <td class="font-mono text-sm font-bold px-1 overflow-hidden max-w-[120px]">
                 <div class="flex items-center gap-1">
                   <span class="truncate flex-1" title="{{ task.external_id }}">{{ task.external_id }}</span>
                   <button type="button"
@@ -319,10 +319,10 @@
                 <span class="block font-medium whitespace-normal break-words truncate"
                       title="{{ task.title }}">{{ task.title }}</span>
               </td>
-              <td class="text-sm px-1 overflow-hidden">
+              <td class="text-sm px-1 overflow-hidden max-w-[150px]">
                 <div class="truncate" title="{{ task.customer }}">{{ task.customer }}</div>
               </td>
-              <td class="text-sm px-1 overflow-hidden">
+              <td class="text-sm px-1 overflow-hidden max-w-[150px]">
                 <div class="truncate" title="{{ task.group }}">{{ task.group }}</div>
               </td>
               <td class="text-sm px-1 min-w-[150px] max-w-[250px] align-top">
