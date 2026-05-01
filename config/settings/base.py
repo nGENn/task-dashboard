@@ -65,6 +65,7 @@ WSGI_APPLICATION = "config.wsgi.application"
 # APPS
 # ------------------------------------------------------------------------------
 DJANGO_APPS = [
+    "unfold",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -393,6 +394,96 @@ GITLAB_API_TOKEN = env("GITLAB_API_TOKEN", default="")
 # Zammad Integration
 ZAMMAD_API_URL = env("ZAMMAD_API_URL", default="")
 ZAMMAD_API_TOKEN = env("ZAMMAD_API_TOKEN", default="")
+
+# django-unfold
+# ------------------------------------------------------------------------------
+from django.templatetags.static import static  # noqa: E402
+from django.urls import reverse_lazy  # noqa: E402
+
+UNFOLD = {
+    "SITE_TITLE": "Task Dashboard",
+    "SITE_HEADER": "Task Dashboard",
+    "SITE_SUBHEADER": _("Admin Panel"),
+    "SITE_LOGO": lambda request: static("images/favicons/logo.svg"),
+    "SITE_ICON": lambda request: static("images/favicons/logo.svg"),
+    "SITE_FAVICONS": [
+        {
+            "rel": "icon",
+            "type": "image/svg+xml",
+            "href": lambda request: static("images/favicons/logo.svg"),
+        }
+    ],
+    "SHOW_VIEW_ON_SITE": False,
+    "SIDEBAR": {
+        "show_search": True,
+        "navigation": [
+            {
+                "title": _("Configuration"),
+                "items": [
+                    {
+                        "title": _("Services"),
+                        "icon": "settings",
+                        "link": reverse_lazy(
+                            "admin:users_serviceconfiguration_changelist"
+                        ),
+                    },
+                    {
+                        "title": _("Global Settings"),
+                        "icon": "tune",
+                        "link": reverse_lazy("admin:users_globalsetting_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Access Control"),
+                "items": [
+                    {
+                        "title": _("Groups"),
+                        "icon": "group",
+                        "link": reverse_lazy("admin:auth_group_changelist"),
+                    },
+                    {
+                        "title": _("External Groups"),
+                        "icon": "hub",
+                        "link": reverse_lazy("admin:users_externalgroup_changelist"),
+                    },
+                    {
+                        "title": _("Service Permissions"),
+                        "icon": "shield",
+                        "link": reverse_lazy(
+                            "admin:users_servicepermission_changelist"
+                        ),
+                    },
+                    {
+                        "title": _("Task Permissions"),
+                        "icon": "lock",
+                        "link": reverse_lazy("admin:users_taskpermission_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Users"),
+                "items": [
+                    {
+                        "title": _("Users"),
+                        "icon": "person",
+                        "link": reverse_lazy("admin:users_user_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Tasks"),
+                "items": [
+                    {
+                        "title": _("Tasks"),
+                        "icon": "task",
+                        "link": reverse_lazy("admin:users_task_changelist"),
+                    },
+                ],
+            },
+        ],
+    },
+}
 
 # django-q2
 # ------------------------------------------------------------------------------

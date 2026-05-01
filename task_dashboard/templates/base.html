@@ -34,18 +34,22 @@
           localStorage.removeItem('theme');
         }
 
+        // Migrate legacy catppuccin cookie values to DaisyUI defaults
+        const _legacyTheme = getCookie('theme');
+        if (_legacyTheme === 'latte') setCookie('theme', 'light');
+        if (_legacyTheme === 'mocha') setCookie('theme', 'dark');
+
         const theme = getCookie('theme') || "{{ theme }}";
         const resolveTheme = (t) => {
-          if (t === 'dark') return 'mocha';
-          if (t === 'light') return 'latte';
-          return t === 'system' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'mocha' : 'latte') : t;
+          if (t === 'system') return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          return t;
         };
         document.documentElement.setAttribute('data-theme', resolveTheme(theme));
         window.__initialTheme = theme;
 
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
           if (window.getCookie('theme') === 'system' || !window.getCookie('theme')) {
-            document.documentElement.setAttribute('data-theme', e.matches ? 'mocha' : 'latte');
+            document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
           }
         });
       })();
@@ -348,7 +352,7 @@
               <ul tabindex="0"
                   class="dropdown-content z-[100] menu p-2 shadow-xl bg-base-100 rounded-box w-40 border border-base-300 mt-2">
                 <li>
-                  <a onclick="setTheme('latte')" class="flex items-center gap-2">
+                  <a onclick="setTheme('light')" class="flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg"
                          class="h-4 w-4"
                          fill="none"
@@ -360,7 +364,7 @@
                   </a>
                 </li>
                 <li>
-                  <a onclick="setTheme('mocha')" class="flex items-center gap-2">
+                  <a onclick="setTheme('dark')" class="flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg"
                          class="h-4 w-4"
                          fill="none"
@@ -394,15 +398,15 @@
                 <button class="btn btn-sm btn-outline" onclick="logout_modal.showModal()">{% trans "Log Out" %}</button>
                 <dialog id="logout_modal" class="modal">
                   <div class="modal-box">
-                    <h3 class="font-bold text-lg">Confirm Logout</h3>
-                    <p class="py-4">Are you sure you want to sign out of the dashboard?</p>
+                    <h3 class="font-bold text-lg">{% trans "Confirm Logout" %}</h3>
+                    <p class="py-4">{% trans "Are you sure you want to sign out of the dashboard?" %}</p>
                     <div class="modal-action">
                       <form method="post" action="{% url 'account_logout' %}">
                         {% csrf_token %}
-                        <button type="submit" class="btn btn-error">Yes, Log Out</button>
+                        <button type="submit" class="btn btn-error">{% trans "Yes, Log Out" %}</button>
                       </form>
                       <form method="dialog">
-                        <button class="btn">Cancel</button>
+                        <button class="btn">{% trans "Cancel" %}</button>
                       </form>
                     </div>
                   </div>
@@ -411,7 +415,7 @@
                   </form>
                 </dialog>
               {% else %}
-                <a href="{% url 'account_login' %}" class="btn btn-sm btn-primary">Log In</a>
+                <a href="{% url 'account_login' %}" class="btn btn-sm btn-primary">{% trans "Log In" %}</a>
               {% endif %}
             </div>
           </div>
@@ -440,10 +444,8 @@
       <!-- Theme Toggle Script -->
       <script>
         function resolveTheme(theme) {
-          if (theme === 'dark') return 'mocha';
-          if (theme === 'light') return 'latte';
           if (theme === 'system') {
-            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'mocha' : 'latte';
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
           }
           return theme;
         }
@@ -462,8 +464,8 @@
           const moonPath = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />';
           const systemPath = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />';
 
-          if (theme === 'latte') iconSvg.innerHTML = sunPath;
-          if (theme === 'mocha') iconSvg.innerHTML = moonPath;
+          if (theme === 'light') iconSvg.innerHTML = sunPath;
+          if (theme === 'dark') iconSvg.innerHTML = moonPath;
           if (theme === 'system') iconSvg.innerHTML = systemPath;
         }
 

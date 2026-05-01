@@ -614,3 +614,91 @@ msgstr "Task-Aktualisierung fehlgeschlagen."
 #: task_dashboard/users/views.py:884
 msgid "My Tasks"
 msgstr "Meine Aufgaben"
+
+#: task_dashboard/templates/base.html:414
+msgid "Log In"
+msgstr "Anmelden"
+
+#: task_dashboard/templates/account/login.html:14
+msgid "Welcome Back"
+msgstr "Willkommen zurück"
+
+#: task_dashboard/templates/account/login.html:15
+msgid "Task Management System"
+msgstr "Aufgabenverwaltungssystem"
+
+#: task_dashboard/templates/account/login.html:29
+msgid "Sign in with SSO (Keycloak)"
+msgstr "Mit SSO anmelden (Keycloak)"
+
+#: task_dashboard/templates/account/login.html:33
+msgid "OR"
+msgstr "ODER"
+
+#: task_dashboard/templates/account/login.html:45
+msgid "Admin Login"
+msgstr "Admin-Anmeldung"
+
+#: task_dashboard/templates/account/login.html:65
+msgid "Email"
+msgstr "E-Mail"
+
+#: task_dashboard/templates/account/login.html:72
+msgid "Password"
+msgstr "Passwort"
+
+#: task_dashboard/templates/account/login.html:80
+msgid "Remember Me"
+msgstr "Angemeldet bleiben"
+
+#: task_dashboard/templates/base.html (logout modal)
+msgid "Confirm Logout"
+msgstr "Abmeldung bestätigen"
+
+#: task_dashboard/templates/base.html (logout modal)
+msgid "Are you sure you want to sign out of the dashboard?"
+msgstr "Möchten Sie sich wirklich vom Dashboard abmelden?"
+
+#: task_dashboard/templates/base.html (logout modal)
+msgid "Yes, Log Out"
+msgstr "Ja, abmelden"
+
+#: config/settings/base.py (UNFOLD navigation)
+msgid "Configuration"
+msgstr "Konfiguration"
+
+#: config/settings/base.py (UNFOLD navigation)
+msgid "Services"
+msgstr "Dienste"
+
+#: config/settings/base.py (UNFOLD navigation)
+msgid "Global Settings"
+msgstr "Globale Einstellungen"
+
+#: config/settings/base.py (UNFOLD navigation)
+msgid "Access Control"
+msgstr "Zugangskontrolle"
+
+#: config/settings/base.py (UNFOLD navigation)
+msgid "External Groups"
+msgstr "Externe Gruppen"
+
+#: config/settings/base.py (UNFOLD navigation)
+msgid "Service Permissions"
+msgstr "Dienst-Berechtigungen"
+
+#: config/settings/base.py (UNFOLD navigation)
+msgid "Task Permissions"
+msgstr "Aufgaben-Berechtigungen"
+
+#: config/settings/base.py (UNFOLD navigation)
+msgid "Tasks"
+msgstr "Aufgaben"
+
+#: task_dashboard/users/admin_site.py
+msgid "Administration"
+msgstr "Administration"
+
+#: config/settings/base.py (UNFOLD)
+msgid "Admin Panel"
+msgstr "Admin-Panel"
