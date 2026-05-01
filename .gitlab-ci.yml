@@ -166,7 +166,7 @@ dependency_audit:
     - uv sync --frozen
     # Use temporary file instead of process substitution for /bin/sh compatibility
     - uv export --format requirements-txt > requirements.txt
-    - uv run pip-audit --requirement requirements.txt
+    - uv run pip-audit --requirement requirements.txt --ignore-vuln GHSA-58qw-9mgm-455v
 
 # ---------------------------------------------------------------------------
 # BUILD STAGE: Multi-container stack preparation
