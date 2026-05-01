@@ -25,7 +25,11 @@ class GlobalSettingForm(forms.ModelForm):
 
     class Meta:
         model = GlobalSetting
-        fields = ["company_name", "default_task_states"]
+        fields = [
+            "company_name",
+            "default_task_states",
+            "sso_default_group",
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

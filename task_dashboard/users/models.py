@@ -36,13 +36,18 @@ class User(AbstractUser):
 
     objects: ClassVar[UserManager] = UserManager()
 
+    # Names of Django groups last assigned by SSO sync.
+    # Used to determine which groups to remove on the next login without
+    # touching groups that were manually assigned in the admin.
+    sso_synced_groups: models.JSONField = models.JSONField(
+        default=list,
+        blank=True,
+    )
+
+    def get_full_name(self) -> str:
+        return self.name
+
     def get_absolute_url(self) -> str:
-        """Get URL for user's detail view.
-
-        Returns:
-            str: URL for individual user profile.
-
-        """
         return reverse("users:detail", kwargs={"pk": self.pk})
 
 
@@ -52,25 +57,6 @@ ACCESS_LEVEL_CHOICES = [
     ("OWN", _("Only own tasks")),
     ("NONE", _("No Access")),
 ]
-
-
-class SSOGroup(models.Model):
-    """
-    Marker model to differentiate groups created by SSO from manually created ones.
-    """
-
-    group = models.OneToOneField(
-        Group,
-        on_delete=models.CASCADE,
-        related_name="sso_group",
-    )
-
-    class Meta:
-        verbose_name = "SSO Group Marker"
-        verbose_name_plural = "SSO Group Markers"
-
-    def __str__(self):
-        return f"SSO Managed: {self.group.name}"
 
 
 class ServiceConfiguration(models.Model):
@@ -157,6 +143,15 @@ class GlobalSetting(models.Model):
         help_text=(
             "Comma-separated list of default task states to show in the table "
             "(e.g., open,pending,new)."
+        ),
+    )
+    sso_default_group = models.CharField(
+        max_length=150,
+        blank=True,
+        default="",
+        help_text=(
+            "Fallback group assigned to SSO users when Keycloak provides no groups. "
+            "Leave blank to use the built-in 'sso-default-fallback' group."
         ),
     )
 

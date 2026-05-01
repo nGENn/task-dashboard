@@ -8,12 +8,16 @@ from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.conf import settings
 from django.contrib.auth.models import Group
 
-from task_dashboard.users.models import SSOGroup
+from task_dashboard.users.models import GlobalSetting
 from task_dashboard.users.models import User
 
 if typing.TYPE_CHECKING:
     from allauth.socialaccount.models import SocialLogin
     from django.http import HttpRequest
+
+_SSO_PROVIDERS = frozenset({"keycloak", "openid_connect"})
+_IGNORED_GROUPS = frozenset({"offline_access", "uma_authorization"})
+_FALLBACK_GROUP = "sso-default-fallback"
 
 
 class AccountAdapter(DefaultAccountAdapter):
@@ -34,7 +38,6 @@ class AccountAdapter(DefaultAccountAdapter):
 
         if commit:
             try:
-                # get_or_create ensures we don't crash if the group is missing
                 group, _ = Group.objects.get_or_create(name=default_group_name)
                 user.groups.add(group)
             except Exception as e:  # noqa: BLE001
@@ -102,15 +105,15 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         return user
 
     def _extract_groups(self, data: typing.Any) -> set[str]:
-        """
-        Helper to extract group names from a dictionary.
-        Looks for 'groups', 'policy', and 'roles' keys.
+        """Extract group names from a token payload dict.
+
+        Checks 'groups', 'policy', and 'roles' keys in that order.
         """
         if not isinstance(data, dict):
             return set()
 
         extracted: set[str] = set()
-        for key in ["groups", "policy", "roles"]:
+        for key in ("groups", "policy", "roles"):
             val = data.get(key)
             if isinstance(val, list):
                 extracted.update(str(item) for item in val)
@@ -119,51 +122,51 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         return extracted
 
     def _sync_groups(self, sociallogin: SocialLogin, user: User) -> None:
-        """
-        Syncs Keycloak groups from social account data to Django groups.
-        """
+        """Sync Keycloak groups to Django groups on every SSO login.
 
-        # 1. Check provider
-        provider = sociallogin.account.provider
-        if provider not in ["keycloak", "openid_connect"]:
+        Groups that were previously assigned by this method (tracked in
+        user.sso_synced_groups) are removed if they no longer appear in
+        the token.  Groups assigned manually in the admin are never touched.
+
+        When the token contains no groups, the user is placed into the group
+        configured in GlobalSetting.sso_default_group, or 'sso-default-fallback'
+        if that field is blank.
+        """
+        if sociallogin.account.provider not in _SSO_PROVIDERS:
             return
 
-        # 2. Get groups from extra_data (including nested locations)
         extra_data = sociallogin.account.extra_data
+        raw: set[str] = self._extract_groups(extra_data)
+        raw.update(self._extract_groups(extra_data.get("userinfo")))
+        raw.update(self._extract_groups(extra_data.get("id_token")))
+        token_groups = {g for g in raw if g not in _IGNORED_GROUPS}
 
-        # We look into top-level, userinfo, and id_token as requested
-        all_groups = self._extract_groups(extra_data)
-        all_groups.update(self._extract_groups(extra_data.get("userinfo")))
-        all_groups.update(self._extract_groups(extra_data.get("id_token")))
+        if token_groups:
+            target_names = token_groups
+        else:
+            setting = GlobalSetting.load()
+            target_names = {setting.sso_default_group.strip() or _FALLBACK_GROUP}
 
-        # 3. Filter out technical scopes and handle ignored groups
-        ignored_groups = {"offline_access", "uma_authorization"}
-        groups_names = [g for g in all_groups if g not in ignored_groups]
-
-        # 4. Sync groups
-        # Ensure groups exist and collect them
-        django_groups = []
-        for name in groups_names:
+        # Ensure all target groups exist in Django
+        target_groups: list[Group] = []
+        for name in target_names:
             group, _ = Group.objects.get_or_create(name=name)
-            # Mark it as an SSO group
-            SSOGroup.objects.get_or_create(group=group)
-            django_groups.append(group)
+            target_groups.append(group)
 
-        # 5. Assign groups to user
-        # Only manage SSO groups; leave manual groups alone.
-        if user.pk:
-            # Current SSO groups the user belongs to
-            sso_group_ids = SSOGroup.objects.values_list("group_id", flat=True)
-            current_user_sso_groups = set(user.groups.filter(id__in=sso_group_ids))
+        if not user.pk:
+            user.groups.set(target_groups)
+            return
 
-            # New SSO groups from this login
-            new_sso_groups = set(django_groups)
+        prev_synced: set[str] = set(user.sso_synced_groups or [])
+        current_ids: set[int] = set(user.groups.values_list("id", flat=True))
 
-            # Diff
-            to_remove = current_user_sso_groups - new_sso_groups
-            to_add = new_sso_groups - current_user_sso_groups
+        to_remove = Group.objects.filter(name__in=prev_synced - target_names)
+        to_add = [g for g in target_groups if g.pk not in current_ids]
 
-            if to_remove:
-                user.groups.remove(*to_remove)
-            if to_add:
-                user.groups.add(*to_add)
+        if to_remove:
+            user.groups.remove(*to_remove)
+        if to_add:
+            user.groups.add(*to_add)
+
+        user.sso_synced_groups = sorted(target_names)
+        user.save(update_fields=["sso_synced_groups"])
