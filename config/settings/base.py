@@ -414,6 +414,7 @@ UNFOLD = {
         }
     ],
     "SHOW_VIEW_ON_SITE": False,
+    "SHOW_LANGUAGES": True,
     "SIDEBAR": {
         "show_search": True,
         "navigation": [
