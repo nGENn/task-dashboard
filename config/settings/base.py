@@ -448,18 +448,6 @@ UNFOLD = {
                         "icon": "hub",
                         "link": reverse_lazy("admin:users_externalgroup_changelist"),
                     },
-                    {
-                        "title": _("Service Permissions"),
-                        "icon": "shield",
-                        "link": reverse_lazy(
-                            "admin:users_servicepermission_changelist"
-                        ),
-                    },
-                    {
-                        "title": _("Task Permissions"),
-                        "icon": "lock",
-                        "link": reverse_lazy("admin:users_taskpermission_changelist"),
-                    },
                 ],
             },
             {

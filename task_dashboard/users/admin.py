@@ -1,41 +1,30 @@
 from allauth.account.decorators import secure_admin_login
-from allauth.socialaccount.models import SocialApp
-from allauth.socialaccount.models import SocialToken
 from django import forms
 from django.conf import settings
 from django.contrib import admin
-from django.contrib.admin.exceptions import NotRegistered
 from django.contrib.auth import admin as auth_admin
 from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
 from django.contrib.auth.models import Group
 from django.utils.translation import gettext_lazy as _
+from unfold.admin import ModelAdmin
 
+from .admin_site import admin_site
 from .forms import GlobalSettingForm
 from .forms import UserAdminChangeForm
 from .forms import UserAdminCreationForm
 from .models import ExternalGroup
 from .models import GlobalSetting
 from .models import ServiceConfiguration
-from .models import ServicePermission
 from .models import Task
-from .models import TaskPermission
 from .models import User
 
 if settings.DJANGO_ADMIN_FORCE_ALLAUTH:
-    # Force the `admin` sign in process to go through the `django-allauth` workflow:
-    # https://docs.allauth.org/en/latest/common/admin.html#admin
     admin.autodiscover()
-    admin.site.login = secure_admin_login(admin.site.login)  # type: ignore[method-assign]
-
-try:
-    admin.site.unregister(SocialApp)
-    admin.site.unregister(SocialToken)
-except NotRegistered:
-    pass
+    admin_site.login = secure_admin_login(admin_site.login)
 
 
-@admin.register(User)
-class UserAdmin(auth_admin.UserAdmin):
+@admin.register(User, site=admin_site)
+class UserAdmin(ModelAdmin, auth_admin.UserAdmin):
     form = UserAdminChangeForm
     add_form = UserAdminCreationForm
     fieldsets = (
@@ -88,8 +77,8 @@ class ServiceConfigurationForm(forms.ModelForm):
         }
 
 
-@admin.register(ServiceConfiguration)
-class ServiceConfigurationAdmin(admin.ModelAdmin):
+@admin.register(ServiceConfiguration, site=admin_site)
+class ServiceConfigurationAdmin(ModelAdmin):
     form = ServiceConfigurationForm
     list_display = [
         "name",
@@ -127,31 +116,13 @@ class ServiceConfigurationAdmin(admin.ModelAdmin):
     )
 
 
-# 1. Allow managing permissions directly inside the Django Group page
-class ServicePermissionInline(admin.TabularInline):
-    model = ServicePermission
-    extra = 1
-    autocomplete_fields = ["service"]
+@admin.register(Group, site=admin_site)
+class GroupAdmin(ModelAdmin, BaseGroupAdmin):
+    pass
 
 
-class TaskPermissionInline(admin.TabularInline):
-    model = TaskPermission
-    extra = 1
-    autocomplete_fields = ["allowed_external_group"]
-
-
-# Unregister default Group admin and re-register with our Inline
-admin.site.unregister(Group)
-
-
-@admin.register(Group)
-class GroupAdmin(BaseGroupAdmin):
-    inlines = [ServicePermissionInline, TaskPermissionInline]
-
-
-# 2. Manage Discovered Groups (Read Only mostly, as they are auto-created)
-@admin.register(ExternalGroup)
-class ExternalGroupAdmin(admin.ModelAdmin):
+@admin.register(ExternalGroup, site=admin_site)
+class ExternalGroupAdmin(ModelAdmin):
     list_display = ["origin", "name", "last_seen", "display_extra_data"]
     list_filter = ["origin"]
     search_fields = ["name", "origin", "extra_data"]
@@ -162,25 +133,11 @@ class ExternalGroupAdmin(admin.ModelAdmin):
     def display_extra_data(self, obj):
         if not obj.extra_data:
             return "-"
-        # Return a concise string representation
         return ", ".join(f"{k}: {v}" for k, v in obj.extra_data.items())
 
 
-# 3. Direct Permission Management
-@admin.register(ServicePermission)
-class ServicePermissionAdmin(admin.ModelAdmin):
-    list_display = ["django_group", "service"]
-    list_filter = ["django_group", "service"]
-
-
-@admin.register(TaskPermission)
-class TaskPermissionAdmin(admin.ModelAdmin):
-    list_display = ["django_group", "allowed_external_group"]
-    list_filter = ["django_group", "allowed_external_group__origin"]
-
-
-@admin.register(Task)
-class TaskAdmin(admin.ModelAdmin):
+@admin.register(Task, site=admin_site)
+class TaskAdmin(ModelAdmin):
     list_display = [
         "title",
         "service",
@@ -195,14 +152,13 @@ class TaskAdmin(admin.ModelAdmin):
     ordering = ["-updated_at"]
 
 
-@admin.register(GlobalSetting)
-class GlobalSettingAdmin(admin.ModelAdmin):
+@admin.register(GlobalSetting, site=admin_site)
+class GlobalSettingAdmin(ModelAdmin):
     form = GlobalSettingForm
     list_display = ["company_name", "default_task_states"]
     exclude = ["default_task_states"]
 
     def has_add_permission(self, request):
-        # Allow adding only if no setting exists yet
         if GlobalSetting.objects.exists():
             return False
         return super().has_add_permission(request)
