@@ -193,7 +193,6 @@ build-image:
     - docker buildx build
       --tag $IMAGE:latest
       --tag $IMAGE:$VERSION
-      --tag $IMAGE:$CI_COMMIT_SHORT_SHA
       --push
       --cache-from type=registry,ref=$IMAGE:buildcache
       --cache-to type=registry,ref=$IMAGE:buildcache,mode=max
@@ -209,6 +208,7 @@ pages:
   artifacts:
     paths:
       - docs/_build/html
+    expire_in: 1 week
   publish: docs/_build/html
   only:
     - main

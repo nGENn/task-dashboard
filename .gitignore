@@ -53,6 +53,7 @@ coverage.xml
 # Django stuff:
 staticfiles/
 task_dashboard/static/css/output.css
+task_dashboard/static/css/project.css
 db.sqlite3
 
 # Sphinx documentation
