@@ -281,7 +281,6 @@ task_dashboard/media/
 !.envs/.ci/
 .agent/
 .ruff_cache/
-.github/
 
 
 # Tailwind Binaries

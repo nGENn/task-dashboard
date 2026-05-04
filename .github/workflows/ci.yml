@@ -1,0 +1,76 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  UV_CACHE_DIR: /tmp/.uv-cache
+  PYTHONUNBUFFERED: "1"
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - run: uv run pre-commit run --all-files
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: task_dashboard
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: test_task_dashboard
+        ports: ['5432:5432']
+      valkey:
+        image: valkey/valkey:8
+        ports: ['6379:6379']
+    env:
+      DATABASE_URL: postgres://task_dashboard:password@localhost:5432/test_task_dashboard
+      DJANGO_SECRET_KEY: test-key
+      DJANGO_SETTINGS_MODULE: config.settings.test
+      VALKEY_URL: redis://localhost:6379/0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - run: uv run pytest --junitxml=report.xml --cov=task_dashboard
+  pages:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - run: cd docs && uv run sphinx-build -b html . _build/html
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: docs/_build/html }
+      - uses: actions/deploy-pages@v4
+  publish-wiki:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish RST docs to Wiki
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          git config --global user.email "ci@github.com"
+          git config --global user.name "CI Bot"
+          git clone "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.wiki.git" wiki
+          rm -f wiki/*.rst
+          cp docs/*.rst wiki/
+          mv wiki/index.rst wiki/Home.rst
+          cd wiki
+          git add -A
+          git diff --cached --quiet && echo "No changes" || git commit -m "docs: sync from main [skip ci]"
+          git diff --cached --quiet || git push
