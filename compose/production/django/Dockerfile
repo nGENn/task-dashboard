@@ -19,7 +19,7 @@ COPY ./task_dashboard /app/task_dashboard
 
 # Build the CSS
 RUN cd task_dashboard/static/css && \
-    tailwindcss -i input.css -o output.css --minify && \
+    tailwindcss -i input.css -o project.css --minify && \
     rm input.css
 
 # Python build stage
@@ -75,7 +75,7 @@ RUN sed -i 's/\r$//g' /start && chmod +x /start
 COPY --from=python-build-stage --chown=django:django ${APP_HOME} ${APP_HOME}
 
 # Copy the compiled CSS from the css-build-stage
-COPY --from=css-build-stage --chown=django:django /app/task_dashboard/static/css/output.css ${APP_HOME}/task_dashboard/static/css/output.css
+COPY --from=css-build-stage --chown=django:django /app/task_dashboard/static/css/project.css ${APP_HOME}/task_dashboard/static/css/project.css
 
 # Prepare folders and permissions
 RUN mkdir -p ${APP_HOME}/task_dashboard/media ${APP_HOME}/staticfiles && \
