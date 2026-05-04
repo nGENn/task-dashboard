@@ -83,6 +83,18 @@
                 "clear": true
             },
             "problemMatcher": []
+        },
+        {
+            "label": "Sphinx Docs",
+            "type": "shell",
+            "command": "LC_ALL=C.UTF-8 LANG=C.UTF-8 uv run sphinx-autobuild docs/ docs/_build/html",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            },
+            "problemMatcher": []
         }
     ],
     "inputs": [

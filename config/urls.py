@@ -1,13 +1,19 @@
 from django.conf import settings
 from django.conf.urls.static import static
-from django.contrib import admin
+from django.http import Http404
 from django.urls import include
 from django.urls import path
 from django.views import defaults as default_views
 from django.views.generic import RedirectView
 from django.views.generic import TemplateView
 
+from task_dashboard.users.admin_site import admin_site
 from task_dashboard.users.views import DashboardView
+
+
+def _password_reset_disabled(request, **kwargs):
+    raise Http404
+
 
 urlpatterns = [
     path("", DashboardView.as_view(perspective="home"), name="home"),
@@ -25,13 +31,17 @@ urlpatterns = [
         name="about",
     ),
     # Django Admin, use {% url 'admin:index' %}
-    path(settings.ADMIN_URL, admin.site.urls),
+    path(settings.ADMIN_URL, admin_site.urls),
     # User management
     path("users/", include("task_dashboard.users.urls", namespace="users")),
     path(
         "accounts/signup/",
         RedirectView.as_view(pattern_name="account_login", permanent=True),
     ),
+    path("accounts/password/reset/", _password_reset_disabled),
+    path("accounts/password/reset/done/", _password_reset_disabled),
+    path("accounts/password/reset/key/<uidb36>-<key>/", _password_reset_disabled),
+    path("accounts/password/reset/key/done/", _password_reset_disabled),
     path("accounts/", include("allauth.urls")),
     path("i18n/", include("django.conf.urls.i18n")),
     # Your stuff: custom urls includes go here

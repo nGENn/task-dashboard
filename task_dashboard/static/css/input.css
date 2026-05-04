@@ -120,3 +120,25 @@
 [data-theme="mocha"] .flatpickr-calendar {
   color-scheme: dark;
 }
+
+/* Table column resizer handle */
+.resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 5px;
+  cursor: col-resize;
+  user-select: none;
+  z-index: 1;
+}
+
+.resizer:hover {
+  background-color: var(--color-base-content);
+  opacity: 0.2;
+}
+
+.resizer.resizing {
+  background-color: var(--color-base-content);
+  opacity: 0.35;
+}

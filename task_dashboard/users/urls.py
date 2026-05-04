@@ -6,13 +6,11 @@ from .views import force_refresh_view
 from .views import refresh_single_task_view
 from .views import save_view
 from .views import stats_view
-from .views import user_detail_view
 from .views import user_update_view
 
 app_name = "users"
 urlpatterns = [
     path("~update/", view=user_update_view, name="update"),
-    path("<int:pk>/", view=user_detail_view, name="detail"),
     path("force-refresh/", force_refresh_view, name="force-refresh"),
     path(
         "tasks/<int:pk>/refresh/", refresh_single_task_view, name="refresh-single-task"

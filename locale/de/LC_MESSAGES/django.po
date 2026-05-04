@@ -702,3 +702,156 @@ msgstr "Administration"
 #: config/settings/base.py (UNFOLD)
 msgid "Admin Panel"
 msgstr "Admin-Panel"
+
+#: config/settings/base.py (UNFOLD navigation)
+msgid "Groups"
+msgstr "Gruppen"
+
+#: task_dashboard/users/models.py (ServiceConfiguration.Meta)
+msgid "Service Configuration"
+msgstr "Dienstkonfiguration"
+
+#: task_dashboard/users/models.py (ServiceConfiguration.Meta)
+msgid "Service Configurations"
+msgstr "Dienstkonfigurationen"
+
+#: task_dashboard/users/models.py (ServiceConfiguration.name)
+msgid "Service Type"
+msgstr "Diensttyp"
+
+#: task_dashboard/users/models.py (ServiceConfiguration.default_access_level)
+msgid "Default Access Level"
+msgstr "Standard-Zugriffslevel"
+
+#: task_dashboard/users/models.py (ServiceConfiguration.api_url)
+msgid "API URL"
+msgstr "API-URL"
+
+#: task_dashboard/users/models.py (ServiceConfiguration.is_active)
+msgid "Active"
+msgstr "Aktiv"
+
+#: task_dashboard/users/models.py (ServiceConfiguration.name help_text)
+msgid "Display Name (e.g. Internal Helpdesk)"
+msgstr "Anzeigename (z.B. Interner Helpdesk)"
+
+#: task_dashboard/users/models.py (ServiceConfiguration.service_type help_text)
+msgid "Type of service to connect to."
+msgstr "Typ des zu verbindenden Dienstes."
+
+#: task_dashboard/users/models.py (ServiceConfiguration.default_access_level help_text)
+msgid "Default access level for all users on this service."
+msgstr "Standard-Zugriffslevel für alle Benutzer auf diesem Dienst."
+
+#: task_dashboard/users/models.py (ServiceConfiguration.api_url help_text)
+msgid "Base URL for the service API."
+msgstr "Basis-URL für die Dienst-API."
+
+#: task_dashboard/users/models.py (ServiceConfiguration.api_token help_text)
+msgid "API Token or Secret for authentication."
+msgstr "API-Token oder Secret zur Authentifizierung."
+
+#: task_dashboard/users/models.py (ServiceConfiguration.api_username help_text)
+msgid "Username for Basic Authentication (e.g. Eramba)"
+msgstr "Benutzername für Basic-Authentifizierung (z.B. Eramba)"
+
+#: task_dashboard/users/models.py (ServiceConfiguration.api_password help_text)
+msgid "Password for Basic Authentication (e.g. Eramba)"
+msgstr "Passwort für Basic-Authentifizierung (z.B. Eramba)"
+
+#: task_dashboard/users/models.py (ServiceConfiguration.is_active help_text)
+msgid "Uncheck to hide this service from the dashboard completely."
+msgstr "Deaktivieren, um diesen Dienst vollständig auszublenden."
+
+#: task_dashboard/users/models.py (ServiceConfiguration.permissions)
+msgid "Can view system health indicator"
+msgstr "Kann Systemstatus-Anzeige sehen"
+
+#: task_dashboard/users/models.py (ServiceConfiguration.permissions)
+msgid "Can view admin panel button"
+msgstr "Kann Admin-Panel-Schaltfläche sehen"
+
+#: task_dashboard/users/models.py (GlobalSetting.Meta)
+msgid "Global Setting"
+msgstr "Globale Einstellung"
+
+#: task_dashboard/users/models.py (GlobalSetting.company_name)
+msgid "Company Name"
+msgstr "Firmenname"
+
+#: task_dashboard/users/models.py (GlobalSetting.company_name help_text)
+msgid "Used as fallback customer name across services if none is specified."
+msgstr "Fallback-Kundenname in allen Diensten, wenn kein Kunde angegeben ist."
+
+#: task_dashboard/users/models.py (GlobalSetting.default_task_states)
+msgid "Default Task States"
+msgstr "Standard-Aufgabenstatus"
+
+#: task_dashboard/users/models.py (GlobalSetting.default_task_states help_text)
+msgid ""
+"Comma-separated list of default task states to show in the table "
+"(e.g., open,pending,new)."
+msgstr ""
+"Kommagetrennte Standard-Aufgabenstatus für die Tabelle "
+"(z.B. open,pending,new)."
+
+#: task_dashboard/users/models.py (GlobalSetting.sso_default_group)
+msgid "SSO Default Group"
+msgstr "SSO-Standardgruppe"
+
+#: task_dashboard/users/models.py (GlobalSetting.sso_default_group help_text)
+msgid ""
+"Fallback group assigned to SSO users when Keycloak provides no groups. "
+"Leave blank to use the built-in 'sso-default-fallback' group."
+msgstr ""
+"Fallback-Gruppe für SSO-Benutzer ohne Keycloak-Gruppen. "
+"Leer lassen für die eingebaute 'sso-default-fallback'-Gruppe."
+
+#: task_dashboard/users/models.py (ExternalGroup.Meta)
+msgid "External Group"
+msgstr "Externe Gruppe"
+
+#: task_dashboard/users/models.py (ExternalGroup.last_seen)
+msgid "Last Seen"
+msgstr "Zuletzt gesehen"
+
+#: task_dashboard/users/models.py (TaskPermission.Meta)
+msgid "Task Permission"
+msgstr "Aufgaben-Berechtigung"
+
+#: task_dashboard/users/models.py (ServicePermission.Meta)
+msgid "Service Permission"
+msgstr "Dienst-Berechtigung"
+
+#: task_dashboard/users/models.py (TaskPermission/ServicePermission access_level help_text)
+msgid ""
+"FULL: View everything. LIMITED: View only unassigned tasks "
+"or those assigned to the user. OWN: View only tasks "
+"assigned to the user. NONE: No access."
+msgstr ""
+"FULL: Alles anzeigen. LIMITED: Nur nicht zugewiesene oder eigene Aufgaben. "
+"OWN: Nur eigene Aufgaben. NONE: Kein Zugriff."
+
+#: task_dashboard/users/models.py (Task.Meta)
+msgid "Task"
+msgstr "Aufgabe"
+
+#: task_dashboard/users/models.py (Task.external_id)
+msgid "External ID"
+msgstr "Externe ID"
+
+#: task_dashboard/users/admin.py (ExternalGroupAdmin.display_extra_data)
+msgid "Extra Data (Slug/ID)"
+msgstr "Zusatzdaten (Slug/ID)"
+
+#: task_dashboard/users/forms.py (GlobalSettingForm.default_task_states_list)
+msgid "Select the default task states to show in the table."
+msgstr "Standard-Aufgabenstatus für die Tabelle auswählen."
+
+#: task_dashboard/users/forms.py (GlobalSettingForm.sso_default_group)
+msgid "Group assigned to SSO users when Keycloak provides no groups. Leave blank to use the built-in 'sso-default-fallback' group."
+msgstr "Fallback-Gruppe für SSO-Benutzer ohne Keycloak-Gruppen. Leer lassen für die eingebaute 'sso-default-fallback'-Gruppe."
+
+#: task_dashboard/users/forms.py (GlobalSettingForm.sso_default_group choice)
+msgid "— sso-default-fallback (built-in) —"
+msgstr "— sso-default-fallback (eingebaut) —"

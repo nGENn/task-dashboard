@@ -28,12 +28,12 @@ variables:
   # Resolve git fetch issues with pipelines refs
   GIT_DEPTH: "0"
   GIT_STRATEGY: clone
-  # Aligned with ARCHITECTURE.md: PostgreSQL 18
+  # Aligned with CONTRIBUTING.md: PostgreSQL 18
   POSTGRES_USER: 'task_dashboard'
   POSTGRES_PASSWORD: 'password'
   POSTGRES_DB: 'test_task_dashboard'
   POSTGRES_HOST_AUTH_METHOD: trust
-  # Aligned with ARCHITECTURE.md: Valkey/Redis parity
+  # Aligned with CONTRIBUTING.md: Valkey/Redis parity
   VALKEY_URL: "redis://valkey:6379/0"
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: ""
@@ -137,6 +137,11 @@ check_version_bump:
   needs: []
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - docs/**/*
+        - "*.md"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
     - PR_VERSION=$(grep -m 1 '^version = "' pyproject.toml | cut -d '"' -f 2)
     - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --depth=1
@@ -195,3 +200,15 @@ build-image:
       -f ./compose/production/django/Dockerfile .
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+pages:
+  stage: build
+  script:
+    - uv sync --frozen
+    - cd docs && uv run sphinx-build -b html . _build/html
+  artifacts:
+    paths:
+      - docs/_build/html
+  publish: docs/_build/html
+  only:
+    - main

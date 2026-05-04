@@ -17,6 +17,7 @@ if typing.TYPE_CHECKING:
 
 _SSO_PROVIDERS = frozenset({"keycloak", "openid_connect"})
 _IGNORED_GROUPS = frozenset({"offline_access", "uma_authorization"})
+_IGNORED_PREFIXES = ("default-roles-",)
 _FALLBACK_GROUP = "sso-default-fallback"
 
 
@@ -126,11 +127,10 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
 
         Groups that were previously assigned by this method (tracked in
         user.sso_synced_groups) are removed if they no longer appear in
-        the token.  Groups assigned manually in the admin are never touched.
+        the token. Groups assigned manually in the admin are never touched.
 
-        When the token contains no groups, the user is placed into the group
-        configured in GlobalSetting.sso_default_group, or 'sso-default-fallback'
-        if that field is blank.
+        SECURITY: To prevent privilege escalation, only groups that ALREADY EXIST
+        in Django OR start with 'sso-' are allowed to be synced.
         """
         if sociallogin.account.provider not in _SSO_PROVIDERS:
             return
@@ -139,7 +139,11 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         raw: set[str] = self._extract_groups(extra_data)
         raw.update(self._extract_groups(extra_data.get("userinfo")))
         raw.update(self._extract_groups(extra_data.get("id_token")))
-        token_groups = {g for g in raw if g not in _IGNORED_GROUPS}
+        token_groups = {
+            g
+            for g in raw
+            if g not in _IGNORED_GROUPS and not g.startswith(_IGNORED_PREFIXES)
+        }
 
         if token_groups:
             target_names = token_groups
@@ -147,9 +151,14 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
             setting = GlobalSetting.load()
             target_names = {setting.sso_default_group.strip() or _FALLBACK_GROUP}
 
-        # Ensure all target groups exist in Django
+        # SECURITY FILTER: Strictly only allow groups with 'sso-' prefix
+        allowed_target_names = {
+            name for name in target_names if name.startswith("sso-")
+        }
+
+        # Ensure all allowed target groups exist in Django
         target_groups: list[Group] = []
-        for name in target_names:
+        for name in allowed_target_names:
             group, _ = Group.objects.get_or_create(name=name)
             target_groups.append(group)
 
@@ -160,7 +169,7 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         prev_synced: set[str] = set(user.sso_synced_groups or [])
         current_ids: set[int] = set(user.groups.values_list("id", flat=True))
 
-        to_remove = Group.objects.filter(name__in=prev_synced - target_names)
+        to_remove = Group.objects.filter(name__in=prev_synced - allowed_target_names)
         to_add = [g for g in target_groups if g.pk not in current_ids]
 
         if to_remove:
@@ -168,5 +177,5 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         if to_add:
             user.groups.add(*to_add)
 
-        user.sso_synced_groups = sorted(target_names)
+        user.sso_synced_groups = sorted(allowed_target_names)
         user.save(update_fields=["sso_synced_groups"])

@@ -70,4 +70,4 @@ The production stack is orchestrated via [**`docker-compose.production.yml`**](d
 - **`postgres`**: Database (PostgreSQL 18 with `unaccent`).
 - **`valkey`**: In-memory store (Valkey 9.0.3) for task queues and caching.
 
-For deep-dive technical logic, see [**ARCHITECTURE.md**](ARCHITECTURE.md).
+For deep-dive technical logic, see [**CONTRIBUTING.md**](CONTRIBUTING.md).

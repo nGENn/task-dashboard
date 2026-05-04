@@ -1,4 +1,3 @@
-import asyncio
 import base64
 import logging
 import re
@@ -10,12 +9,13 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone as django_timezone
 
+from task_dashboard.services.base import BaseService
 from task_dashboard.users.models import GlobalSetting
 
 logger = logging.getLogger(__name__)
 
 
-class OpenProjectService:
+class OpenProjectService(BaseService):
     STATUS_MAPPING: dict[str, list[str]] = {
         "open": ["new", "open", "to do", "progress", "schedule"],
         "closed": ["closed", "done", "resolved", "reject"],
@@ -44,9 +44,6 @@ class OpenProjectService:
             headers["Host"] = self.host_header
         return headers
 
-    def get_tasks(self, *, force_refresh=False):
-        return asyncio.run(self.get_tasks_async(force_refresh=force_refresh))
-
     async def get_tasks_async(self, *, force_refresh=False):
         cache_key = f"openproject_{self.config.id}_active_packages_cache"
         if not force_refresh:
@@ -72,17 +69,15 @@ class OpenProjectService:
                 )
             except httpx.HTTPError:
                 logger.exception("Error fetching OpenProject data")
-                # Raise to ensure prune is skipped
+                cache.delete(cache_key)
                 raise
             except Exception:
                 logger.exception("Unexpected error fetching OpenProject data")
+                cache.delete(cache_key)
                 raise
             else:
                 cache.set(cache_key, normalized_tasks, timeout=300)
                 return normalized_tasks
-
-    def get_single_task(self, task):
-        return asyncio.run(self.get_single_task_async(task))
 
     async def get_single_task_async(self, task):
         if not self.api_key or not task.url:
@@ -198,6 +193,7 @@ class OpenProjectService:
                 offset += 1
         except httpx.HTTPError as e:
             logger.warning("Failed to fetch OpenProject work packages: %s", e)
+            raise
 
     def _process_work_package(self, item, normalized_tasks, user_map, company_name):
         links = item.get("_links", {})
@@ -260,24 +256,6 @@ class OpenProjectService:
                 },
             }
         )
-
-    def _map_status(self, status_text):
-        s = str(status_text).lower()
-        if any(x in s for x in self.STATUS_MAPPING["open"]):
-            return "open"
-        if any(x in s for x in self.STATUS_MAPPING["closed"]):
-            return "closed"
-        return "pending"
-
-    def _map_priority(self, priority_text):
-        p = str(priority_text).lower()
-        if any(x in p for x in self.PRIORITY_MAPPING["Critical"]):
-            return "Critical"
-        if any(x in p for x in self.PRIORITY_MAPPING["High"]):
-            return "High"
-        if any(x in p for x in self.PRIORITY_MAPPING["Low"]):
-            return "Low"
-        return "Medium"
 
     def check_health(self):
         start = django_timezone.now()

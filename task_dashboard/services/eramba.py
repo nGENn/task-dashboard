@@ -12,6 +12,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone as django_timezone
 
+from task_dashboard.services.base import BaseService
 from task_dashboard.users.models import GlobalSetting
 
 logger = logging.getLogger(__name__)
@@ -69,7 +70,7 @@ OPEN_TASK_FUTURE_WINDOW_DAYS = getattr(
 )
 
 
-class ErambaService:
+class ErambaService(BaseService):
     """
     Integration service for Eramba GRC.
     Handles parallel fetching of incidents, projects, and various reviews.
@@ -188,10 +189,6 @@ class ErambaService:
             encoded_auth = base64.b64encode(auth_bytes).decode("ascii")
             self.headers["Authorization"] = f"Basic {encoded_auth}"
 
-    def get_tasks(self, *, force_refresh=False):
-        """Synchronous wrapper for get_tasks_async."""
-        return asyncio.run(self.get_tasks_async(force_refresh=force_refresh))
-
     async def get_tasks_async(self, *, force_refresh=False):
         """Fetches and normalizes tasks from all configured Eramba modules."""
         cache_key = f"eramba_{self.config.id}_active_items_cache"
@@ -232,14 +229,11 @@ class ErambaService:
                     logger.error(
                         "Eramba sync error for service %s: %s", self.config.name, res
                     )
-                    # Raise the first exception we hit to abort pruning
+                    cache.delete(cache_key)
                     raise res
 
             cache.set(cache_key, all_tasks, timeout=300)
             return all_tasks
-
-    def get_single_task(self, task):
-        return asyncio.run(self.get_single_task_async(task))
 
     async def get_single_task_async(self, task):
         if "Authorization" not in self.headers or not task.url:

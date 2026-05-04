@@ -54,11 +54,11 @@ class EncryptedCharField(models.CharField):
             decrypted = self.fernet.decrypt(force_bytes(value))
             return force_str(decrypted)
         except InvalidToken:
-            # If decryption fails, return the original value
-            # This handles cases where data might already be decrypted
-            # or invalid.
-            return value
+            logger.critical(
+                "Decryption failed: Invalid token. This usually means the SECRET_KEY "
+                "has changed or the data is corrupted."
+            )
+            return None
         except Exception:
-            # Log unexpected exceptions and return the original value for safety
             logger.exception("Unexpected error during decryption")
-            return value
+            return None

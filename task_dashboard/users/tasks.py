@@ -1,7 +1,8 @@
+import hashlib
 import logging
+from collections.abc import Callable
 from typing import Any
 from typing import Protocol
-from typing import cast
 from typing import runtime_checkable
 
 from django.core.cache import cache
@@ -30,7 +31,7 @@ class TaskService(Protocol):
     def get_single_task(self, task: Task) -> dict[str, Any] | None: ...
 
 
-SERVICE_CLASSES = {
+SERVICE_CLASSES: dict[str, Callable[..., TaskService]] = {
     "zammad": ZammadService,
     "gitlab": GitLabService,
     "espocrm": EspoService,
@@ -91,7 +92,24 @@ def _prepare_upsert_data(config, tasks_data, group_map=None):
     return tasks_to_upsert, groups_to_upsert
 
 
-def fetch_service_tasks(config_id: int):
+def _get_task_hash(task_dict: dict[str, Any]) -> str:
+    """Generates a stable hash of relevant task fields to detect changes."""
+    relevant_fields = [
+        task_dict.get("title") or "",
+        task_dict.get("status") or "",
+        task_dict.get("priority") or "",
+        task_dict.get("customer") or "",
+        task_dict.get("group") or "",
+        task_dict.get("owner") or "",
+        task_dict.get("owner_email") or "",
+        task_dict.get("url") or "",
+        str(task_dict.get("updated_at") or ""),
+        str(task_dict.get("due_date") or ""),
+    ]
+    return hashlib.sha256("|".join(relevant_fields).encode("utf-8")).hexdigest()
+
+
+def fetch_service_tasks(config_id: int):  # noqa: C901
     """
     Fetches tasks for a specific service configuration and performs batch upsert.
     """
@@ -113,12 +131,31 @@ def fetch_service_tasks(config_id: int):
         return 0
 
     logger.info("Fetching tasks for service: %s (%s)", config.name, config.service_type)
-    service_instance = cast("TaskService", service_class(config))
+    service_instance = service_class(config)
     try:
         tasks_data = service_instance.get_tasks(force_refresh=True)
     except Exception:
         logger.exception("Error fetching tasks for service %s", config.name)
         return 0
+
+    # PRE-UPSERT OPTIMIZATION: Pull existing IDs and update timestamps
+    # to skip unchanged tasks
+    existing_tasks = dict(
+        Task.objects.filter(service=config).values_list("external_id", "updated_at")
+    )
+
+    filtered_tasks_data = []
+    for td in tasks_data:
+        ext_id = td["id"]
+        # Simple change detection: if updated_at is newer or doesn't exist, we upsert.
+        if ext_id not in existing_tasks:
+            filtered_tasks_data.append(td)
+        else:
+            # Check if external update timestamp is newer than our local one
+            ext_updated = parse_dt(td.get("updated_at"))
+            loc_updated = existing_tasks[ext_id]
+            if not loc_updated or (ext_updated and ext_updated > loc_updated):
+                filtered_tasks_data.append(td)
 
     _, groups_to_upsert = _prepare_upsert_data(config, tasks_data)
 
@@ -139,9 +176,9 @@ def fetch_service_tasks(config_id: int):
                 g.name: g for g in ExternalGroup.objects.filter(origin=config.name)
             }
 
-            # Prepare Task objects with service_group linked
+            # Prepare Task objects with service_group linked (only for changed ones)
             tasks_to_upsert, _ = _prepare_upsert_data(
-                config, tasks_data, group_map=group_map
+                config, filtered_tasks_data, group_map=group_map
             )
 
             if tasks_to_upsert:
@@ -168,36 +205,16 @@ def fetch_service_tasks(config_id: int):
                     ],
                 )
 
-                # PRUNING: Remove tasks that are no longer in the service
-                deleted_count, _ = (
-                    Task.objects.filter(service=config)
-                    .exclude(
-                        external_id__in=tasks_to_upsert.keys(),
-                    )
-                    .delete()
-                )
-                if deleted_count:
-                    logger.info(
-                        "Pruned %s stale tasks for %s", deleted_count, config.name
-                    )
-            elif tasks_data:
-                # If we got tasks back but they were all invalid or filtered out,
-                # but the request itself SUCCEEDED (non-empty tasks_data list),
-                # we should still prune existing tasks.
-                deleted_count, _ = Task.objects.filter(service=config).delete()
-                if deleted_count:
-                    logger.info(
-                        "Pruned %s stale tasks for %s", deleted_count, config.name
-                    )
-            else:
-                # Request returned 0 tasks or was empty.
-                # SAFEGUARD: To avoid fluctuation, only prune if we are sure the service
-                # returned a valid empty response, not an error.
-                logger.warning(
-                    "Service %s returned 0 results. "
-                    "Skipping pruning to prevent fluctuation.",
-                    config.name,
-                )
+            # PRUNING: Remove tasks that are no longer in the service
+            # (must use full tasks_data set for pruning)
+            active_ids = {t["id"] for t in tasks_data}
+            deleted_count, _ = (
+                Task.objects.filter(service=config)
+                .exclude(external_id__in=active_ids)
+                .delete()
+            )
+            if deleted_count:
+                logger.info("Pruned %s stale tasks for %s", deleted_count, config.name)
 
             # Signal that the sync for this service completed successfully
             cache.set("last_task_sync", django_timezone.now())
@@ -207,9 +224,12 @@ def fetch_service_tasks(config_id: int):
         return 0
 
     logger.info(
-        "Successfully upserted %s tasks for %s", len(tasks_to_upsert), config.name
+        "Successfully processed %s tasks (upserted %s) for %s",
+        len(tasks_data),
+        len(tasks_to_upsert),
+        config.name,
     )
-    return len(tasks_to_upsert)
+    return len(tasks_data)
 
 
 def fetch_all_tasks_task():

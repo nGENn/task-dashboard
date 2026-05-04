@@ -3,11 +3,12 @@ from http import HTTPStatus
 from importlib import reload
 
 import pytest
-from django.contrib import admin
+from django.contrib.admin import sites as admin_sites
 from django.contrib.auth.models import AnonymousUser
 from django.urls import reverse
 from pytest_django.asserts import assertRedirects
 
+from task_dashboard.users.admin_site import admin_site
 from task_dashboard.users.models import User
 
 
@@ -50,7 +51,7 @@ class TestUserAdmin:
         # Reload the admin module to apply the setting change
         import task_dashboard.users.admin as users_admin
 
-        with contextlib.suppress(admin.sites.AlreadyRegistered):  # type: ignore[attr-defined]
+        with contextlib.suppress(admin_sites.AlreadyRegistered):  # type: ignore[attr-defined]
             reload(users_admin)
 
     @pytest.mark.django_db
@@ -58,7 +59,7 @@ class TestUserAdmin:
     def test_allauth_login(self, rf, settings):
         request = rf.get("/fake-url")
         request.user = AnonymousUser()
-        response = admin.site.login(request)
+        response = admin_site.login(request)
 
         # The `admin` login view should redirect to the `allauth` login view
         target_url = reverse(settings.LOGIN_URL) + "?next=" + request.path

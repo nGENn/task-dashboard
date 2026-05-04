@@ -85,7 +85,7 @@ Each file (`zammad.py`, `gitlab.py`, `espocrm.py`, `openproject.py`, `eramba.py`
 ### Data Flow
 
 1. Services fetch all active tasks from external APIs (cached 5 min, force refresh with `?refresh=1`)
-2. `DashboardView` applies RBAC filtering in memory based on user's group permissions
+2. `DashboardView` applies RBAC filtering via database queries based on user's group permissions
 3. UI filters (status, owner, search, date) applied on top
 4. Results paginated (50/page) and rendered server-side
 

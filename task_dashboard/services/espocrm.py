@@ -9,12 +9,13 @@ import httpx
 from django.core.cache import cache
 from django.utils import timezone as django_timezone
 
+from task_dashboard.services.base import BaseService
 from task_dashboard.users.models import GlobalSetting
 
 logger = logging.getLogger(__name__)
 
 
-class EspoService:
+class EspoService(BaseService):
     STATUS_MAPPING: dict[str, list[str]] = {
         "open": ["new", "assigned", "pending", "not started", "in progress"],
         "closed": ["closed", "rejected", "merged", "completed"],
@@ -34,9 +35,6 @@ class EspoService:
             "X-Api-Key": self.api_key,
             "Content-Type": "application/json",
         }
-
-    def get_tasks(self, *, force_refresh=False):
-        return asyncio.run(self.get_tasks_async(force_refresh=force_refresh))
 
     async def get_tasks_async(self, *, force_refresh=False):
         cache_key = f"espo_{self.config.id}_active_items_cache"
@@ -82,17 +80,15 @@ class EspoService:
                 )
             except httpx.HTTPError:
                 logger.exception("Error fetching EspoCRM data")
-                # Raise to ensure prune is skipped
+                cache.delete(cache_key)
                 raise
             except Exception:
                 logger.exception("Unexpected error fetching EspoCRM data")
+                cache.delete(cache_key)
                 raise
             else:
                 cache.set(cache_key, normalized_tasks, timeout=300)
                 return normalized_tasks
-
-    def get_single_task(self, task):
-        return asyncio.run(self.get_single_task_async(task))
 
     async def get_single_task_async(self, task):
         if not self.api_key or not task.url:
@@ -207,6 +203,7 @@ class EspoService:
 
         except httpx.HTTPError as e:
             logger.warning("Failed to fetch Espo %s: %s", entity_type, e)
+            raise
 
     def _process_items(self, items, entity_type, target_list, user_map, company_name):
         for item in items:
@@ -238,24 +235,6 @@ class EspoService:
                     },
                 }
             )
-
-    def _map_status(self, espo_status):
-        s = str(espo_status).lower()
-        if any(x in s for x in self.STATUS_MAPPING["open"]):
-            return "open"
-        if any(x in s for x in self.STATUS_MAPPING["closed"]):
-            return "closed"
-        return "pending"
-
-    def _map_priority(self, priority_text):
-        p = str(priority_text).lower()
-        if any(x in p for x in self.PRIORITY_MAPPING["Critical"]):
-            return "Critical"
-        if any(x in p for x in self.PRIORITY_MAPPING["High"]):
-            return "High"
-        if any(x in p for x in self.PRIORITY_MAPPING["Low"]):
-            return "Low"
-        return "Medium"
 
     def check_health(self):
         start = django_timezone.now()

@@ -1,14 +1,9 @@
-from http import HTTPStatus
-
 import pytest
-from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth.models import Group
 from django.contrib.messages.middleware import MessageMiddleware
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.http import HttpRequest
-from django.http import HttpResponseRedirect
 from django.test import RequestFactory
 from django.urls import reverse
 from django.utils import timezone
@@ -25,7 +20,6 @@ from task_dashboard.users.models import User
 from task_dashboard.users.tests.factories import UserFactory
 from task_dashboard.users.views import DashboardView
 from task_dashboard.users.views import UserUpdateView
-from task_dashboard.users.views import user_detail_view
 
 pytestmark = pytest.mark.django_db
 
@@ -78,25 +72,6 @@ class TestUserUpdateView:
 
         messages_sent = [m.message for m in messages.get_messages(request)]
         assert messages_sent == [_("Information successfully updated")]
-
-
-class TestUserDetailView:
-    def test_authenticated(self, user: User, rf: RequestFactory):
-        request = rf.get("/fake-url/")
-        request.user = UserFactory()
-        response = user_detail_view(request, pk=user.pk)
-
-        assert response.status_code == HTTPStatus.OK
-
-    def test_not_authenticated(self, user: User, rf: RequestFactory):
-        request = rf.get("/fake-url/")
-        request.user = AnonymousUser()
-        response = user_detail_view(request, pk=user.pk)
-        login_url = reverse(settings.LOGIN_URL)
-
-        assert isinstance(response, HttpResponseRedirect)
-        assert response.status_code == HTTPStatus.FOUND
-        assert response.url == f"{login_url}?next=/fake-url/"
 
 
 class TestDashboardView:
@@ -240,7 +215,7 @@ class TestDashboardView:
         )
 
         # 3. Request (no groups assigned to user)
-        request = rf.get("/?view=all&owner=Other User&owner=" + user.name)
+        request = rf.get("/")
         request.user = user
 
         # 4. Execute View
@@ -621,6 +596,163 @@ class TestDashboardView:
         tasks = context["tasks"].object_list
         for t in tasks:
             assert t.display_owner_list == ["delta@example.com"]
+
+    def test_cross_domain_emails_not_merged(self, rf: RequestFactory, db):
+        """Same local-part, different domains: identities must not merge."""
+        user_a = UserFactory(email="shared@domain-a.com", name="User A")
+        user_b = UserFactory(email="shared@domain-b.com", name="User B")
+
+        service = ServiceConfiguration.objects.create(
+            name="TestService",
+            service_type="zammad",
+            is_active=True,
+            default_access_level="FULL",
+        )
+        Task.objects.create(
+            external_id="T-A",
+            title="Task for A",
+            status="open",
+            service=service,
+            owner_email="shared@domain-a.com",
+            updated_at=timezone.now(),
+        )
+        Task.objects.create(
+            external_id="T-B",
+            title="Task for B",
+            status="open",
+            service=service,
+            owner_email="shared@domain-b.com",
+            updated_at=timezone.now(),
+        )
+
+        for user, own_task, other_task in [
+            (user_a, "T-A", "T-B"),
+            (user_b, "T-B", "T-A"),
+        ]:
+            request = rf.get("/my")
+            request.user = user
+            view = DashboardView()
+            view.perspective = "my"
+            view.request = request
+            context = view.get_context_data()
+
+            task_ids = [t.external_id for t in context["tasks"].object_list]
+            assert own_task in task_ids, f"{user.email} should see own task"
+            assert other_task not in task_ids
+
+            # my_owner must resolve to the user's own email, not the other domain's
+            assert context["applied_filters"]["owners"] == [user.email]
+
+    def test_truncated_email_resolved_via_users_map(self, rf: RequestFactory, db):
+        """Truncated 'user@domain.' is completed when a matching user exists."""
+        registered = UserFactory(email="owner@corp.net", name="Registered Owner")
+
+        service = ServiceConfiguration.objects.create(
+            name="TestService",
+            service_type="zammad",
+            is_active=True,
+            default_access_level="FULL",
+        )
+        Task.objects.create(
+            external_id="T-TRUNC",
+            title="Truncated email task",
+            status="open",
+            service=service,
+            owner_email="owner@corp.",
+            updated_at=timezone.now(),
+        )
+
+        request = rf.get("/?view=all")
+        request.user = registered
+        view = DashboardView()
+        view.perspective = "all"
+        view.request = request
+        context = view.get_context_data()
+
+        tasks = context["tasks"].object_list
+        assert len(tasks) == 1
+        assert tasks[0].display_owner_list == ["owner@corp.net"]
+
+    def test_truncated_email_resolved_via_pool(self, rf: RequestFactory, db):
+        """Full email wins as canonical when pool has full and truncated forms."""
+        viewer = UserFactory()
+
+        service = ServiceConfiguration.objects.create(
+            name="TestService",
+            service_type="zammad",
+            is_active=True,
+            default_access_level="FULL",
+        )
+        Task.objects.create(
+            external_id="T-FULL",
+            title="Full email task",
+            status="open",
+            service=service,
+            owner_email="worker@acme.org",
+            updated_at=timezone.now(),
+        )
+        Task.objects.create(
+            external_id="T-TRUNC2",
+            title="Truncated email task",
+            status="open",
+            service=service,
+            owner_email="worker@acme.",
+            updated_at=timezone.now(),
+        )
+
+        request = rf.get("/?view=all")
+        request.user = viewer
+        view = DashboardView()
+        view.perspective = "all"
+        view.request = request
+        context = view.get_context_data()
+
+        owners = context["filter_options"]["owners"]
+        assert "worker@acme.org" in owners
+        assert "worker@acme." not in owners
+
+        for t in context["tasks"].object_list:
+            assert t.display_owner_list == ["worker@acme.org"]
+
+    def test_own_only_no_cross_domain_leak(self, rf: RequestFactory, db):
+        """OWN_ONLY must not leak tasks to a user sharing only the email local-part."""
+        UserFactory(email="agent@zone-a.com")
+        user_b = UserFactory(email="agent@zone-b.com")
+
+        group = Group.objects.create(name="Agents")
+        user_b.groups.add(group)
+
+        ext_group = ExternalGroup.objects.create(origin="Zammad", name="Agents")
+        TaskPermission.objects.create(
+            django_group=group,
+            allowed_external_group=ext_group,
+            access_level="OWN",
+        )
+
+        service = ServiceConfiguration.objects.create(
+            name="Zammad",
+            service_type="zammad",
+            is_active=True,
+        )
+        Task.objects.create(
+            external_id="T-OWNER-A",
+            title="Task for A",
+            status="open",
+            service=service,
+            group="Agents",
+            owner_email="agent@zone-a.com",
+            updated_at=timezone.now(),
+        )
+
+        request = rf.get("/")
+        request.user = user_b
+        view = DashboardView()
+        view.perspective = "all"
+        view.request = request
+        context = view.get_context_data()
+
+        task_ids = [t.external_id for t in context["tasks"].object_list]
+        assert "T-OWNER-A" not in task_ids
 
     def test_service_permission_overrides_default_access_level(
         self, user: User, rf: RequestFactory

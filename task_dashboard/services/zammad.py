@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import re
-from datetime import datetime
 from http import HTTPStatus
 from typing import Any
 from typing import cast
@@ -10,12 +9,13 @@ import httpx
 from django.core.cache import cache
 from django.utils import timezone as django_timezone
 
+from task_dashboard.services.base import BaseService
 from task_dashboard.users.models import GlobalSetting
 
 logger = logging.getLogger(__name__)
 
 
-class ZammadService:
+class ZammadService(BaseService):
     STATUS_MAPPING: dict[str, list[str]] = {
         "open": ["new", "open"],
         "closed": ["closed", "merged"],
@@ -82,9 +82,6 @@ class ZammadService:
             logger.warning("Zammad User Map failed: %s", e)
         return user_map
 
-    def get_tasks(self, *, force_refresh=False):
-        return asyncio.run(self.get_tasks_async(force_refresh=force_refresh))
-
     async def get_tasks_async(self, *, force_refresh=False):
         cache_key = f"zammad_{self.config.id}_active_tasks_cache"
 
@@ -112,18 +109,15 @@ class ZammadService:
                 )
             except httpx.HTTPError:
                 logger.exception("Error fetching Zammad tasks")
-                # Instead of returning [], we raise so fetch_service_tasks knows it
-                # failed (PLR0913 workaround)
+                cache.delete(cache_key)
                 raise
             except Exception:
                 logger.exception("Unexpected error fetching Zammad tasks")
+                cache.delete(cache_key)
                 raise
             else:
                 cache.set(cache_key, normalized_tasks, timeout=300)
                 return normalized_tasks
-
-    def get_single_task(self, task):
-        return asyncio.run(self.get_single_task_async(task))
 
     async def get_single_task_async(self, task):
         if not self.base_url or not self.token:
@@ -280,38 +274,6 @@ class ZammadService:
                 },
             )
         return normalized_tasks
-
-    def _map_status(self, state_name):
-        s = str(state_name).lower()
-        if any(x in s for x in self.STATUS_MAPPING["open"]):
-            return "open"
-        if any(x in s for x in self.STATUS_MAPPING["closed"]):
-            return "closed"
-        return "pending"
-
-    def _map_priority(self, prio_name):
-        p = str(prio_name).lower()
-        if any(x in p for x in self.PRIORITY_MAPPING["Critical"]):
-            return "Critical"
-        if any(x in p for x in self.PRIORITY_MAPPING["High"]):
-            return "High"
-        if any(x in p for x in self.PRIORITY_MAPPING["Low"]):
-            return "Low"
-        return "Medium"
-
-    def _format_date(self, date_str):
-        """Returns the full ISO string for proper duration calculation."""
-        if not date_str:
-            return ""
-        try:
-            # Zammad returns ISO 8601, ensure it has offset for fromisoformat
-            dt_str = date_str.replace("Z", "+00:00")
-            # Validate it's a valid ISO string
-            datetime.fromisoformat(dt_str)
-        except (ValueError, TypeError):
-            return date_str
-        else:
-            return dt_str
 
     def check_health(self):
         start = django_timezone.now()

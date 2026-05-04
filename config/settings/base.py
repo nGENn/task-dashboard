@@ -402,9 +402,36 @@ from django.urls import reverse_lazy  # noqa: E402
 
 UNFOLD = {
     "SITE_TITLE": "Task Dashboard",
+    "COLORS": {
+        "primary": {
+            "50": "oklch(97% 0.02 277)",
+            "100": "oklch(93% 0.05 277)",
+            "200": "oklch(87% 0.09 277)",
+            "300": "oklch(79% 0.14 277)",
+            "400": "oklch(68% 0.20 277)",
+            "500": "oklch(58% 0.233 277)",
+            "600": "oklch(50% 0.24 277)",
+            "700": "oklch(45% 0.24 277)",
+            "800": "oklch(37% 0.21 277)",
+            "900": "oklch(29% 0.17 277)",
+            "950": "oklch(21% 0.12 277)",
+        },
+        "base": {
+            "50": "oklch(100% 0 0)",
+            "100": "oklch(98% 0 0)",
+            "200": "oklch(95% 0 0)",
+            "300": "oklch(86% 0.003 252)",
+            "400": "oklch(72% 0.007 252)",
+            "500": "oklch(56% 0.010 252)",
+            "600": "oklch(44% 0.012 252)",
+            "700": "oklch(36% 0.014 252)",
+            "800": "oklch(27% 0.015 252)",
+            "900": "oklch(25.33% 0.016 252)",
+            "950": "oklch(21.15% 0.012 254)",
+        },
+    },
     "SITE_HEADER": "Task Dashboard",
     "SITE_SUBHEADER": _("Admin Panel"),
-    "SITE_LOGO": lambda request: static("images/favicons/logo.svg"),
     "SITE_ICON": lambda request: static("images/favicons/logo.svg"),
     "SITE_FAVICONS": [
         {

@@ -1,5 +1,4 @@
 import asyncio
-import datetime
 import logging
 from http import HTTPStatus
 from typing import Any
@@ -10,12 +9,13 @@ import httpx
 from django.core.cache import cache
 from django.utils import timezone as django_timezone
 
+from task_dashboard.services.base import BaseService
 from task_dashboard.users.models import GlobalSetting
 
 logger = logging.getLogger(__name__)
 
 
-class GitLabService:
+class GitLabService(BaseService):
     STATUS_MAPPING: dict[str, list[str]] = {
         "open": ["opened"],
         "closed": ["closed", "merged", "locked"],
@@ -33,13 +33,10 @@ class GitLabService:
         self.token = config.api_token
         self.headers = {"Authorization": f"Bearer {self.token}"}
 
-    def get_tasks(self, *, force_refresh=False):
-        return asyncio.run(self.get_tasks_async(force_refresh=force_refresh))
-
     async def get_tasks_async(self, *, force_refresh=False):
         cache_key = f"gitlab_{self.config.id}_active_items_cache"
         if not force_refresh:
-            cached_data = cache.get(cache_key)
+            cached_data = await cache.aget(cache_key)
             if cached_data:
                 return cached_data
 
@@ -84,17 +81,15 @@ class GitLabService:
                 )
             except httpx.HTTPError:
                 logger.exception("Error fetching GitLab tasks")
-                # Raise to ensure prune is skipped
+                await cache.adelete(cache_key)
                 raise
             except Exception:
                 logger.exception("Unexpected error fetching GitLab tasks")
+                await cache.adelete(cache_key)
                 raise
             else:
-                cache.set(cache_key, normalized_items, timeout=300)
+                await cache.aset(cache_key, normalized_items, timeout=300)
                 return normalized_items
-
-    def get_single_task(self, task):
-        return asyncio.run(self.get_single_task_async(task))
 
     async def get_single_task_async(self, task):
         if not self.token or not task.url:
@@ -180,17 +175,11 @@ class GitLabService:
                 return None
 
     async def _get_user_map(self, client: httpx.AsyncClient):
-        cache_key = f"gitlab_{self.config.id}_user_map"
-        cached_map = cache.get(cache_key)
-        if cached_map:
-            return cached_map
-
-        user_map = {}
-        try:
+        async def fetch_users():
+            user_map = {}
             url = f"{self.base_url}/api/v4/users"
             page = 1
             per_page = 100
-
             while True:
                 resp = await client.get(
                     url,
@@ -202,24 +191,23 @@ class GitLabService:
                     elements = resp.json()
                     if not elements:
                         break
-
                     for u in elements:
                         uid = u.get("id")
-                        email = u.get("email")
-                        public_email = u.get("public_email")
                         if uid:
-                            user_map[uid] = email if email else public_email
-
+                            user_map[uid] = u.get("email") or u.get("public_email")
                     if len(elements) < per_page:
                         break
                     page += 1
                 else:
                     break
+            return user_map
 
-            cache.set(cache_key, user_map, timeout=3600)
-        except httpx.HTTPError as e:
-            logger.warning("GitLab User Map failed: %s", e)
-        return user_map
+        return await self._fetch_and_cache(
+            cache_key=f"gitlab_{self.config.id}_user_map",
+            timeout_secs=3600,
+            fetch_fn=fetch_users,
+            error_msg="GitLab User Map failed",
+        )
 
     async def _fetch_and_normalize(self, client, url, item_type, ctx, params=None):
         if params is None:
@@ -249,6 +237,7 @@ class GitLabService:
                 page += 1
         except httpx.HTTPError as e:
             logger.warning("Failed to fetch GitLab %s: %s", item_type, e)
+            raise
 
     def _normalize_item(self, item, item_type, ctx):
         assignee = item.get("assignee") or {}
@@ -296,30 +285,6 @@ class GitLabService:
                 "project_id": item.get("project_id"),
             },
         }
-
-    def _map_status(self, state_name):
-        s = str(state_name).lower()
-        if any(x in s for x in self.STATUS_MAPPING["open"]):
-            return "open"
-        if any(x in s for x in self.STATUS_MAPPING["closed"]):
-            return "closed"
-        return "pending"
-
-    def _map_priority(self, prio_name):
-        # GitLab doesn't have a standard priority field in the base API,
-        # usually labels are used.
-        return "Medium"
-
-    def _format_date(self, dt_str):
-        if not dt_str:
-            return ""
-        try:
-            # Validate it's a valid ISO string
-            datetime.datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
-        except (ValueError, TypeError):
-            return dt_str
-        else:
-            return dt_str
 
     def check_health(self):
         start = django_timezone.now()

@@ -129,7 +129,7 @@ class ExternalGroupAdmin(ModelAdmin):
     ordering = ["origin", "name"]
     readonly_fields = ["last_seen"]
 
-    @admin.display(description="Extra Data (Slug/ID)")
+    @admin.display(description=_("Extra Data (Slug/ID)"))
     def display_extra_data(self, obj):
         if not obj.extra_data:
             return "-"
@@ -155,7 +155,7 @@ class TaskAdmin(ModelAdmin):
 @admin.register(GlobalSetting, site=admin_site)
 class GlobalSettingAdmin(ModelAdmin):
     form = GlobalSettingForm
-    list_display = ["company_name", "default_task_states"]
+    list_display = ["company_name", "sso_default_group", "default_task_states"]
     exclude = ["default_task_states"]
 
     def has_add_permission(self, request):

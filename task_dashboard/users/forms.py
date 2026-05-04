@@ -3,6 +3,7 @@ from allauth.account.forms import SignupForm
 from allauth.socialaccount.forms import SignupForm as SocialSignupForm
 from django import forms
 from django.contrib.auth import forms as admin_forms
+from django.contrib.auth.models import Group
 from django.forms import EmailField
 from django.utils.translation import gettext_lazy as _
 
@@ -13,14 +14,22 @@ from .models import User
 class GlobalSettingForm(forms.ModelForm):
     default_task_states_list = forms.MultipleChoiceField(
         choices=[
-            ("open", "Open"),
-            ("pending", "Pending"),
-            ("closed", "Closed"),
+            ("open", _("Open")),
+            ("pending", _("Pending")),
+            ("closed", _("Closed")),
         ],
         widget=forms.CheckboxSelectMultiple,
         required=False,
-        label="Default Task States",
-        help_text="Select the default task states to show in the table.",
+        label=_("Default Task States"),
+        help_text=_("Select the default task states to show in the table."),
+    )
+    sso_default_group = forms.ChoiceField(
+        required=False,
+        label=_("SSO Default Group"),
+        help_text=_(
+            "Group assigned to SSO users when Keycloak provides no groups. "
+            "Leave blank to use the built-in 'sso-default-fallback' group."
+        ),
     )
 
     class Meta:
@@ -39,6 +48,17 @@ class GlobalSettingForm(forms.ModelForm):
                 for s in self.instance.default_task_states.split(",")
                 if s.strip()
             ]
+        choices: list[tuple[str, str]] = [
+            ("", str(_("— sso-default-fallback (built-in) —")))
+        ]
+        choices += [(g.name, g.name) for g in Group.objects.order_by("name")]
+        # If the stored value no longer exists as a group, keep it visible
+        current = getattr(self.instance, "sso_default_group", "") or ""
+        if current and not any(c[0] == current for c in choices):
+            choices.append((current, f"{current} ⚠ (group deleted)"))
+        sso_field = self.fields["sso_default_group"]
+        assert isinstance(sso_field, forms.ChoiceField)
+        sso_field.choices = choices
 
     def save(self, commit=True):  # noqa: FBT002
         instance = super().save(commit=False)
