@@ -8,7 +8,7 @@ from task_dashboard.context_processors import MAX_HEALTHY_LATENCY_MS
 from task_dashboard.context_processors import service_mappings
 from task_dashboard.context_processors import system_status
 from task_dashboard.users.models import ServiceConfiguration
-from task_dashboard.users.tests.factories import UserFactory
+from task_dashboard.users.models import User
 
 
 @pytest.mark.django_db
@@ -19,7 +19,7 @@ class TestServiceMappingsContextProcessor:
         context = service_mappings(request)
         assert context == {}
 
-    def test_authenticated_non_staff(self, user: UserFactory, rf: RequestFactory):
+    def test_authenticated_non_staff(self, user: User, rf: RequestFactory):
         # Setup active service
         ServiceConfiguration.objects.create(
             name="ErambaService",
@@ -37,7 +37,7 @@ class TestServiceMappingsContextProcessor:
         assert "ErambaService" in context["service_mappings"]
         assert "status" in context["service_mappings"]["ErambaService"]
 
-    def test_service_mappings_presence(self, user: UserFactory, rf: RequestFactory):
+    def test_service_mappings_presence(self, user: User, rf: RequestFactory):
         # Setup active service
         ServiceConfiguration.objects.create(
             name="ErambaService",
@@ -67,7 +67,7 @@ class TestSystemStatusContextProcessor:
         context = system_status(request)
         assert context == {}
 
-    def test_no_active_services(self, user: UserFactory, rf: RequestFactory):
+    def test_no_active_services(self, user: User, rf: RequestFactory):
         request = rf.get("/")
         user.is_staff = True
         request.user = user
@@ -77,9 +77,7 @@ class TestSystemStatusContextProcessor:
         # service_mappings should not be here anymore
         assert "service_mappings" not in context
 
-    def test_authenticated_non_staff_no_perm(
-        self, user: UserFactory, rf: RequestFactory
-    ):
+    def test_authenticated_non_staff_no_perm(self, user: User, rf: RequestFactory):
         request = rf.get("/")
         user.is_staff = False
         user.is_superuser = False
@@ -87,7 +85,7 @@ class TestSystemStatusContextProcessor:
         context = system_status(request)
         assert context == {}
 
-    def test_authenticated_with_perm(self, user: UserFactory, rf: RequestFactory):
+    def test_authenticated_with_perm(self, user: User, rf: RequestFactory):
         request = rf.get("/")
         user.is_staff = False
         user.is_superuser = False
@@ -105,7 +103,7 @@ class TestSystemStatusContextProcessor:
         assert "service_mappings" not in context
 
     @patch("task_dashboard.context_processors.ErambaService")
-    def test_degraded_service(self, mock_eramba, user: UserFactory, rf: RequestFactory):
+    def test_degraded_service(self, mock_eramba, user: User, rf: RequestFactory):
         # Setup active service
         ServiceConfiguration.objects.create(
             name="Eramba",
@@ -138,7 +136,7 @@ class TestSystemStatusContextProcessor:
         assert service_status["latency"] == MAX_HEALTHY_LATENCY_MS + 100
 
     @patch("task_dashboard.context_processors.ErambaService")
-    def test_healthy_service(self, mock_eramba, user: UserFactory, rf: RequestFactory):
+    def test_healthy_service(self, mock_eramba, user: User, rf: RequestFactory):
         # Setup active service
         ServiceConfiguration.objects.create(
             name="Eramba",

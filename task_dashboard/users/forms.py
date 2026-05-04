@@ -70,7 +70,7 @@ class GlobalSettingForm(forms.ModelForm):
 
 
 class UserAdminChangeForm(admin_forms.UserChangeForm):
-    class Meta(admin_forms.UserChangeForm.Meta):  # type: ignore[name-defined]
+    class Meta(admin_forms.UserChangeForm.Meta):
         model = User
         field_classes = {"email": EmailField}
 
@@ -81,7 +81,7 @@ class UserAdminCreationForm(admin_forms.AdminUserCreationForm):
     To change user signup, see UserSignupForm and UserSocialSignupForm.
     """
 
-    class Meta(admin_forms.UserCreationForm.Meta):  # type: ignore[name-defined]
+    class Meta(admin_forms.UserCreationForm.Meta):
         model = User
         fields = ("email",)
         field_classes = {"email": EmailField}

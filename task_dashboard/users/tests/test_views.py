@@ -599,8 +599,8 @@ class TestDashboardView:
 
     def test_cross_domain_emails_not_merged(self, rf: RequestFactory, db):
         """Same local-part, different domains: identities must not merge."""
-        user_a = UserFactory(email="shared@domain-a.com", name="User A")
-        user_b = UserFactory(email="shared@domain-b.com", name="User B")
+        user_a: User = UserFactory(email="shared@domain-a.com", name="User A")  # type: ignore[assignment]
+        user_b: User = UserFactory(email="shared@domain-b.com", name="User B")  # type: ignore[assignment]
 
         service = ServiceConfiguration.objects.create(
             name="TestService",
@@ -645,7 +645,7 @@ class TestDashboardView:
 
     def test_truncated_email_resolved_via_users_map(self, rf: RequestFactory, db):
         """Truncated 'user@domain.' is completed when a matching user exists."""
-        registered = UserFactory(email="owner@corp.net", name="Registered Owner")
+        registered: User = UserFactory(email="owner@corp.net", name="Registered Owner")  # type: ignore[assignment]
 
         service = ServiceConfiguration.objects.create(
             name="TestService",
@@ -675,7 +675,7 @@ class TestDashboardView:
 
     def test_truncated_email_resolved_via_pool(self, rf: RequestFactory, db):
         """Full email wins as canonical when pool has full and truncated forms."""
-        viewer = UserFactory()
+        viewer: User = UserFactory()  # type: ignore[assignment]
 
         service = ServiceConfiguration.objects.create(
             name="TestService",
@@ -717,7 +717,7 @@ class TestDashboardView:
     def test_own_only_no_cross_domain_leak(self, rf: RequestFactory, db):
         """OWN_ONLY must not leak tasks to a user sharing only the email local-part."""
         UserFactory(email="agent@zone-a.com")
-        user_b = UserFactory(email="agent@zone-b.com")
+        user_b: User = UserFactory(email="agent@zone-b.com")  # type: ignore[assignment]
 
         group = Group.objects.create(name="Agents")
         user_b.groups.add(group)
