@@ -225,7 +225,7 @@ publish-wiki:
     - mv wiki/index.rst wiki/home.rst
     - cd wiki
     - git add -A
-    - git diff --cached --quiet && echo "No changes" || git commit -m "docs: sync from main [skip ci]"
-    - git diff --cached --quiet || git push
+    - git diff --cached --quiet || git commit -m "docs: sync from main"
+    - git push
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
