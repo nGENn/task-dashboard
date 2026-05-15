@@ -89,7 +89,7 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     "task_dashboard.users",
-    # Your stuff: custom apps go here
+    "task_dashboard.kimai",
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -196,6 +196,7 @@ TEMPLATES = [
                 "task_dashboard.users.context_processors.allauth_settings",
                 "task_dashboard.context_processors.service_mappings",
                 "task_dashboard.context_processors.system_status",
+                "task_dashboard.context_processors.kimai_reminder",
                 "task_dashboard.context_processors.theme",
             ],
         },

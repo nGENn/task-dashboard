@@ -202,6 +202,7 @@ class ServiceConfiguration(models.Model):
         ("espocrm", "EspoCRM"),
         ("eramba", "Eramba"),
         ("openproject", "OpenProject"),
+        ("kimai", "Kimai"),
     ]
 
     name = models.CharField(

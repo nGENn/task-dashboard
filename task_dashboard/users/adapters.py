@@ -15,6 +15,8 @@ if typing.TYPE_CHECKING:
     from allauth.socialaccount.models import SocialLogin
     from django.http import HttpRequest
 
+logger = logging.getLogger(__name__)
+
 _SSO_PROVIDERS = frozenset({"keycloak", "openid_connect"})
 _IGNORED_GROUPS = frozenset({"offline_access", "uma_authorization"})
 _IGNORED_PREFIXES = ("default-roles-",)
@@ -179,3 +181,13 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
 
         user.sso_synced_groups = sorted(allowed_target_names)
         user.save(update_fields=["sso_synced_groups"])
+
+        # Trigger Kimai team sync asynchronously so membership stays current (V17)
+        try:
+            from django_q.tasks import async_task  # noqa: PLC0415
+
+            async_task("task_dashboard.kimai.tasks.sync_kimai_teams")
+        except Exception:  # noqa: BLE001
+            logger.warning(
+                "Failed to dispatch Kimai team sync after SSO login", exc_info=True
+            )

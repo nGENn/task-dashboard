@@ -11,6 +11,7 @@ from django.utils import timezone as django_timezone
 from django.utils.dateparse import parse_datetime
 from django_q.tasks import async_task
 
+from task_dashboard.kimai.service import KimaiService
 from task_dashboard.services.eramba import ErambaService
 from task_dashboard.services.espocrm import EspoService
 from task_dashboard.services.gitlab import GitLabService
@@ -37,6 +38,7 @@ SERVICE_CLASSES: dict[str, Callable[..., TaskService]] = {
     "espocrm": EspoService,
     "openproject": OpenProjectService,
     "eramba": ErambaService,
+    "kimai": KimaiService,
 }
 
 
