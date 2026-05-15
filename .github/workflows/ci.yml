@@ -58,19 +58,21 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Extract version
-        id: version
-        run: echo "version=$(grep -m1 '^version = "' pyproject.toml | cut -d'"' -f2)" >> $GITHUB_OUTPUT
+      - name: Extract version and image name
+        id: meta
+        run: |
+          echo "version=$(grep -m1 '^version = "' pyproject.toml | cut -d'"' -f2)" >> $GITHUB_OUTPUT
+          echo "image=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
       - uses: docker/build-push-action@v6
         with:
           context: .
           file: ./compose/production/django/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:buildcache
-          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}:buildcache,mode=max
+            ${{ steps.meta.outputs.image }}:latest
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}
+          cache-from: type=registry,ref=${{ steps.meta.outputs.image }}:buildcache
+          cache-to: type=registry,ref=${{ steps.meta.outputs.image }}:buildcache,mode=max
   pages:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
