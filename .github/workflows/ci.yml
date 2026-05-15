@@ -18,6 +18,8 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --frozen
       - run: uv run pre-commit run --all-files
+        env:
+          SKIP: pytest
   test:
     runs-on: ubuntu-latest
     services:
@@ -44,6 +46,9 @@ jobs:
   pages:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    permissions:
+      pages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -66,7 +71,7 @@ jobs:
         run: |
           git config --global user.email "ci@github.com"
           git config --global user.name "CI Bot"
-          git clone "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.wiki.git" wiki
+          git clone "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.wiki.git" wiki || { echo "Wiki not initialized, skipping."; exit 0; }
           rm -f wiki/*.rst
           cp docs/*.rst wiki/
           mv wiki/index.rst wiki/Home.rst
