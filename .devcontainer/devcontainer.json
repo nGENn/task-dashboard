@@ -26,14 +26,24 @@
             "source": "${localEnv:HOME}/.claude.json",
             "target": "/home/dev-user/.claude.json",
             "type": "bind"
+        },
+        {
+            "source": "${localEnv:HOME}/.cavemem",
+            "target": "/home/dev-user/.cavemem",
+            "type": "bind"
         }
     ],
+    "initializeCommand": "mkdir -p ${localEnv:HOME}/.cavemem",
     "overrideCommand": true,
     "service": "django",
     "remoteUser": "dev-user",
     "workspaceFolder": "/app",
     "containerEnv": {
-        "CLAUDE_CONFIG_DIR": "/home/dev-user/.claude"
+        "CLAUDE_CONFIG_DIR": "/home/dev-user/.claude",
+        "NPM_CONFIG_PREFIX": "/home/dev-user/.npm-global"
+    },
+    "remoteEnv": {
+        "PATH": "/home/dev-user/.npm-global/bin:${containerEnv:PATH}"
     },
     "customizations": {
         "vscode": {
@@ -69,7 +79,7 @@
             ]
         }
     },
-    "postCreateCommand": "cat .devcontainer/bashrc.override.sh >> ~/.bashrc",
+    "postCreateCommand": "cat .devcontainer/bashrc.override.sh >> ~/.bashrc && npm install -g cavemem",
     "features": {
         "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
     }
