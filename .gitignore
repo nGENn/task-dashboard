@@ -160,7 +160,7 @@ typings/
 
 # Local History for devcontainer
 .devcontainer/bash_history
-
+.devcontainer/devcontainer-lock.json
 
 
 

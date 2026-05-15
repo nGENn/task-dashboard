@@ -24,4 +24,11 @@ html_static_path = ["_static"]
 
 html_theme_options = {
     "show_toc_level": 2,
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/nGENn/task-dashboard",
+            "icon": "fa-brands fa-github",
+        }
+    ],
 }

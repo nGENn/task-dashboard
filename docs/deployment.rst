@@ -1,14 +1,79 @@
 Deployment
 ==========
 
-Task Dashboard is deployed as a Docker container with PostgreSQL and Valkey (Redis-compatible).
+Task Dashboard ships as a Docker image and a ready-to-use Compose stack.
+The application server (Gunicorn) listens on **port 5000** inside the container.
 
-Requirements
-------------
+.. note::
 
-- Docker & Docker Compose
-- PostgreSQL 18
-- Valkey 9 (or Redis 7+)
+   The container entrypoint waits for PostgreSQL and Valkey to become available
+   before starting, but it does **not** run migrations automatically.
+   Run ``python manage.py migrate`` once after first deploy (see below).
+
+Option 1: Docker Compose (recommended)
+---------------------------------------
+
+The included ``docker-compose.production.yml`` bundles all four containers:
+Django/Gunicorn, the Django-Q2 background worker, PostgreSQL 18, and Valkey 9.
+
+**Prerequisites:** Docker & Docker Compose only — no external database or cache needed.
+
+1. Clone the repository::
+
+      git clone https://github.com/nGENn/task-dashboard.git
+      cd task-dashboard
+
+2. Configure the environment::
+
+      cp .env.example .env
+      # Edit .env — at minimum set DJANGO_SECRET_KEY and ALLOWED_HOSTS
+
+3. Build and start the stack::
+
+      docker compose -f docker-compose.production.yml up -d --build
+
+4. Run migrations (first deploy only)::
+
+      docker compose -f docker-compose.production.yml exec django python manage.py migrate
+
+5. Create an admin user::
+
+      docker compose -f docker-compose.production.yml exec django python manage.py createsuperuser
+
+The web interface is available at ``http://<host>:5000``. Put a reverse proxy
+(nginx, Caddy, Traefik) in front to handle TLS and expose port 80/443.
+
+Option 2: Docker image only
+-----------------------------
+
+Use this if you are integrating into an existing Kubernetes cluster, Nomad job,
+or custom Compose stack. You must provide your own **PostgreSQL 18** and
+**Valkey 9** (or Redis 7+).
+
+Pull the latest image from the GitHub Container Registry::
+
+   docker pull ghcr.io/ngenn/task-dashboard:latest
+
+Run the web process::
+
+   docker run -d \
+     --env-file .env \
+     -p 5000:5000 \
+     ghcr.io/ngenn/task-dashboard:latest
+
+Run the background worker (required for task sync) as a second container
+using the same image and environment, but override the command::
+
+   docker run -d \
+     --env-file .env \
+     ghcr.io/ngenn/task-dashboard:latest \
+     python manage.py qcluster
+
+Apply migrations once after first deploy::
+
+   docker run --rm --env-file .env \
+     ghcr.io/ngenn/task-dashboard:latest \
+     python manage.py migrate
 
 Environment Variables
 ---------------------
@@ -59,24 +124,20 @@ Production Checklist
 --------------------
 
 1. Set ``DJANGO_DEBUG=False``.
-2. Set a strong, random ``DJANGO_SECRET_KEY``.
+2. Set a strong, random ``DJANGO_SECRET_KEY`` and back it up — rotating it invalidates all stored credentials.
 3. Configure ``ALLOWED_HOSTS`` / ``DJANGO_ALLOWED_HOSTS``.
-4. Run migrations: ``uv run manage.py migrate``.
-5. Collect static files: ``uv run manage.py collectstatic``.
-6. Start the Django-Q worker alongside the web process.
+4. Run migrations on first deploy (see deployment options above).
+5. Ensure the ``qcluster`` worker is running alongside the web process.
 
-Database Migrations
--------------------
+.. note::
 
-Migrations are applied automatically in the Docker entrypoint.
-For manual migration on first deploy::
-
-    uv run manage.py migrate
+   Static files are collected at image build time — ``collectstatic`` does not
+   need to be run manually.
 
 Background Workers
 ------------------
 
 Django-Q2 processes background tasks (service sync, etc.).
-Ensure the worker is started alongside the web server::
-
-    uv run manage.py qcluster
+The ``qcluster`` worker **must** run alongside the web server or task syncing
+will not happen. Both the Compose stack and the image-only examples above
+cover this.
