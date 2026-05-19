@@ -32,7 +32,7 @@ class EncryptedCharField(models.CharField):
     def to_python(self, value):
         if value is None:
             return value
-        return self.decrypt(value)
+        return value
 
     def get_prep_value(self, value):
         if value is None or value == "":

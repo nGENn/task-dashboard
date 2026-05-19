@@ -1,8 +1,8 @@
 # External Services for Task Dashboard
 
 volumes:
-  espocrm_data:
-  espocrm_db_data:
+  # espocrm_data:
+  # espocrm_db_data:
   # openproject_pg_data:
   # openproject_static_data:
   # zammad_pg_data:
@@ -10,6 +10,9 @@ volumes:
   # gitlab_config:
   # gitlab_logs:
   # gitlab_data:
+  kimai_data:
+  kimai_mysql:
+  kimai_plugins:
 
 # x-shared:
 #   zammad-service: &zammad-service
@@ -30,37 +33,37 @@ volumes:
 #       - zammad-redis
 
 services:
-  # --- 2. EspoCRM (Port 8001) ---
-  espocrm-db:
-    image: mariadb:latest
-    container_name: task_dashboard_espocrm_db
-    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
-    volumes:
-      - espocrm_db_data:/var/lib/mysql
-    environment:
-      MARIADB_DATABASE: espocrm
-      MARIADB_USER: espocrm
-      MARIADB_PASSWORD: espocrm
-      MARIADB_ROOT_PASSWORD: espocrm
-    restart: no
+  # # --- 2. EspoCRM (Port 8001) ---
+  # espocrm-db:
+  #   image: mariadb:latest
+  #   container_name: task_dashboard_espocrm_db
+  #   command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+  #   volumes:
+  #     - espocrm_db_data:/var/lib/mysql
+  #   environment:
+  #     MARIADB_DATABASE: espocrm
+  #     MARIADB_USER: espocrm
+  #     MARIADB_PASSWORD: espocrm
+  #     MARIADB_ROOT_PASSWORD: espocrm
+  #   restart: no
 
-  espocrm:
-    image: espocrm/espocrm:latest
-    container_name: task_dashboard_espocrm
-    environment:
-      ESPOCRM_DATABASE_HOST: espocrm-db
-      ESPOCRM_DATABASE_USER: espocrm
-      ESPOCRM_DATABASE_PASSWORD: espocrm
-      ESPOCRM_ADMIN_USERNAME: admin
-      ESPOCRM_ADMIN_PASSWORD: admin
-      ESPOCRM_SITE_URL: "http://localhost:8001"
-    volumes:
-      - espocrm_data:/var/www/html
-    ports:
-      - "8001:80"
-    depends_on:
-      - espocrm-db
-    restart: no
+  # espocrm:
+  #   image: espocrm/espocrm:latest
+  #   container_name: task_dashboard_espocrm
+  #   environment:
+  #     ESPOCRM_DATABASE_HOST: espocrm-db
+  #     ESPOCRM_DATABASE_USER: espocrm
+  #     ESPOCRM_DATABASE_PASSWORD: espocrm
+  #     ESPOCRM_ADMIN_USERNAME: admin
+  #     ESPOCRM_ADMIN_PASSWORD: admin
+  #     ESPOCRM_SITE_URL: "http://localhost:8001"
+  #   volumes:
+  #     - espocrm_data:/var/www/html
+  #   ports:
+  #     - "8001:80"
+  #   depends_on:
+  #     - espocrm-db
+  #   restart: no
 
   # # --- 3. OpenProject (Port 8002) ---
   # openproject:
@@ -152,3 +155,39 @@ services:
   #     - gitlab_data:/var/opt/gitlab
   #   shm_size: '256m'
   #   restart: no
+
+  # --- Kimai (Port 8001) ---
+  kimai-db:
+    image: mysql:8.3
+    volumes:
+      - kimai_mysql:/var/lib/mysql
+    environment:
+      - MYSQL_DATABASE=kimai
+      - MYSQL_USER=kimaiuser
+      - MYSQL_PASSWORD=kimaipassword
+      - MYSQL_ROOT_PASSWORD=changemeplease
+    command: --default-storage-engine innodb
+    restart: unless-stopped
+    healthcheck:
+      test: mysqladmin -uroot -p$$MYSQL_ROOT_PASSWORD ping -h 127.0.0.1 --silent
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  kimai:
+    image: kimai/kimai2:stable
+    depends_on:
+      kimai-db:
+        condition: service_healthy
+        restart: true
+    volumes:
+      - kimai_data:/opt/kimai/var/data
+      - kimai_plugins:/opt/kimai/var/plugins
+    ports:
+      - 8001:8001
+    environment:
+      - ADMINMAIL=admin@kimai.local
+      - ADMINPASS=changemeplease
+      - "DATABASE_URL=mysql://kimaiuser:kimaipassword@kimai-db/kimai?charset=utf8mb4&serverVersion=8.3.0"
+    restart: unless-stopped

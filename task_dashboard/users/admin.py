@@ -156,7 +156,16 @@ class TaskAdmin(ModelAdmin):
 class GlobalSettingAdmin(ModelAdmin):
     form = GlobalSettingForm
     list_display = ["company_name", "sso_default_group", "default_task_states"]
-    exclude = ["default_task_states"]
+    fieldsets = (
+        (
+            None,
+            {"fields": ("company_name", "sso_default_group")},
+        ),
+        (
+            _("Kimai"),
+            {"fields": ("kimai_customer_country", "kimai_customer_timezone")},
+        ),
+    )
 
     def has_add_permission(self, request):
         if GlobalSetting.objects.exists():

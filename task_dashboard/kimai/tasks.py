@@ -19,6 +19,7 @@ from django.core.cache import cache
 from django.utils.dateparse import parse_datetime
 
 from task_dashboard.users.models import ExternalGroup
+from task_dashboard.users.models import GlobalSetting
 from task_dashboard.users.models import ServiceConfiguration
 from task_dashboard.users.models import Task
 from task_dashboard.users.models import User
@@ -313,8 +314,15 @@ async def _sync_activities_async(  # noqa: C901, PLR0912, PLR0915
             kimai_customer = customer_by_name.get(customer_name)
             if not kimai_customer:
                 try:
+                    global_settings = await GlobalSetting.objects.afirst()
                     kimai_customer = await client.create_customer(
-                        {"name": customer_name, "visible": True, "currency": "EUR"}
+                        {
+                            "name": customer_name,
+                            "visible": True,
+                            "currency": "EUR",
+                            "country": global_settings.kimai_customer_country if global_settings else "DE",
+                            "timezone": global_settings.kimai_customer_timezone if global_settings else "Europe/Berlin",
+                        }
                     )
                     customer_by_name[customer_name] = kimai_customer
                 except Exception:

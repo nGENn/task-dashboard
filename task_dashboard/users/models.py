@@ -299,6 +299,18 @@ class GlobalSetting(models.Model):
             "Leave blank to use the built-in 'sso-default-fallback' group."
         ),
     )
+    kimai_customer_country = models.CharField(
+        max_length=5,
+        default="DE",
+        verbose_name=_("Kimai Customer Country"),
+        help_text=_("ISO 3166-1 alpha-2 country code used when creating Kimai customers."),
+    )
+    kimai_customer_timezone = models.CharField(
+        max_length=64,
+        default="Europe/Berlin",
+        verbose_name=_("Kimai Customer Timezone"),
+        help_text=_("Timezone used when creating Kimai customers (e.g. Europe/Berlin)."),
+    )
 
     class Meta:
         verbose_name = _("Global Setting")
