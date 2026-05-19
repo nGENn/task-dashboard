@@ -18,13 +18,13 @@ class TestParseWorkingDays:
         assert result == frozenset({0, 2, 4})
 
     def test_empty_string(self):
-        assert parse_working_days("") == frozenset()
+        assert parse_working_days("") == frozenset({0, 1, 2, 3, 4})
 
     def test_none_input(self):
-        assert parse_working_days(None) == frozenset()
+        assert parse_working_days(None) == frozenset({0, 1, 2, 3, 4})
 
     def test_whitespace_only(self):
-        assert parse_working_days("   ") == frozenset()
+        assert parse_working_days("   ") == frozenset({0, 1, 2, 3, 4})
 
     def test_invalid_token_skipped(self, caplog):
         result = parse_working_days("Mo,XX,Fr")

@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django_q.models import Schedule
 
+from task_dashboard.kimai.models import KimaiSettings
 from task_dashboard.kimai.service import KimaiService
 from task_dashboard.services.eramba import ErambaService
 from task_dashboard.services.espocrm import EspoService
@@ -183,25 +184,34 @@ def kimai_reminder(request):
     """
     Inject Kimai reminder banner data for the current user (V5).
     Reads Valkey only — no Kimai API call in request path.
-    Returns {"kimai_reminder": {"days_behind": int, "kimai_url": str}} or {}.
+    Returns {"kimai_reminder": {"days_behind": int, "never_booked": bool, ...}} or {}.
     """
     if not request.user.is_authenticated:
         return {}
 
     cache_key = f"kimai_reminder:{request.user.pk}"
     reminder_data = cache.get(cache_key)
-    if not reminder_data or reminder_data.get("days_behind", 0) <= 0:
+    if not reminder_data:
         return {"kimai_reminder": None}
+
+    days_behind = reminder_data.get("days_behind", 0)
+    never_booked = reminder_data.get("never_booked", False)
+
+    if not never_booked:
+        grace_period = KimaiSettings.load().grace_period_days
+        if days_behind <= grace_period:
+            return {"kimai_reminder": None}
 
     kimai_config = ServiceConfiguration.objects.filter(
         service_type="kimai", is_active=True
     ).first()
-    kimai_url = kimai_config.api_url if kimai_config else ""
+    kimai_base_url = kimai_config.api_url.rstrip("/") if kimai_config else ""
 
     return {
         "kimai_reminder": {
-            "days_behind": reminder_data["days_behind"],
-            "kimai_url": kimai_url,
+            "days_behind": days_behind,
+            "never_booked": never_booked,
+            "kimai_base_url": kimai_base_url,
         }
     }
 

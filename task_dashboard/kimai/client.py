@@ -35,6 +35,24 @@ class KimaiClient:
             data = resp.json()
             return data[0] if data else None
 
+    async def get_last_timesheets_bulk(
+        self, user_ids: list[int]
+    ) -> dict[int, dict[str, Any] | None]:
+        """Fetch each user's last timesheet concurrently.
+
+        Returns {user_id: entry|None}.
+        """
+        import asyncio
+
+        async def _fetch_one(uid: int) -> tuple[int, dict[str, Any] | None]:
+            try:
+                return uid, await self.get_last_timesheet(uid)
+            except Exception:  # noqa: BLE001
+                return uid, None
+
+        results = await asyncio.gather(*(_fetch_one(uid) for uid in user_ids))
+        return dict(results)
+
     async def get_projects(self) -> list[dict[str, Any]]:
         async with self._client() as c:
             resp = await c.get(f"{self.base_url}/api/projects")

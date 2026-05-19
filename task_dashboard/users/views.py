@@ -83,7 +83,11 @@ user_update_view = UserUpdateView.as_view()
 @login_required
 @user_passes_test(lambda u: u.is_staff)
 def force_refresh_view(request):
+    from django_q.tasks import async_task
+
     fetch_all_tasks_task()
+    async_task("task_dashboard.kimai.tasks.sync_kimai_activities")
+    async_task("task_dashboard.kimai.tasks.run_reminder_evaluation")
     messages.success(request, _("Refresh started for all services."))
     referer = request.headers.get("referer")
     if referer:

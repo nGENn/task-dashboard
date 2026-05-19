@@ -1,3 +1,4 @@
+import contextlib
 import re
 from typing import ClassVar
 
@@ -253,6 +254,17 @@ class ServiceConfiguration(models.Model):
         verbose_name=_("Active"),
         help_text=_("Uncheck to hide this service from the dashboard completely."),
     )
+    kimai_customer_name = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        verbose_name=_("Kimai Customer Name Override"),
+        help_text=_(
+            "Override the Kimai customer for all activities from this service. "
+            "Leave blank to use the task's own customer field, falling back to "
+            "the global company name."
+        ),
+    )
 
     class Meta:
         verbose_name = _("Service Configuration")
@@ -303,13 +315,24 @@ class GlobalSetting(models.Model):
         max_length=5,
         default="DE",
         verbose_name=_("Kimai Customer Country"),
-        help_text=_("ISO 3166-1 alpha-2 country code used when creating Kimai customers."),
+        help_text=_(
+            "ISO 3166-1 alpha-2 country code used when creating Kimai customers."
+        ),
     )
     kimai_customer_timezone = models.CharField(
         max_length=64,
         default="Europe/Berlin",
         verbose_name=_("Kimai Customer Timezone"),
-        help_text=_("Timezone used when creating Kimai customers (e.g. Europe/Berlin)."),
+        help_text=_(
+            "Timezone used when creating Kimai customers (e.g. Europe/Berlin)."
+        ),
+    )
+    task_fetch_interval_minutes = models.PositiveIntegerField(
+        default=5,
+        verbose_name=_("Task Fetch Interval (minutes)"),
+        help_text=_(
+            "How often to fetch tasks from all services. Takes effect after saving."
+        ),
     )
 
     class Meta:
@@ -322,6 +345,14 @@ class GlobalSetting(models.Model):
     def save(self, *args, **kwargs):
         self.pk = 1
         super().save(*args, **kwargs)
+        with contextlib.suppress(Exception):
+            from django_q.models import Schedule
+
+            Schedule.objects.filter(
+                func="task_dashboard.users.tasks.fetch_all_tasks_task"
+            ).update(
+                minutes=self.task_fetch_interval_minutes, schedule_type=Schedule.MINUTES
+            )
 
     @classmethod
     def load(cls):

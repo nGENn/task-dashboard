@@ -184,7 +184,7 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
 
         # Trigger Kimai team sync asynchronously so membership stays current (V17)
         try:
-            from django_q.tasks import async_task  # noqa: PLC0415
+            from django_q.tasks import async_task
 
             async_task("task_dashboard.kimai.tasks.sync_kimai_teams")
         except Exception:  # noqa: BLE001

@@ -15,6 +15,7 @@ class KimaiSettingsAdmin(ModelAdmin):
             {
                 "fields": (
                     "reminder_enabled",
+                    "reminder_interval_minutes",
                     "grace_period_days",
                     "holiday_country",
                     "exempt_emails",
@@ -23,11 +24,7 @@ class KimaiSettingsAdmin(ModelAdmin):
         ),
         (
             _("Activity Sync"),
-            {"fields": ("sync_enabled",)},
-        ),
-        (
-            _("Team Sync"),
-            {"fields": ("team_sync_enabled",)},
+            {"fields": ("sync_enabled", "sync_interval_minutes")},
         ),
     )
 

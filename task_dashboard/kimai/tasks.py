@@ -12,13 +12,12 @@ import asyncio
 import logging
 from datetime import UTC
 from datetime import datetime
+from typing import Any
 
 from asgiref.sync import async_to_sync
-from django.contrib.auth.models import Group
 from django.core.cache import cache
 from django.utils.dateparse import parse_datetime
 
-from task_dashboard.users.models import ExternalGroup
 from task_dashboard.users.models import GlobalSetting
 from task_dashboard.users.models import ServiceConfiguration
 from task_dashboard.users.models import Task
@@ -34,7 +33,6 @@ logger = logging.getLogger(__name__)
 
 CACHE_TTL_EMAIL_MAP = 86400  # 24h
 CACHE_TTL_REMINDER = 3600  # 1h
-CACHE_TTL_TEAM_MAP = 3600  # 1h
 
 KIMAI_ACTIVITY_COMMENT_SEP = ":"
 
@@ -73,7 +71,7 @@ def refresh_kimai_user_cache() -> int:
 
     email_map = {}
     for u in users:
-        email = (u.get("title") or "").strip().lower()
+        email = (u.get("email") or u.get("title") or "").strip().lower()
         uid = u.get("id")
         if email and uid:
             email_map[email] = uid
@@ -90,119 +88,6 @@ def get_kimai_email_map() -> dict[str, int]:
     # Refresh on-demand if cache empty
     refresh_kimai_user_cache()
     return cache.get("kimai_email_map") or {}
-
-
-# ---------------------------------------------------------------------------
-# T08 — sync_kimai_teams
-# ---------------------------------------------------------------------------
-
-
-def sync_kimai_teams() -> int:
-    """
-    Sync ExternalGroups to Kimai teams for group-scoped activity visibility (V10-V13).
-
-    Team name format: "{ExternalGroup.origin}::{ExternalGroup.name}" (V11).
-    Only Django groups with sso-* prefix are mapped to Kimai team users (V10).
-    Idempotent: creates team if missing, patches membership if changed (V13).
-    Returns count of teams processed.
-    """
-    settings = KimaiSettings.load()
-    if not settings.team_sync_enabled:
-        return 0
-
-    client = _get_kimai_client()
-    if not client:
-        return 0
-
-    email_map = get_kimai_email_map()
-    if not email_map:
-        logger.warning("kimai_email_map empty — skipping team sync")
-        return 0
-
-    return async_to_sync(_sync_kimai_teams_async)(client, email_map)
-
-
-async def _sync_kimai_teams_async(
-    client: KimaiClient, email_map: dict[str, int]
-) -> int:
-    existing_teams = await client.get_teams()
-    # Build map: team_name → team dict
-    team_by_name: dict[str, dict] = {t["name"]: t for t in existing_teams}
-
-    external_groups = await asyncio.to_thread(
-        lambda: list(ExternalGroup.objects.all().select_related())
-    )
-
-    processed = 0
-    team_map: dict[str, int] = {}
-
-    for eg in external_groups:
-        team_name = f"{eg.origin}::{eg.name}"
-
-        # Collect Kimai user IDs from Django groups mapped to this ExternalGroup
-        # Only sso-* prefixed Django groups are allowed (V10)
-        django_groups = await asyncio.to_thread(
-            lambda eg=eg: list(
-                Group.objects.filter(
-                    name__startswith="sso-",
-                    taskpermission__allowed_external_group=eg,
-                ).distinct()
-            )
-        )
-
-        kimai_user_ids = set()
-        for dg in django_groups:
-            members = await asyncio.to_thread(
-                lambda dg=dg: list(
-                    User.objects.filter(groups=dg).values_list("email", flat=True)
-                )
-            )
-            for email in members:
-                uid = email_map.get(email.lower())
-                if uid:
-                    kimai_user_ids.add(uid)
-
-        if team_name in team_by_name:
-            existing_team = team_by_name[team_name]
-            existing_ids = {u["id"] for u in (existing_team.get("users") or [])}
-            team_id = existing_team["id"]
-
-            if existing_ids != kimai_user_ids:
-                try:
-                    await client.patch_team(
-                        team_id,
-                        {"users": [{"id": uid} for uid in kimai_user_ids]},
-                    )
-                    logger.info(
-                        "Updated Kimai team %r: %d members",
-                        team_name,
-                        len(kimai_user_ids),
-                    )
-                except Exception:
-                    logger.exception("Failed to patch Kimai team %r", team_name)
-        else:
-            try:
-                new_team = await client.create_team(
-                    {
-                        "name": team_name,
-                        "users": [{"id": uid} for uid in kimai_user_ids],
-                    }
-                )
-                team_id = new_team["id"]
-                logger.info(
-                    "Created Kimai team %r with %d members",
-                    team_name,
-                    len(kimai_user_ids),
-                )
-            except Exception:
-                logger.exception("Failed to create Kimai team %r", team_name)
-                continue
-
-        team_map[eg.name] = team_id
-        processed += 1
-
-    cache.set("kimai_team_map", team_map, timeout=CACHE_TTL_TEAM_MAP)
-    return processed
 
 
 # ---------------------------------------------------------------------------
@@ -257,7 +142,9 @@ def sync_kimai_activities_for_service(config_id: int) -> int:
 async def _sync_activities_async(  # noqa: C901, PLR0912, PLR0915
     client: KimaiClient, config: ServiceConfiguration, settings: KimaiSettings
 ) -> int:
-    # Fetch all Kimai customers and projects once
+    # Fetch global settings and Kimai customers/projects once
+    global_settings = await GlobalSetting.objects.afirst()
+
     try:
         customers = await client.get_customers()
         all_projects = await client.get_projects()
@@ -302,6 +189,8 @@ async def _sync_activities_async(  # noqa: C901, PLR0912, PLR0915
     if ungrouped:
         by_group.setdefault(config.name, []).extend(ungrouped)
 
+    fallback_company = global_settings.company_name if global_settings else config.name
+
     processed = 0
     for group_name, group_tasks in by_group.items():
         # Project comment key = "{config.name}::{group_name}"
@@ -309,19 +198,25 @@ async def _sync_activities_async(  # noqa: C901, PLR0912, PLR0915
 
         kimai_project = project_by_comment.get(project_comment_key)
         if not kimai_project:
-            # Determine customer: use first task's customer field or config.name
-            customer_name = group_tasks[0].get("customer") or config.name
+            # Determine customer: service override → task customer → global company name
+            if config.kimai_customer_name:
+                customer_name = config.kimai_customer_name
+            else:
+                customer_name = group_tasks[0].get("customer") or fallback_company
             kimai_customer = customer_by_name.get(customer_name)
             if not kimai_customer:
                 try:
-                    global_settings = await GlobalSetting.objects.afirst()
                     kimai_customer = await client.create_customer(
                         {
                             "name": customer_name,
                             "visible": True,
                             "currency": "EUR",
-                            "country": global_settings.kimai_customer_country if global_settings else "DE",
-                            "timezone": global_settings.kimai_customer_timezone if global_settings else "Europe/Berlin",
+                            "country": global_settings.kimai_customer_country
+                            if global_settings
+                            else "DE",
+                            "timezone": global_settings.kimai_customer_timezone
+                            if global_settings
+                            else "Europe/Berlin",
                         }
                     )
                     customer_by_name[customer_name] = kimai_customer
@@ -416,7 +311,7 @@ async def _sync_activities_async(  # noqa: C901, PLR0912, PLR0915
 
 def sync_kimai_activities() -> int:
     """Fan-out: sync activities for every active non-kimai service."""
-    from django_q.tasks import async_task  # noqa: PLC0415
+    from django_q.tasks import async_task
 
     configs = ServiceConfiguration.objects.filter(is_active=True).exclude(
         service_type="kimai"
@@ -435,10 +330,11 @@ def sync_kimai_activities() -> int:
 # ---------------------------------------------------------------------------
 
 
-def run_reminder_evaluation() -> int:  # noqa: C901, PLR0912
+def run_reminder_evaluation() -> int:
     """
     For every Django user with a matching Kimai account, compute days_behind
     and write to kimai_reminder:{user_pk} Valkey cache (V5, V6, V9).
+    Fetches all last timesheets concurrently (parallel HTTP calls).
     Returns count of users evaluated.
     """
     settings = KimaiSettings.load()
@@ -449,6 +345,12 @@ def run_reminder_evaluation() -> int:  # noqa: C901, PLR0912
     if not client:
         return 0
 
+    return async_to_sync(_run_reminder_evaluation_async)(client, settings)
+
+
+async def _run_reminder_evaluation_async(  # noqa: C901
+    client: KimaiClient, settings: KimaiSettings
+) -> int:
     exempt = settings.get_exempt_email_set()
     email_map = get_kimai_email_map()
     if not email_map:
@@ -456,7 +358,7 @@ def run_reminder_evaluation() -> int:  # noqa: C901, PLR0912
         return 0
 
     try:
-        kimai_users = async_to_sync(client.get_users)()
+        kimai_users = await client.get_users()
     except Exception:
         logger.exception("Failed to fetch Kimai users for reminder evaluation")
         return 0
@@ -466,39 +368,42 @@ def run_reminder_evaluation() -> int:  # noqa: C901, PLR0912
     today = datetime.now(tz=UTC).date()
     holidays = get_public_holidays(settings.holiday_country, today.year)
 
-    django_users = User.objects.filter(is_active=True).values("pk", "email")
-    evaluated = 0
+    django_users = await asyncio.to_thread(
+        lambda: list(User.objects.filter(is_active=True).values("pk", "email"))
+    )
 
+    # Build list of (user_row, kimai_uid, working_days) for users that need evaluation
+    to_evaluate: list[tuple[Any, int, frozenset[int]]] = []
     for user_row in django_users:
         email = (user_row["email"] or "").lower()
-
-        # V9: exempt check first
         if email in exempt:
             continue
-
         kimai_uid = email_map.get(email)
         if not kimai_uid:
-            # V8: skip, log warning
             logger.debug("No Kimai user for email %s — skipping reminder", email)
             continue
-
         kimai_user = kimai_by_id.get(kimai_uid)
         if not kimai_user:
             continue
-
         working_days = parse_working_days(kimai_user.get("accountNumber") or "")
         if not working_days:
-            # V7: skip, no error
             continue
+        to_evaluate.append((user_row, kimai_uid, working_days))
 
-        try:
-            last_ts = async_to_sync(client.get_last_timesheet)(kimai_uid)
-        except Exception:  # noqa: BLE001
-            logger.warning(
-                "Failed to fetch last timesheet for Kimai user %d", kimai_uid
-            )
-            continue
+    if not to_evaluate:
+        return 0
 
+    # Fetch all last timesheets concurrently
+    uid_to_ts = await client.get_last_timesheets_bulk(
+        [uid for _, uid, _ in to_evaluate]
+    )
+
+    evaluated = 0
+    cache_data: dict[str, dict] = {}
+
+    for user_row, kimai_uid, working_days in to_evaluate:
+        last_ts = uid_to_ts.get(kimai_uid)
+        never_booked = last_ts is None
         last_entry_end: datetime | None = None
         if last_ts:
             raw_end = last_ts.get("end")
@@ -510,17 +415,19 @@ def run_reminder_evaluation() -> int:  # noqa: C901, PLR0912
                     )
 
         days_behind = calc_days_behind(last_entry_end, working_days, holidays)
-
-        cache_key = f"kimai_reminder:{user_row['pk']}"
-        cache.set(
-            cache_key,
-            {
-                "days_behind": days_behind,
-                "ts": datetime.now(tz=UTC).isoformat(),
-            },
-            timeout=CACHE_TTL_REMINDER,
-        )
+        cache_data[f"kimai_reminder:{user_row['pk']}"] = {
+            "days_behind": days_behind,
+            "never_booked": never_booked,
+            "ts": datetime.now(tz=UTC).isoformat(),
+        }
         evaluated += 1
+
+    # Write all cache entries
+    def _write_cache() -> None:
+        for k, v in cache_data.items():
+            cache.set(k, v, timeout=CACHE_TTL_REMINDER)
+
+    await asyncio.to_thread(_write_cache)
 
     logger.info("Reminder evaluation complete: %d users processed.", evaluated)
     return evaluated

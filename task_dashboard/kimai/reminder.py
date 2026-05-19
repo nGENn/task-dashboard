@@ -25,7 +25,7 @@ _DE_WEEKDAY: dict[str, int] = {
 }
 
 
-def parse_working_days(account_number: str) -> frozenset[int]:
+def parse_working_days(account_number: str | None) -> frozenset[int]:
     """
     Parse Kimai user.accountNumber field into a set of weekday ints.
 
@@ -33,7 +33,7 @@ def parse_working_days(account_number: str) -> frozenset[int]:
     Invalid tokens logged and skipped (V15).
     """
     if not account_number or not account_number.strip():
-        return frozenset()
+        return frozenset({0, 1, 2, 3, 4})  # default Mo-Fr
 
     result = set()
     for raw_token in account_number.split(","):
@@ -80,7 +80,7 @@ def calc_days_behind(
     if hasattr(last_entry_end, "date"):
         last_date = last_entry_end.date()
     else:
-        last_date = last_entry_end  # type: ignore[assignment]
+        last_date = last_entry_end
 
     # Count business days strictly between last_date (exclusive) and today (exclusive)
     count = 0

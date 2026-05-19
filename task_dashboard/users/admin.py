@@ -6,6 +6,12 @@ from django.contrib.auth import admin as auth_admin
 from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
 from django.contrib.auth.models import Group
 from django.utils.translation import gettext_lazy as _
+from django_q.admin import FailAdmin
+from django_q.admin import ScheduleAdmin
+from django_q.admin import TaskAdmin as QTaskAdmin
+from django_q.models import Failure
+from django_q.models import Schedule
+from django_q.models import Success
 from unfold.admin import ModelAdmin
 
 from .admin_site import admin_site
@@ -70,6 +76,7 @@ class ServiceConfigurationForm(forms.ModelForm):
             "api_username",
             "api_password",
             "is_active",
+            "kimai_customer_name",
         ]
         widgets = {
             "api_token": forms.PasswordInput(render_value=True),
@@ -112,6 +119,10 @@ class ServiceConfigurationAdmin(ModelAdmin):
                     "api_password",
                 ),
             },
+        ),
+        (
+            _("Kimai"),
+            {"fields": ("kimai_customer_name",)},
         ),
     )
 
@@ -159,7 +170,11 @@ class GlobalSettingAdmin(ModelAdmin):
     fieldsets = (
         (
             None,
-            {"fields": ("company_name", "sso_default_group")},
+            {"fields": ("company_name", "sso_default_group", "default_task_states")},
+        ),
+        (
+            _("Scheduling"),
+            {"fields": ("task_fetch_interval_minutes",)},
         ),
         (
             _("Kimai"),
@@ -174,3 +189,24 @@ class GlobalSettingAdmin(ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+# ---------------------------------------------------------------------------
+# Django-Q2 models — registered on custom admin_site so they appear in the
+# Unfold admin instead of the default Django admin.
+# ---------------------------------------------------------------------------
+
+
+@admin.register(Schedule, site=admin_site)
+class UnfoldScheduleAdmin(ModelAdmin, ScheduleAdmin):
+    pass
+
+
+@admin.register(Success, site=admin_site)
+class UnfoldSuccessAdmin(ModelAdmin, QTaskAdmin):
+    pass
+
+
+@admin.register(Failure, site=admin_site)
+class UnfoldFailureAdmin(ModelAdmin, FailAdmin):
+    pass

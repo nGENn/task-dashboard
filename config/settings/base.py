@@ -461,6 +461,11 @@ UNFOLD = {
                         "icon": "tune",
                         "link": reverse_lazy("admin:users_globalsetting_changelist"),
                     },
+                    {
+                        "title": _("Kimai Settings"),
+                        "icon": "timer",
+                        "link": reverse_lazy("admin:kimai_kimaisettings_changelist"),
+                    },
                 ],
             },
             {
@@ -495,6 +500,26 @@ UNFOLD = {
                         "title": _("Tasks"),
                         "icon": "task",
                         "link": reverse_lazy("admin:users_task_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Background Jobs"),
+                "items": [
+                    {
+                        "title": _("Schedules"),
+                        "icon": "schedule",
+                        "link": reverse_lazy("admin:django_q_schedule_changelist"),
+                    },
+                    {
+                        "title": _("Successful Tasks"),
+                        "icon": "check_circle",
+                        "link": reverse_lazy("admin:django_q_success_changelist"),
+                    },
+                    {
+                        "title": _("Failed Tasks"),
+                        "icon": "error",
+                        "link": reverse_lazy("admin:django_q_failure_changelist"),
                     },
                 ],
             },

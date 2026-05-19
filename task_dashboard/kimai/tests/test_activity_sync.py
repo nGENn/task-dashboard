@@ -1,6 +1,5 @@
 """Tests for activity sync helpers (V3, V12)."""
 
-
 from task_dashboard.kimai.tasks import _activity_comment
 from task_dashboard.kimai.tasks import _parse_activity_comment
 

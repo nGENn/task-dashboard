@@ -1,3 +1,5 @@
+import contextlib
+
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -27,15 +29,24 @@ class KimaiSettings(models.Model):
         verbose_name=_("Activity Sync Enabled"),
         help_text=_("Sync service tasks to Kimai activities."),
     )
-    team_sync_enabled = models.BooleanField(
-        default=True,
-        verbose_name=_("Team Sync Enabled"),
-        help_text=_("Sync Django groups to Kimai teams for activity visibility."),
+    sync_interval_minutes = models.PositiveIntegerField(
+        default=15,
+        verbose_name=_("Sync Interval (minutes)"),
+        help_text=_(
+            "How often to sync activities to Kimai. Takes effect after saving."
+        ),
     )
     reminder_enabled = models.BooleanField(
         default=True,
         verbose_name=_("Reminder Enabled"),
         help_text=_("Show reminder banner when user is behind on time tracking."),
+    )
+    reminder_interval_minutes = models.PositiveIntegerField(
+        default=60,
+        verbose_name=_("Reminder Interval (minutes)"),
+        help_text=_(
+            "How often to evaluate reminder status. Takes effect after saving."
+        ),
     )
 
     class Meta:
@@ -48,6 +59,17 @@ class KimaiSettings(models.Model):
     def save(self, *args, **kwargs):
         self.pk = 1
         super().save(*args, **kwargs)
+        with contextlib.suppress(Exception):
+            from django_q.models import Schedule
+
+            Schedule.objects.filter(
+                func="task_dashboard.kimai.tasks.sync_kimai_activities"
+            ).update(minutes=self.sync_interval_minutes, schedule_type=Schedule.MINUTES)
+            Schedule.objects.filter(
+                func="task_dashboard.kimai.tasks.run_reminder_evaluation"
+            ).update(
+                minutes=self.reminder_interval_minutes, schedule_type=Schedule.MINUTES
+            )
 
     @classmethod
     def load(cls):

@@ -7,7 +7,7 @@ from django.utils.translation import gettext_lazy as _
 
 
 def _setup_schedules(sender, **kwargs):
-    from django_q.models import Schedule  # noqa: PLC0415
+    from django_q.models import Schedule
 
     if "django_q_schedule" not in connection.introspection.table_names():
         return
@@ -18,12 +18,6 @@ def _setup_schedules(sender, **kwargs):
             "Kimai: Sync Activities",
             Schedule.MINUTES,
             {"minutes": 15},
-        ),
-        (
-            "task_dashboard.kimai.tasks.sync_kimai_teams",
-            "Kimai: Sync Teams",
-            Schedule.HOURLY,
-            {},
         ),
         (
             "task_dashboard.kimai.tasks.refresh_kimai_user_cache",
