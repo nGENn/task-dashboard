@@ -162,7 +162,7 @@ dev = [
 
 [project]
 name = "task_dashboard"
-version = "0.1.43"
+version = "0.2.0"
 description = "Awesome Task Dashboard"
 readme = "README.md"
 
@@ -192,4 +192,5 @@ dependencies = [
     "django-debug-toolbar>=6.3.0",
     "django-htmx>=1.27.0",
     "django-unfold==0.92.0",
+    "idna>=3.15",
 ]
