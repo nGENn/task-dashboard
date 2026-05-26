@@ -1,43 +1,10 @@
-"""Tests for the pure reminder evaluator (V4)."""
+"""Tests for the pure reminder evaluator."""
 
 from datetime import UTC
 from datetime import date
 from datetime import datetime
 
 from task_dashboard.kimai.reminder import calc_days_behind
-from task_dashboard.kimai.reminder import parse_working_days
-
-
-class TestParseWorkingDays:
-    def test_standard_german_weekdays(self):
-        result = parse_working_days("Mo,Di,Mi,Do,Fr")
-        assert result == frozenset({0, 1, 2, 3, 4})
-
-    def test_partial_days(self):
-        result = parse_working_days("Mo,Mi,Fr")
-        assert result == frozenset({0, 2, 4})
-
-    def test_empty_string(self):
-        assert parse_working_days("") == frozenset({0, 1, 2, 3, 4})
-
-    def test_none_input(self):
-        assert parse_working_days(None) == frozenset({0, 1, 2, 3, 4})
-
-    def test_whitespace_only(self):
-        assert parse_working_days("   ") == frozenset({0, 1, 2, 3, 4})
-
-    def test_invalid_token_skipped(self, caplog):
-        result = parse_working_days("Mo,XX,Fr")
-        assert result == frozenset({0, 4})
-        assert "XX" in caplog.text
-
-    def test_extra_whitespace(self):
-        result = parse_working_days(" Mo , Di ")
-        assert result == frozenset({0, 1})
-
-    def test_saturday_sunday(self):
-        result = parse_working_days("Sa,So")
-        assert result == frozenset({5, 6})
 
 
 class TestCalcDaysBehind:

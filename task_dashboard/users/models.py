@@ -24,6 +24,10 @@ from .fields import EncryptedCharField
 from .managers import UserManager
 
 
+def _default_working_days() -> list[int]:
+    return [0, 1, 2, 3, 4]
+
+
 class User(AbstractUser):
     """
     Default custom user model for Task Dashboard.
@@ -48,6 +52,11 @@ class User(AbstractUser):
     # touching groups that were manually assigned in the admin.
     sso_synced_groups: models.JSONField = models.JSONField(
         default=list,
+        blank=True,
+    )
+
+    working_days: models.JSONField = models.JSONField(
+        default=_default_working_days,
         blank=True,
     )
 

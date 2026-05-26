@@ -54,6 +54,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_PAGE_SIZE = 50
 PRIORITY_WEIGHTS = {"critical": 1, "high": 2, "medium": 3, "low": 4}
 DEFAULT_STATES = "open,pending"
+_MAX_WEEKDAY = 6
 
 
 # --- UTILITY VIEWS ---
@@ -78,6 +79,19 @@ class UserUpdateView(LoginRequiredMixin, UpdateView):
 
 
 user_update_view = UserUpdateView.as_view()
+
+
+@login_required
+@require_POST
+def update_working_days_view(request):
+    raw = request.POST.getlist("working_days")
+    working_days = sorted(
+        {int(d) for d in raw if d.isdigit() and 0 <= int(d) <= _MAX_WEEKDAY}
+    )
+    request.user.working_days = working_days
+    request.user.save(update_fields=["working_days"])
+    referer = request.headers.get("referer", "/")
+    return HttpResponseRedirect(referer)
 
 
 @login_required

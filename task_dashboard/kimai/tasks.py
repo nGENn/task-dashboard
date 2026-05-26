@@ -27,12 +27,12 @@ from .client import KimaiClient
 from .holidays import get_public_holidays
 from .models import KimaiSettings
 from .reminder import calc_days_behind
-from .reminder import parse_working_days
 
 logger = logging.getLogger(__name__)
 
 CACHE_TTL_EMAIL_MAP = 86400  # 24h
 CACHE_TTL_REMINDER = 3600  # 1h
+_MAX_WEEKDAY = 6
 
 KIMAI_ACTIVITY_COMMENT_SEP = ":"
 
@@ -354,7 +354,7 @@ def run_reminder_evaluation() -> int:
     return async_to_sync(_run_reminder_evaluation_async)(client, settings)
 
 
-async def _run_reminder_evaluation_async(  # noqa: C901, PLR0912, PLR0915
+async def _run_reminder_evaluation_async(  # noqa: C901, PLR0912
     client: KimaiClient, settings: KimaiSettings
 ) -> int:
     exempt = settings.get_exempt_email_set()
@@ -381,13 +381,13 @@ async def _run_reminder_evaluation_async(  # noqa: C901, PLR0912, PLR0915
         logger.warning("kimai_email_map empty — skipping reminder evaluation")
         return 0
 
-    kimai_by_id: dict[int, dict] = {u["id"]: u for u in kimai_users}
-
     today = datetime.now(tz=UTC).date()
     holidays = get_public_holidays(settings.holiday_country, today.year)
 
     django_users = await asyncio.to_thread(
-        lambda: list(User.objects.filter(is_active=True).values("pk", "email"))
+        lambda: list(
+            User.objects.filter(is_active=True).values("pk", "email", "working_days")
+        )
     )
 
     # Build list of (user_row, kimai_uid, working_days) for users that need evaluation
@@ -400,10 +400,10 @@ async def _run_reminder_evaluation_async(  # noqa: C901, PLR0912, PLR0915
         if not kimai_uid:
             logger.debug("No Kimai user for email %s — skipping reminder", email)
             continue
-        kimai_user = kimai_by_id.get(kimai_uid)
-        if not kimai_user:
-            continue
-        working_days = parse_working_days(kimai_user.get("accountNumber") or "")
+        raw_days = user_row.get("working_days") or [0, 1, 2, 3, 4]
+        working_days = frozenset(
+            int(d) for d in raw_days if 0 <= int(d) <= _MAX_WEEKDAY
+        )
         if not working_days:
             continue
         to_evaluate.append((user_row, kimai_uid, working_days))

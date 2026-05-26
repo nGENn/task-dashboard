@@ -1,50 +1,14 @@
 """
-Pure, I/O-free reminder evaluator (V4).
+Pure, I/O-free reminder evaluator.
 
 `calc_days_behind` is the only public function.
 All inputs are plain Python values — no DB/cache/network calls here.
 """
 
-import logging
 from datetime import UTC
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
-
-logger = logging.getLogger(__name__)
-
-# German weekday abbreviation → Python weekday() int (Monday=0) (V15)
-_DE_WEEKDAY: dict[str, int] = {
-    "Mo": 0,
-    "Di": 1,
-    "Mi": 2,
-    "Do": 3,
-    "Fr": 4,
-    "Sa": 5,
-    "So": 6,
-}
-
-
-def parse_working_days(account_number: str | None) -> frozenset[int]:
-    """
-    Parse Kimai user.accountNumber field into a set of weekday ints.
-
-    Empty/None → defaults to Mon–Fri (0–4). Invalid tokens logged and skipped (V15).
-    """
-    if not account_number or not account_number.strip():
-        return frozenset({0, 1, 2, 3, 4})
-
-    result = set()
-    for raw_token in account_number.split(","):
-        token = raw_token.strip()
-        if not token:
-            continue
-        day_int = _DE_WEEKDAY.get(token)
-        if day_int is None:
-            logger.warning("Unknown Kimai weekday abbreviation: %r", token)
-        else:
-            result.add(day_int)
-    return frozenset(result)
 
 
 def calc_days_behind(
