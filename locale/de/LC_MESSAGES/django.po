@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-15 18:41+0200\n"
+"POT-Creation-Date: 2026-05-26 17:42+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -25,40 +25,204 @@ msgstr "Englisch"
 msgid "Deutsch"
 msgstr "Deutsch"
 
-#: task_dashboard/context_processors.py:157
+#: config/settings/base.py:435
+msgid "Admin Panel"
+msgstr "Admin-Panel"
+
+#: config/settings/base.py:450
+msgid "Configuration"
+msgstr "Konfiguration"
+
+#: config/settings/base.py:453
+msgid "Services"
+msgstr "Dienste"
+
+#: config/settings/base.py:460 task_dashboard/users/models.py:357
+msgid "Global Settings"
+msgstr "Globale Einstellungen"
+
+#: config/settings/base.py:465 task_dashboard/kimai/models.py:55
+#: task_dashboard/kimai/models.py:56
+#, fuzzy
+#| msgid "Global Settings"
+msgid "Kimai Settings"
+msgstr "Globale Einstellungen"
+
+#: config/settings/base.py:472
+msgid "Access Control"
+msgstr "Zugangskontrolle"
+
+#: config/settings/base.py:475
+msgid "Groups"
+msgstr "Gruppen"
+
+#: config/settings/base.py:480 task_dashboard/users/models.py:399
+msgid "External Groups"
+msgstr "Externe Gruppen"
+
+#: config/settings/base.py:487 config/settings/base.py:490
+#: task_dashboard/users/apps.py:34
+msgid "Users"
+msgstr "Benutzer"
+
+#: config/settings/base.py:497 config/settings/base.py:500
+#: task_dashboard/users/models.py:609
+msgid "Tasks"
+msgstr "Aufgaben"
+
+#: config/settings/base.py:507
+msgid "Background Jobs"
+msgstr ""
+
+#: config/settings/base.py:510
+msgid "Schedules"
+msgstr ""
+
+#: config/settings/base.py:515
+msgid "Successful Tasks"
+msgstr ""
+
+#: config/settings/base.py:520
+#, fuzzy
+#| msgid "All Tasks"
+msgid "Failed Tasks"
+msgstr "Alle Aufgaben"
+
+#: task_dashboard/context_processors.py:162
 msgid "No Services"
 msgstr "Keine Dienste"
 
-#: task_dashboard/context_processors.py:159
-#: task_dashboard/templates/base.html:265
+#: task_dashboard/context_processors.py:164
+#: task_dashboard/templates/base.html:246
 msgid "Offline"
 msgstr "Offline"
 
-#: task_dashboard/context_processors.py:161
-#: task_dashboard/templates/base.html:269
+#: task_dashboard/context_processors.py:166
+#: task_dashboard/templates/base.html:250
 msgid "Auth Error"
 msgstr "Authentifizierungsfehler"
 
-#: task_dashboard/context_processors.py:163
+#: task_dashboard/context_processors.py:168
 msgid "Setup Needed"
 msgstr "Einrichtung nötig"
 
-#: task_dashboard/context_processors.py:168
+#: task_dashboard/context_processors.py:173
 msgid "Degraded"
 msgstr "Eingeschränkt"
 
-#: task_dashboard/context_processors.py:170
+#: task_dashboard/context_processors.py:175
 msgid "Healthy"
 msgstr "Gesund"
 
+#: task_dashboard/kimai/admin.py:14
+msgid "Reminder"
+msgstr ""
+
+#: task_dashboard/kimai/admin.py:26
+msgid "Activity Sync"
+msgstr ""
+
+#: task_dashboard/kimai/apps.py:45
+#, fuzzy
+#| msgid "Administration"
+msgid "Kimai Integration"
+msgstr "Administration"
+
+#: task_dashboard/kimai/models.py:12
+msgid "Grace Period (days)"
+msgstr ""
+
+#: task_dashboard/kimai/models.py:13
+msgid "Business days behind before reminder triggers."
+msgstr ""
+
+#: task_dashboard/kimai/models.py:18
+msgid "Holiday Country Code"
+msgstr ""
+
+#: task_dashboard/kimai/models.py:19
+msgid "ISO 3166-1 alpha-2 country code for public holidays (e.g. DE)."
+msgstr ""
+
+#: task_dashboard/kimai/models.py:24
+msgid "Exempt Emails"
+msgstr ""
+
+#: task_dashboard/kimai/models.py:26
+msgid "Newline-separated list of emails to exclude from reminders and sync."
+msgstr ""
+
+#: task_dashboard/kimai/models.py:31
+msgid "Activity Sync Enabled"
+msgstr ""
+
+#: task_dashboard/kimai/models.py:32
+msgid "Sync service tasks to Kimai activities."
+msgstr ""
+
+#: task_dashboard/kimai/models.py:36
+msgid "Sync Interval (minutes)"
+msgstr ""
+
+#: task_dashboard/kimai/models.py:38
+msgid "How often to sync activities to Kimai. Takes effect after saving."
+msgstr ""
+
+#: task_dashboard/kimai/models.py:43
+msgid "Reminder Enabled"
+msgstr ""
+
+#: task_dashboard/kimai/models.py:44
+msgid "Show reminder banner when user is behind on time tracking."
+msgstr ""
+
+#: task_dashboard/kimai/models.py:48
+msgid "Reminder Interval (minutes)"
+msgstr ""
+
+#: task_dashboard/kimai/models.py:50
+msgid "How often to evaluate reminder status. Takes effect after saving."
+msgstr ""
+
 #: task_dashboard/templates/account/login.html:8
+#: task_dashboard/templates/account/login.html:88
 #: task_dashboard/templates/allauth/layouts/entrance.html:13
 msgid "Sign In"
 msgstr "Anmelden"
 
-#: task_dashboard/templates/account/login.html:92
-msgid "Forgot Password?"
-msgstr "Passwort vergessen?"
+#: task_dashboard/templates/account/login.html:14
+msgid "Welcome Back"
+msgstr "Willkommen zurück"
+
+#: task_dashboard/templates/account/login.html:15
+msgid "Task Management System"
+msgstr "Aufgabenverwaltungssystem"
+
+#: task_dashboard/templates/account/login.html:29
+#: task_dashboard/templates/admin/login.html:20
+msgid "Sign in with SSO (Keycloak)"
+msgstr "Mit SSO anmelden (Keycloak)"
+
+#: task_dashboard/templates/account/login.html:33
+#: task_dashboard/templates/admin/login.html:24
+msgid "OR"
+msgstr "ODER"
+
+#: task_dashboard/templates/account/login.html:45
+msgid "Admin Login"
+msgstr "Admin-Anmeldung"
+
+#: task_dashboard/templates/account/login.html:65
+msgid "Email"
+msgstr "E-Mail"
+
+#: task_dashboard/templates/account/login.html:72
+msgid "Password"
+msgstr "Passwort"
+
+#: task_dashboard/templates/account/login.html:80
+msgid "Remember Me"
+msgstr "Angemeldet bleiben"
 
 #: task_dashboard/templates/account/logout.html:6
 #: task_dashboard/templates/account/logout.html:12
@@ -70,81 +234,111 @@ msgstr "Abmelden"
 msgid "Are you sure you want to sign out?"
 msgstr "Sind Sie sicher, dass Sie sich abmelden möchten?"
 
-#: task_dashboard/templates/account/password_reset.html:7
-msgid "Password Reset"
-msgstr "Passwort zurücksetzen"
-
-#: task_dashboard/templates/account/password_reset.html:24
-msgid "Reset Password"
-msgstr "Passwort zurücksetzen"
-
-#: task_dashboard/templates/account/password_reset.html:29
-msgid ""
-"Forgotten your password? Enter your email address below, and we'll send you "
-"an email allowing you to reset it."
-msgstr ""
-"Haben Sie Ihr Passwort vergessen? Geben Sie unten Ihre E-Mail-Adresse ein, "
-"und wir senden Ihnen eine E-Mail, mit der Sie es zurücksetzen können."
-
-#: task_dashboard/templates/account/password_reset.html:39
-msgid "Reset My Password"
-msgstr "Mein Passwort zurücksetzen"
-
-#: task_dashboard/templates/base.html:194
+#: task_dashboard/templates/base.html:175
 msgid "Track tasks across all platforms"
 msgstr "Aufgaben plattformweit verfolgen"
 
-#: task_dashboard/templates/base.html:220
+#: task_dashboard/templates/base.html:201
 msgid "System Status:"
 msgstr "Systemstatus:"
 
-#: task_dashboard/templates/base.html:241
+#: task_dashboard/templates/base.html:222
 msgid "Service status and latency."
 msgstr "Service-Status & Latenz."
 
-#: task_dashboard/templates/base.html:243
+#: task_dashboard/templates/base.html:224
 msgid "Service Health"
 msgstr "Dienststatus"
 
-#: task_dashboard/templates/base.html:267
+#: task_dashboard/templates/base.html:248
 msgid "Setup"
 msgstr "Einrichtung"
 
-#: task_dashboard/templates/base.html:276
+#: task_dashboard/templates/base.html:257
 msgid "No services configured."
 msgstr "Keine Dienste konfiguriert."
 
-#: task_dashboard/templates/base.html:285
+#: task_dashboard/templates/base.html:266
 msgid "Access administrative settings"
 msgstr "Admin-Einstellungen öffnen"
 
-#: task_dashboard/templates/base.html:294
+#: task_dashboard/templates/base.html:275
 msgid "Admin"
 msgstr "Admin"
 
-#: task_dashboard/templates/base.html:309
+#: task_dashboard/templates/base.html:290
 msgid "Fetch fresh data from all platforms"
 msgstr "Alle Daten aktualisieren"
 
-#: task_dashboard/templates/base.html:331
+#: task_dashboard/templates/base.html:312
 msgid "Change Language"
 msgstr "Sprache wechseln"
 
-#: task_dashboard/templates/base.html:381
+#: task_dashboard/templates/base.html:362
 msgid "Light"
 msgstr "Hell"
 
-#: task_dashboard/templates/base.html:393
+#: task_dashboard/templates/base.html:374
 msgid "Dark"
 msgstr "Dunkel"
 
-#: task_dashboard/templates/base.html:405
+#: task_dashboard/templates/base.html:386
 msgid "System"
 msgstr "System"
 
+#: task_dashboard/templates/base.html:403
+msgid "Working Days"
+msgstr "Arbeitstage"
+
 #: task_dashboard/templates/base.html:416
+msgid "Mo"
+msgstr "Mo"
+
+#: task_dashboard/templates/base.html:424
+msgid "Tu"
+msgstr "Di"
+
+#: task_dashboard/templates/base.html:432
+msgid "We"
+msgstr "Mi"
+
+#: task_dashboard/templates/base.html:440
+msgid "Th"
+msgstr "Do"
+
+#: task_dashboard/templates/base.html:448
+msgid "Fr"
+msgstr "Fr"
+
+#: task_dashboard/templates/base.html:456
+msgid "Sa"
+msgstr "Sa"
+
+#: task_dashboard/templates/base.html:464
+msgid "Su"
+msgstr "So"
+
+#: task_dashboard/templates/base.html:510
 msgid "Log Out"
 msgstr "Abmelden"
+
+#: task_dashboard/templates/base.html:515
+msgid "Confirm Logout"
+msgstr "Abmeldung bestätigen"
+
+#: task_dashboard/templates/base.html:516
+msgid "Are you sure you want to sign out of the dashboard?"
+msgstr "Möchten Sie sich wirklich vom Dashboard abmelden?"
+
+#: task_dashboard/templates/base.html:520
+msgid "Yes, Log Out"
+msgstr "Ja, abmelden"
+
+#: task_dashboard/templates/base.html:523
+#: task_dashboard/templates/users/partials/filter_form.html:35
+#: task_dashboard/templates/users/partials/filter_form.html:55
+msgid "Cancel"
+msgstr "Abbrechen"
 
 #: task_dashboard/templates/users/partials/filter_form.html:20
 msgid "Save Current View"
@@ -161,11 +355,6 @@ msgstr "Ansichtsname"
 #: task_dashboard/templates/users/partials/filter_form.html:29
 msgid "e.g. My High Priority Tasks"
 msgstr "z.B. Wichtige Aufgaben"
-
-#: task_dashboard/templates/users/partials/filter_form.html:35
-#: task_dashboard/templates/users/partials/filter_form.html:55
-msgid "Cancel"
-msgstr "Abbrechen"
 
 #: task_dashboard/templates/users/partials/filter_form.html:38
 msgid "Click to save these filters"
@@ -196,9 +385,9 @@ msgid "Source platform"
 msgstr "Quellplattform"
 
 #: task_dashboard/templates/users/partials/filter_form_content.html:15
-#: task_dashboard/templates/users/partials/scripts.html:238
+#: task_dashboard/templates/users/partials/scripts.html:202
 #: task_dashboard/templates/users/partials/tasks_table.html:19
-#: task_dashboard/users/views.py:1088
+#: task_dashboard/users/models.py:386 task_dashboard/users/views.py:454
 msgid "Origin"
 msgstr "Herkunft"
 
@@ -225,9 +414,9 @@ msgid "Filter by customer name"
 msgstr "Nach Kunde filtern"
 
 #: task_dashboard/templates/users/partials/filter_form_content.html:55
-#: task_dashboard/templates/users/partials/scripts.html:239
+#: task_dashboard/templates/users/partials/scripts.html:203
 #: task_dashboard/templates/users/partials/tasks_table.html:82
-#: task_dashboard/users/views.py:1089
+#: task_dashboard/users/models.py:569 task_dashboard/users/views.py:455
 msgid "Customer"
 msgstr "Kunde"
 
@@ -236,9 +425,9 @@ msgid "Filter by functional group or department"
 msgstr "Nach Gruppe filtern"
 
 #: task_dashboard/templates/users/partials/filter_form_content.html:95
-#: task_dashboard/templates/users/partials/scripts.html:240
+#: task_dashboard/templates/users/partials/scripts.html:204
 #: task_dashboard/templates/users/partials/tasks_table.html:103
-#: task_dashboard/users/views.py:1090
+#: task_dashboard/users/models.py:571 task_dashboard/users/views.py:456
 msgid "Group"
 msgstr "Gruppe"
 
@@ -247,9 +436,9 @@ msgid "Filter by assigned user in source system"
 msgstr "Nach Besitzer filtern"
 
 #: task_dashboard/templates/users/partials/filter_form_content.html:135
-#: task_dashboard/templates/users/partials/scripts.html:241
+#: task_dashboard/templates/users/partials/scripts.html:205
 #: task_dashboard/templates/users/partials/tasks_table.html:124
-#: task_dashboard/users/views.py:1086
+#: task_dashboard/users/models.py:579 task_dashboard/users/views.py:452
 msgid "Owner"
 msgstr "Besitzer"
 
@@ -258,9 +447,9 @@ msgid "Filter by current task status"
 msgstr "Nach Status filtern"
 
 #: task_dashboard/templates/users/partials/filter_form_content.html:175
-#: task_dashboard/templates/users/partials/scripts.html:242
+#: task_dashboard/templates/users/partials/scripts.html:206
 #: task_dashboard/templates/users/partials/tasks_table.html:145
-#: task_dashboard/users/views.py:1087
+#: task_dashboard/users/views.py:453
 msgid "State"
 msgstr "Status"
 
@@ -269,9 +458,9 @@ msgid "Filter by task priority level"
 msgstr "Nach Priorität filtern"
 
 #: task_dashboard/templates/users/partials/filter_form_content.html:215
-#: task_dashboard/templates/users/partials/scripts.html:243
+#: task_dashboard/templates/users/partials/scripts.html:207
 #: task_dashboard/templates/users/partials/tasks_table.html:179
-#: task_dashboard/users/views.py:1091
+#: task_dashboard/users/models.py:565 task_dashboard/users/views.py:457
 msgid "Priority"
 msgstr "Priorität"
 
@@ -280,9 +469,9 @@ msgid "Creation date"
 msgstr "Erstelldatum"
 
 #: task_dashboard/templates/users/partials/filter_form_content.html:262
-#: task_dashboard/templates/users/partials/scripts.html:62
+#: task_dashboard/templates/users/partials/scripts.html:26
 #: task_dashboard/templates/users/partials/tasks_table.html:213
-#: task_dashboard/users/views.py:1107
+#: task_dashboard/users/views.py:473
 msgid "Created"
 msgstr "Erstellt"
 
@@ -291,9 +480,9 @@ msgid "Last modified"
 msgstr "Änderungsdatum"
 
 #: task_dashboard/templates/users/partials/filter_form_content.html:280
-#: task_dashboard/templates/users/partials/scripts.html:63
+#: task_dashboard/templates/users/partials/scripts.html:27
 #: task_dashboard/templates/users/partials/tasks_table.html:233
-#: task_dashboard/users/views.py:1108
+#: task_dashboard/users/views.py:474
 msgid "Updated"
 msgstr "Geändert"
 
@@ -302,9 +491,9 @@ msgid "Due date"
 msgstr "Fälligkeit"
 
 #: task_dashboard/templates/users/partials/filter_form_content.html:298
-#: task_dashboard/templates/users/partials/scripts.html:64
+#: task_dashboard/templates/users/partials/scripts.html:28
 #: task_dashboard/templates/users/partials/tasks_table.html:253
-#: task_dashboard/users/views.py:1109
+#: task_dashboard/users/views.py:475
 msgid "Due"
 msgstr "Fällig"
 
@@ -313,13 +502,13 @@ msgid "Active filters:"
 msgstr "Aktive Filter:"
 
 #: task_dashboard/templates/users/partials/filter_form_content.html:315
-#: task_dashboard/templates/users/partials/scripts.html:211
-#: task_dashboard/users/views.py:1081
+#: task_dashboard/templates/users/partials/scripts.html:175
+#: task_dashboard/users/views.py:448
 msgid "Search"
 msgstr "Suche"
 
 #: task_dashboard/templates/users/partials/filter_form_content.html:345
-#: task_dashboard/templates/users/partials/scripts.html:308
+#: task_dashboard/templates/users/partials/scripts.html:272
 msgid "Clear all"
 msgstr "Alles löschen"
 
@@ -339,12 +528,38 @@ msgstr "Filter anwenden"
 msgid "Apply Filters"
 msgstr "Filter anwenden"
 
-#: task_dashboard/templates/users/partials/scripts.html:213
+#: task_dashboard/templates/users/partials/kimai_reminder_banner.html:17
+msgid "You haven't booked any time in Kimai yet."
+msgstr "Sie haben noch keine Zeit in Kimai gebucht."
+
+#: task_dashboard/templates/users/partials/kimai_reminder_banner.html:19
+#, fuzzy, python-format
+#| msgid ""
+#| "You are <strong>%(days)s business day%(days|pluralize)s</strong> behind "
+#| "on time tracking in Kimai."
+msgid ""
+"You are <strong>%(days)s business day</strong> behind on time tracking in "
+"Kimai."
+msgid_plural ""
+"You are <strong>%(days)s business days</strong> behind on time tracking in "
+"Kimai."
+msgstr[0] ""
+"Sie sind mit der Zeiterfassung in Kimai um <strong>%(days)s Werktag</strong> "
+"im Rückstand."
+msgstr[1] ""
+"Sie sind mit der Zeiterfassung in Kimai um <strong>%(days)s Werktage</strong> "
+"im Rückstand."
+
+#: task_dashboard/templates/users/partials/kimai_reminder_banner.html:24
+msgid "Incorrect? Adjust your working days in the menu."
+msgstr "Falsch? Arbeitstage im Menü anpassen."
+
+#: task_dashboard/templates/users/partials/scripts.html:177
 msgid "Clear search query"
 msgstr "Suche löschen"
 
 #: task_dashboard/templates/users/partials/stats_cards.html:9
-#: task_dashboard/users/views.py:887
+#: task_dashboard/users/views.py:722
 msgid "Tasks assigned to you"
 msgstr "Dir zugewiesene Aufgaben"
 
@@ -357,21 +572,22 @@ msgid "Tasks requiring immediate attention"
 msgstr "Dringende Aufgaben"
 
 #: task_dashboard/templates/users/partials/stats_cards.html:16
-#: task_dashboard/templates/users/partials/tasks_table.html:346
-#: task_dashboard/users/templatetags/dashboard_extras.py:194
+#: task_dashboard/templates/users/partials/tasks_table.html:345
+#: task_dashboard/users/forms.py:17
+#: task_dashboard/users/templatetags/dashboard_extras.py:191
 msgid "Open"
 msgstr "Offen"
 
 #: task_dashboard/templates/users/partials/stats_cards.html:21
-#: task_dashboard/users/views.py:893
+#: task_dashboard/users/views.py:728
 msgid "Tasks without an owner."
 msgstr "Aufgaben ohne Besitzer."
 
 #: task_dashboard/templates/users/partials/stats_cards.html:22
-#: task_dashboard/users/views.py:259 task_dashboard/users/views.py:278
-#: task_dashboard/users/views.py:610 task_dashboard/users/views.py:876
-#: task_dashboard/users/views.py:890 task_dashboard/users/views.py:929
-#: task_dashboard/users/views.py:964
+#: task_dashboard/users/identity.py:303 task_dashboard/users/models.py:87
+#: task_dashboard/users/views.py:279 task_dashboard/users/views.py:312
+#: task_dashboard/users/views.py:409 task_dashboard/users/views.py:420
+#: task_dashboard/users/views.py:557 task_dashboard/users/views.py:725
 msgid "Unassigned"
 msgstr "Nicht zugewiesen"
 
@@ -404,6 +620,7 @@ msgid "ID"
 msgstr "ID"
 
 #: task_dashboard/templates/users/partials/tasks_table.html:61
+#: task_dashboard/users/models.py:563
 msgid "Title"
 msgstr "Titel"
 
@@ -428,39 +645,41 @@ msgid "ID copied to clipboard!"
 msgstr "ID kopiert!"
 
 #: task_dashboard/templates/users/partials/tasks_table.html:343
-#: task_dashboard/templates/users/partials/tasks_table.html:361
+#: task_dashboard/templates/users/partials/tasks_table.html:363
 msgid "Original"
 msgstr "Original"
 
-#: task_dashboard/templates/users/partials/tasks_table.html:349
-#: task_dashboard/users/templatetags/dashboard_extras.py:195
+#: task_dashboard/templates/users/partials/tasks_table.html:347
+#: task_dashboard/users/forms.py:18
+#: task_dashboard/users/templatetags/dashboard_extras.py:192
 msgid "Pending"
 msgstr "Ausstehend"
 
-#: task_dashboard/templates/users/partials/tasks_table.html:352
-#: task_dashboard/users/templatetags/dashboard_extras.py:196
+#: task_dashboard/templates/users/partials/tasks_table.html:351
+#: task_dashboard/users/templatetags/dashboard_extras.py:193
 msgid "Resolved"
 msgstr "Gelöst"
 
-#: task_dashboard/templates/users/partials/tasks_table.html:352
-#: task_dashboard/users/templatetags/dashboard_extras.py:197
+#: task_dashboard/templates/users/partials/tasks_table.html:353
+#: task_dashboard/users/forms.py:19
+#: task_dashboard/users/templatetags/dashboard_extras.py:194
 msgid "Closed"
 msgstr "Geschlossen"
 
-#: task_dashboard/templates/users/partials/tasks_table.html:370
-#: task_dashboard/users/templatetags/dashboard_extras.py:190
+#: task_dashboard/templates/users/partials/tasks_table.html:372
+#: task_dashboard/users/templatetags/dashboard_extras.py:187
 msgid "Critical"
 msgstr "Kritisch"
 
-#: task_dashboard/templates/users/partials/tasks_table.html:384
+#: task_dashboard/templates/users/partials/tasks_table.html:386
 msgid "No tasks found matching your filters."
 msgstr "Keine Aufgaben gefunden, die Ihren Filtern entsprechen."
 
-#: task_dashboard/templates/users/partials/tasks_table.html:400
+#: task_dashboard/templates/users/partials/tasks_table.html:402
 msgid "Service Mapping Transparency"
 msgstr "Service-Mapping-Transparenz"
 
-#: task_dashboard/templates/users/partials/tasks_table.html:402
+#: task_dashboard/templates/users/partials/tasks_table.html:404
 msgid ""
 "This table shows how each external service's original states and priorities "
 "are normalized in the dashboard."
@@ -468,390 +687,367 @@ msgstr ""
 "Diese Tabelle zeigt, wie die ursprünglichen Zustände und Prioritäten der "
 "einzelnen externen Dienste im Dashboard normalisiert werden."
 
-#: task_dashboard/templates/users/partials/tasks_table.html:413
+#: task_dashboard/templates/users/partials/tasks_table.html:415
 msgid "Status Mapping"
 msgstr "Status-Mapping"
 
-#: task_dashboard/templates/users/partials/tasks_table.html:418
-#: task_dashboard/templates/users/partials/tasks_table.html:449
+#: task_dashboard/templates/users/partials/tasks_table.html:420
+#: task_dashboard/templates/users/partials/tasks_table.html:451
 msgid "Normalized"
 msgstr "Normalisiert"
 
-#: task_dashboard/templates/users/partials/tasks_table.html:419
-#: task_dashboard/templates/users/partials/tasks_table.html:450
+#: task_dashboard/templates/users/partials/tasks_table.html:421
+#: task_dashboard/templates/users/partials/tasks_table.html:452
 msgid "Original Values"
 msgstr "Ursprüngliche Werte"
 
-#: task_dashboard/templates/users/partials/tasks_table.html:434
+#: task_dashboard/templates/users/partials/tasks_table.html:436
 msgid "All other values"
 msgstr "Alle anderen Werte"
 
-#: task_dashboard/templates/users/partials/tasks_table.html:444
+#: task_dashboard/templates/users/partials/tasks_table.html:446
 msgid "Priority Mapping"
 msgstr "Prioritäts-Mapping"
 
-#: task_dashboard/templates/users/partials/tasks_table.html:465
+#: task_dashboard/templates/users/partials/tasks_table.html:467
 msgid "Default / Fallback"
 msgstr "Standard / Fallback"
 
-#: task_dashboard/templates/users/partials/tasks_table.html:480
+#: task_dashboard/templates/users/partials/tasks_table.html:482
 msgid "Close"
 msgstr "Schließen"
 
-#: task_dashboard/users/admin.py:43
+#: task_dashboard/users/admin.py:38
 msgid "Personal info"
 msgstr "Persönliche Daten"
 
-#: task_dashboard/users/admin.py:45
+#: task_dashboard/users/admin.py:40
 msgid "Permissions"
 msgstr "Berechtigungen"
 
-#: task_dashboard/users/admin.py:56
+#: task_dashboard/users/admin.py:51
 msgid "Important dates"
 msgstr "Wichtige Daten"
 
-#: task_dashboard/users/admin.py:117
+#: task_dashboard/users/admin.py:113
 msgid "API Configuration"
 msgstr "API-Konfiguration"
 
-#: task_dashboard/users/apps.py:34
-msgid "Users"
-msgstr "Benutzer"
+#: task_dashboard/users/admin.py:124 task_dashboard/users/admin.py:180
+msgid "Kimai"
+msgstr ""
 
-#: task_dashboard/users/forms.py:65 task_dashboard/users/tests/test_forms.py:35
-msgid "This email has already been taken."
-msgstr "Diese E-Mail-Adresse wird bereits verwendet."
+#: task_dashboard/users/admin.py:143
+msgid "Extra Data (Slug/ID)"
+msgstr "Zusatzdaten (Slug/ID)"
 
-#: task_dashboard/users/models.py:28
-msgid "Name of User"
-msgstr "Name des Benutzers"
+#: task_dashboard/users/admin.py:176
+msgid "Scheduling"
+msgstr ""
 
-#: task_dashboard/users/models.py:31
-msgid "email address"
-msgstr "E-Mail-Adresse"
-
-#: task_dashboard/users/models.py:50
-msgid "Full Access (See all tasks)"
-msgstr "Vollzugriff (Alle Aufgaben sehen)"
-
-#: task_dashboard/users/models.py:51
-msgid "Limited (Own tasks + Unassigned only)"
-msgstr "Eingeschränkt (Eigene + nicht zugewiesene Aufgaben)"
-
-#: task_dashboard/users/models.py:52
-msgid "Only own tasks"
-msgstr "Nur eigene Aufgaben"
-
-#: task_dashboard/users/models.py:53
-msgid "No Access"
-msgstr "Kein Zugriff"
-
-#: task_dashboard/users/templatetags/dashboard_extras.py:158
-msgid "Today"
-msgstr "Heute"
-
-#: task_dashboard/users/templatetags/dashboard_extras.py:174
-#, python-format
-msgid "%(hours)dh %(minutes)dm left"
-msgstr "%(hours)dh %(minutes)dm verbleibend"
-
-#: task_dashboard/users/templatetags/dashboard_extras.py:178
-#, python-format
-msgid "%(minutes)dm left"
-msgstr "%(minutes)dm verbleibend"
-
-#: task_dashboard/users/templatetags/dashboard_extras.py:181
-#, python-format
-msgid "%(hours)dh %(minutes)dm ago"
-msgstr "vor %(hours)dh %(minutes)dm"
-
-#: task_dashboard/users/templatetags/dashboard_extras.py:185
-#, python-format
-msgid "%(minutes)dm ago"
-msgstr "vor %(minutes)dm"
-
-#: task_dashboard/users/templatetags/dashboard_extras.py:191
-msgid "High"
-msgstr "Hoch"
-
-#: task_dashboard/users/templatetags/dashboard_extras.py:192
-msgid "Medium"
-msgstr "Mittel"
-
-#: task_dashboard/users/templatetags/dashboard_extras.py:193
-msgid "Low"
-msgstr "Niedrig"
-
-#: task_dashboard/users/templatetags/dashboard_extras.py:198
-msgid "New"
-msgstr "Neu"
-
-#: task_dashboard/users/tests/test_views.py:80
-#: task_dashboard/users/views.py:127
-msgid "Information successfully updated"
-msgstr "Informationen erfolgreich aktualisiert"
-
-#: task_dashboard/users/views.py:147
-msgid "Refresh started for all services."
-msgstr "Aktualisierung für alle Dienste gestartet."
-
-#: task_dashboard/users/views.py:164
-msgid "Service type not supported for single refresh."
-msgstr "Service-Typ unterstützt keine Einzelaktualisierung."
-
-#: task_dashboard/users/views.py:188
-msgid "Task updated successfully."
-msgstr "Task erfolgreich aktualisiert."
-
-#: task_dashboard/users/views.py:191
-msgid "Task could not be found in the remote service."
-msgstr "Task konnte im Remote-Dienst nicht gefunden werden."
-
-#: task_dashboard/users/views.py:195
-msgid "Failed to refresh task."
-msgstr "Task-Aktualisierung fehlgeschlagen."
-
-#: task_dashboard/users/views.py:884
-msgid "My Tasks"
-msgstr "Meine Aufgaben"
-
-#: task_dashboard/templates/base.html:414
-msgid "Log In"
-msgstr "Anmelden"
-
-#: task_dashboard/templates/account/login.html:14
-msgid "Welcome Back"
-msgstr "Willkommen zurück"
-
-#: task_dashboard/templates/account/login.html:15
-msgid "Task Management System"
-msgstr "Aufgabenverwaltungssystem"
-
-#: task_dashboard/templates/account/login.html:29
-msgid "Sign in with SSO (Keycloak)"
-msgstr "Mit SSO anmelden (Keycloak)"
-
-#: task_dashboard/templates/account/login.html:33
-msgid "OR"
-msgstr "ODER"
-
-#: task_dashboard/templates/account/login.html:45
-msgid "Admin Login"
-msgstr "Admin-Anmeldung"
-
-#: task_dashboard/templates/account/login.html:65
-msgid "Email"
-msgstr "E-Mail"
-
-#: task_dashboard/templates/account/login.html:72
-msgid "Password"
-msgstr "Passwort"
-
-#: task_dashboard/templates/account/login.html:80
-msgid "Remember Me"
-msgstr "Angemeldet bleiben"
-
-#: task_dashboard/templates/base.html (logout modal)
-msgid "Confirm Logout"
-msgstr "Abmeldung bestätigen"
-
-#: task_dashboard/templates/base.html (logout modal)
-msgid "Are you sure you want to sign out of the dashboard?"
-msgstr "Möchten Sie sich wirklich vom Dashboard abmelden?"
-
-#: task_dashboard/templates/base.html (logout modal)
-msgid "Yes, Log Out"
-msgstr "Ja, abmelden"
-
-#: config/settings/base.py (UNFOLD navigation)
-msgid "Configuration"
-msgstr "Konfiguration"
-
-#: config/settings/base.py (UNFOLD navigation)
-msgid "Services"
-msgstr "Dienste"
-
-#: config/settings/base.py (UNFOLD navigation)
-msgid "Global Settings"
-msgstr "Globale Einstellungen"
-
-#: config/settings/base.py (UNFOLD navigation)
-msgid "Access Control"
-msgstr "Zugangskontrolle"
-
-#: config/settings/base.py (UNFOLD navigation)
-msgid "External Groups"
-msgstr "Externe Gruppen"
-
-#: config/settings/base.py (UNFOLD navigation)
-msgid "Service Permissions"
-msgstr "Dienst-Berechtigungen"
-
-#: config/settings/base.py (UNFOLD navigation)
-msgid "Task Permissions"
-msgstr "Aufgaben-Berechtigungen"
-
-#: config/settings/base.py (UNFOLD navigation)
-msgid "Tasks"
-msgstr "Aufgaben"
-
-#: task_dashboard/users/admin_site.py
+#: task_dashboard/users/admin_site.py:8
 msgid "Administration"
 msgstr "Administration"
 
-#: config/settings/base.py (UNFOLD)
-msgid "Admin Panel"
-msgstr "Admin-Panel"
-
-#: config/settings/base.py (UNFOLD navigation)
-msgid "Groups"
-msgstr "Gruppen"
-
-#: task_dashboard/users/models.py (ServiceConfiguration.Meta)
-msgid "Service Configuration"
-msgstr "Dienstkonfiguration"
-
-#: task_dashboard/users/models.py (ServiceConfiguration.Meta)
-msgid "Service Configurations"
-msgstr "Dienstkonfigurationen"
-
-#: task_dashboard/users/models.py (ServiceConfiguration.name)
-msgid "Service Type"
-msgstr "Diensttyp"
-
-#: task_dashboard/users/models.py (ServiceConfiguration.default_access_level)
-msgid "Default Access Level"
-msgstr "Standard-Zugriffslevel"
-
-#: task_dashboard/users/models.py (ServiceConfiguration.api_url)
-msgid "API URL"
-msgstr "API-URL"
-
-#: task_dashboard/users/models.py (ServiceConfiguration.is_active)
-msgid "Active"
-msgstr "Aktiv"
-
-#: task_dashboard/users/models.py (ServiceConfiguration.name help_text)
-msgid "Display Name (e.g. Internal Helpdesk)"
-msgstr "Anzeigename (z.B. Interner Helpdesk)"
-
-#: task_dashboard/users/models.py (ServiceConfiguration.service_type help_text)
-msgid "Type of service to connect to."
-msgstr "Typ des zu verbindenden Dienstes."
-
-#: task_dashboard/users/models.py (ServiceConfiguration.default_access_level help_text)
-msgid "Default access level for all users on this service."
-msgstr "Standard-Zugriffslevel für alle Benutzer auf diesem Dienst."
-
-#: task_dashboard/users/models.py (ServiceConfiguration.api_url help_text)
-msgid "Base URL for the service API."
-msgstr "Basis-URL für die Dienst-API."
-
-#: task_dashboard/users/models.py (ServiceConfiguration.api_token help_text)
-msgid "API Token or Secret for authentication."
-msgstr "API-Token oder Secret zur Authentifizierung."
-
-#: task_dashboard/users/models.py (ServiceConfiguration.api_username help_text)
-msgid "Username for Basic Authentication (e.g. Eramba)"
-msgstr "Benutzername für Basic-Authentifizierung (z.B. Eramba)"
-
-#: task_dashboard/users/models.py (ServiceConfiguration.api_password help_text)
-msgid "Password for Basic Authentication (e.g. Eramba)"
-msgstr "Passwort für Basic-Authentifizierung (z.B. Eramba)"
-
-#: task_dashboard/users/models.py (ServiceConfiguration.is_active help_text)
-msgid "Uncheck to hide this service from the dashboard completely."
-msgstr "Deaktivieren, um diesen Dienst vollständig auszublenden."
-
-#: task_dashboard/users/models.py (ServiceConfiguration.permissions)
-msgid "Can view system health indicator"
-msgstr "Kann Systemstatus-Anzeige sehen"
-
-#: task_dashboard/users/models.py (ServiceConfiguration.permissions)
-msgid "Can view admin panel button"
-msgstr "Kann Admin-Panel-Schaltfläche sehen"
-
-#: task_dashboard/users/models.py (GlobalSetting.Meta)
-msgid "Global Setting"
-msgstr "Globale Einstellung"
-
-#: task_dashboard/users/models.py (GlobalSetting.company_name)
-msgid "Company Name"
-msgstr "Firmenname"
-
-#: task_dashboard/users/models.py (GlobalSetting.company_name help_text)
-msgid "Used as fallback customer name across services if none is specified."
-msgstr "Fallback-Kundenname in allen Diensten, wenn kein Kunde angegeben ist."
-
-#: task_dashboard/users/models.py (GlobalSetting.default_task_states)
+#: task_dashboard/users/forms.py:23 task_dashboard/users/models.py:315
 msgid "Default Task States"
 msgstr "Standard-Aufgabenstatus"
 
-#: task_dashboard/users/models.py (GlobalSetting.default_task_states help_text)
-msgid ""
-"Comma-separated list of default task states to show in the table "
-"(e.g., open,pending,new)."
-msgstr ""
-"Kommagetrennte Standard-Aufgabenstatus für die Tabelle "
-"(z.B. open,pending,new)."
+#: task_dashboard/users/forms.py:24
+msgid "Select the default task states to show in the table."
+msgstr "Standard-Aufgabenstatus für die Tabelle auswählen."
 
-#: task_dashboard/users/models.py (GlobalSetting.sso_default_group)
+#: task_dashboard/users/forms.py:28 task_dashboard/users/models.py:325
 msgid "SSO Default Group"
 msgstr "SSO-Standardgruppe"
 
-#: task_dashboard/users/models.py (GlobalSetting.sso_default_group help_text)
+#: task_dashboard/users/forms.py:30
 msgid ""
-"Fallback group assigned to SSO users when Keycloak provides no groups. "
-"Leave blank to use the built-in 'sso-default-fallback' group."
+"Group assigned to SSO users when Keycloak provides no groups. Leave blank to "
+"use the built-in 'sso-default-fallback' group."
 msgstr ""
-"Fallback-Gruppe für SSO-Benutzer ohne Keycloak-Gruppen. "
-"Leer lassen für die eingebaute 'sso-default-fallback'-Gruppe."
+"Fallback-Gruppe für SSO-Benutzer ohne Keycloak-Gruppen. Leer lassen für die "
+"eingebaute 'sso-default-fallback'-Gruppe."
 
-#: task_dashboard/users/models.py (ExternalGroup.Meta)
-msgid "External Group"
-msgstr "Externe Gruppe"
+#: task_dashboard/users/forms.py:52
+msgid "— sso-default-fallback (built-in) —"
+msgstr "— sso-default-fallback (eingebaut) —"
 
-#: task_dashboard/users/models.py (ExternalGroup.last_seen)
+#: task_dashboard/users/forms.py:89 task_dashboard/users/tests/test_forms.py:96
+msgid "This email has already been taken."
+msgstr "Diese E-Mail-Adresse wird bereits verwendet."
+
+#: task_dashboard/users/models.py:39
+msgid "Name of User"
+msgstr "Name des Benutzers"
+
+#: task_dashboard/users/models.py:42
+msgid "email address"
+msgstr "E-Mail-Adresse"
+
+#: task_dashboard/users/models.py:71
+msgid "Full Access (See all tasks)"
+msgstr "Vollzugriff (Alle Aufgaben sehen)"
+
+#: task_dashboard/users/models.py:72
+msgid "Limited (Own tasks + Unassigned only)"
+msgstr "Eingeschränkt (Eigene + nicht zugewiesene Aufgaben)"
+
+#: task_dashboard/users/models.py:73
+msgid "Only own tasks"
+msgstr "Nur eigene Aufgaben"
+
+#: task_dashboard/users/models.py:74
+msgid "No Access"
+msgstr "Kein Zugriff"
+
+#: task_dashboard/users/models.py:222 task_dashboard/users/models.py:387
+#, fuzzy
+#| msgid "View Name"
+msgid "Name"
+msgstr "Ansichtsname"
+
+#: task_dashboard/users/models.py:223
+msgid "Display Name (e.g. Internal Helpdesk)"
+msgstr "Anzeigename (z.B. Interner Helpdesk)"
+
+#: task_dashboard/users/models.py:228
+msgid "Service Type"
+msgstr "Diensttyp"
+
+#: task_dashboard/users/models.py:229
+msgid "Type of service to connect to."
+msgstr "Typ des zu verbindenden Dienstes."
+
+#: task_dashboard/users/models.py:236
+msgid "Default Access Level"
+msgstr "Standard-Zugriffslevel"
+
+#: task_dashboard/users/models.py:237
+msgid "Default access level for all users on this service."
+msgstr "Standard-Zugriffslevel für alle Benutzer auf diesem Dienst."
+
+#: task_dashboard/users/models.py:242
+msgid "API URL"
+msgstr "API-URL"
+
+#: task_dashboard/users/models.py:243
+msgid "Base URL for the service API."
+msgstr "Basis-URL für die Dienst-API."
+
+#: task_dashboard/users/models.py:249
+msgid "API Token or Secret for authentication."
+msgstr "API-Token oder Secret zur Authentifizierung."
+
+#: task_dashboard/users/models.py:254
+msgid "Username for Basic Authentication (e.g. Eramba)"
+msgstr "Benutzername für Basic-Authentifizierung (z.B. Eramba)"
+
+#: task_dashboard/users/models.py:260
+msgid "Password for Basic Authentication (e.g. Eramba)"
+msgstr "Passwort für Basic-Authentifizierung (z.B. Eramba)"
+
+#: task_dashboard/users/models.py:264
+msgid "Active"
+msgstr "Aktiv"
+
+#: task_dashboard/users/models.py:265
+msgid "Uncheck to hide this service from the dashboard completely."
+msgstr "Deaktivieren, um diesen Dienst vollständig auszublenden."
+
+#: task_dashboard/users/models.py:271
+msgid "Kimai Customer Name Override"
+msgstr ""
+
+#: task_dashboard/users/models.py:273
+msgid ""
+"Override the Kimai customer for all activities from this service. Leave "
+"blank to use the task's own customer field, falling back to the global "
+"company name."
+msgstr ""
+
+#: task_dashboard/users/models.py:280
+msgid "Service Configuration"
+msgstr "Dienstkonfiguration"
+
+#: task_dashboard/users/models.py:281
+msgid "Service Configurations"
+msgstr "Dienstkonfigurationen"
+
+#: task_dashboard/users/models.py:284
+msgid "Can view system health indicator"
+msgstr "Kann Systemstatus-Anzeige sehen"
+
+#: task_dashboard/users/models.py:285
+msgid "Can view admin panel button"
+msgstr "Kann Admin-Panel-Schaltfläche sehen"
+
+#: task_dashboard/users/models.py:295
+msgid "API URL must use HTTPS to protect the bearer token."
+msgstr ""
+
+#: task_dashboard/users/models.py:307
+msgid "Company Name"
+msgstr "Firmenname"
+
+#: task_dashboard/users/models.py:309
+msgid "Used as fallback customer name across services if none is specified."
+msgstr "Fallback-Kundenname in allen Diensten, wenn kein Kunde angegeben ist."
+
+#: task_dashboard/users/models.py:317
+msgid ""
+"Comma-separated list of default task states to show in the table (e.g., open,"
+"pending,new)."
+msgstr ""
+"Kommagetrennte Standard-Aufgabenstatus für die Tabelle (z.B. open,pending,"
+"new)."
+
+#: task_dashboard/users/models.py:327
+msgid ""
+"Fallback group assigned to SSO users when Keycloak provides no groups. Leave "
+"blank to use the built-in 'sso-default-fallback' group."
+msgstr ""
+"Fallback-Gruppe für SSO-Benutzer ohne Keycloak-Gruppen. Leer lassen für die "
+"eingebaute 'sso-default-fallback'-Gruppe."
+
+#: task_dashboard/users/models.py:334
+msgid "Kimai Customer Country"
+msgstr ""
+
+#: task_dashboard/users/models.py:336
+msgid "ISO 3166-1 alpha-2 country code used when creating Kimai customers."
+msgstr ""
+
+#: task_dashboard/users/models.py:342
+msgid "Kimai Customer Timezone"
+msgstr ""
+
+#: task_dashboard/users/models.py:344
+msgid "Timezone used when creating Kimai customers (e.g. Europe/Berlin)."
+msgstr ""
+
+#: task_dashboard/users/models.py:349
+msgid "Task Fetch Interval (minutes)"
+msgstr ""
+
+#: task_dashboard/users/models.py:351
+msgid "How often to fetch tasks from all services. Takes effect after saving."
+msgstr ""
+
+#: task_dashboard/users/models.py:356
+msgid "Global Setting"
+msgstr "Globale Einstellung"
+
+#: task_dashboard/users/models.py:390
 msgid "Last Seen"
 msgstr "Zuletzt gesehen"
 
-#: task_dashboard/users/models.py (TaskPermission.Meta)
-msgid "Task Permission"
-msgstr "Aufgaben-Berechtigung"
+#: task_dashboard/users/models.py:398
+msgid "External Group"
+msgstr "Externe Gruppe"
 
-#: task_dashboard/users/models.py (ServicePermission.Meta)
-msgid "Service Permission"
-msgstr "Dienst-Berechtigung"
-
-#: task_dashboard/users/models.py (TaskPermission/ServicePermission access_level help_text)
+#: task_dashboard/users/models.py:423 task_dashboard/users/models.py:460
 msgid ""
-"FULL: View everything. LIMITED: View only unassigned tasks "
-"or those assigned to the user. OWN: View only tasks "
-"assigned to the user. NONE: No access."
+"FULL: View everything. LIMITED: View only unassigned tasks or those assigned "
+"to the user. OWN: View only tasks assigned to the user. NONE: No access."
 msgstr ""
 "FULL: Alles anzeigen. LIMITED: Nur nicht zugewiesene oder eigene Aufgaben. "
 "OWN: Nur eigene Aufgaben. NONE: Kein Zugriff."
 
-#: task_dashboard/users/models.py (Task.Meta)
-msgid "Task"
-msgstr "Aufgabe"
+#: task_dashboard/users/models.py:431
+msgid "Task Permission"
+msgstr "Aufgaben-Berechtigung"
 
-#: task_dashboard/users/models.py (Task.external_id)
+#: task_dashboard/users/models.py:432
+msgid "Task Permissions"
+msgstr "Aufgaben-Berechtigungen"
+
+#: task_dashboard/users/models.py:468
+msgid "Service Permission"
+msgstr "Dienst-Berechtigung"
+
+#: task_dashboard/users/models.py:469
+msgid "Service Permissions"
+msgstr "Dienst-Berechtigungen"
+
+#: task_dashboard/users/models.py:557
 msgid "External ID"
 msgstr "Externe ID"
 
-#: task_dashboard/users/admin.py (ExternalGroupAdmin.display_extra_data)
-msgid "Extra Data (Slug/ID)"
-msgstr "Zusatzdaten (Slug/ID)"
+#: task_dashboard/users/models.py:564
+#, fuzzy
+#| msgid "State"
+msgid "Status"
+msgstr "Status"
 
-#: task_dashboard/users/forms.py (GlobalSettingForm.default_task_states_list)
-msgid "Select the default task states to show in the table."
-msgstr "Standard-Aufgabenstatus für die Tabelle auswählen."
+#: task_dashboard/users/models.py:608
+msgid "Task"
+msgstr "Aufgabe"
 
-#: task_dashboard/users/forms.py (GlobalSettingForm.sso_default_group)
-msgid "Group assigned to SSO users when Keycloak provides no groups. Leave blank to use the built-in 'sso-default-fallback' group."
-msgstr "Fallback-Gruppe für SSO-Benutzer ohne Keycloak-Gruppen. Leer lassen für die eingebaute 'sso-default-fallback'-Gruppe."
+#: task_dashboard/users/templatetags/dashboard_extras.py:141
+#, python-format
+msgid "%(hours)dh %(minutes)dm left"
+msgstr "%(hours)dh %(minutes)dm verbleibend"
 
-#: task_dashboard/users/forms.py (GlobalSettingForm.sso_default_group choice)
-msgid "— sso-default-fallback (built-in) —"
-msgstr "— sso-default-fallback (eingebaut) —"
+#: task_dashboard/users/templatetags/dashboard_extras.py:145
+#, python-format
+msgid "%(minutes)dm left"
+msgstr "%(minutes)dm verbleibend"
+
+#: task_dashboard/users/templatetags/dashboard_extras.py:149
+#, python-format
+msgid "%(hours)dh %(minutes)dm ago"
+msgstr "vor %(hours)dh %(minutes)dm"
+
+#: task_dashboard/users/templatetags/dashboard_extras.py:150
+#, python-format
+msgid "%(minutes)dm ago"
+msgstr "vor %(minutes)dm"
+
+#: task_dashboard/users/templatetags/dashboard_extras.py:180
+msgid "Today"
+msgstr "Heute"
+
+#: task_dashboard/users/templatetags/dashboard_extras.py:188
+msgid "High"
+msgstr "Hoch"
+
+#: task_dashboard/users/templatetags/dashboard_extras.py:189
+msgid "Medium"
+msgstr "Mittel"
+
+#: task_dashboard/users/templatetags/dashboard_extras.py:190
+msgid "Low"
+msgstr "Niedrig"
+
+#: task_dashboard/users/templatetags/dashboard_extras.py:195
+msgid "New"
+msgstr "Neu"
+
+#: task_dashboard/users/tests/test_views.py:74 task_dashboard/users/views.py:78
+msgid "Information successfully updated"
+msgstr "Informationen erfolgreich aktualisiert"
+
+#: task_dashboard/users/views.py:106
+msgid "Refresh started for all services."
+msgstr "Aktualisierung für alle Dienste gestartet."
+
+#: task_dashboard/users/views.py:121
+msgid "Service type not supported for single refresh."
+msgstr "Service-Typ unterstützt keine Einzelaktualisierung."
+
+#: task_dashboard/users/views.py:141
+msgid "Task updated successfully."
+msgstr "Task erfolgreich aktualisiert."
+
+#: task_dashboard/users/views.py:144
+msgid "Task could not be found in the remote service."
+msgstr "Task konnte im Remote-Dienst nicht gefunden werden."
+
+#: task_dashboard/users/views.py:148
+msgid "Failed to refresh task."
+msgstr "Task-Aktualisierung fehlgeschlagen."
+
+#: task_dashboard/users/views.py:719
+msgid "My Tasks"
+msgstr "Meine Aufgaben"

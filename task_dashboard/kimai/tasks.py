@@ -291,9 +291,11 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
                 if existing:
                     if existing.get("name") != title:
                         try:
-                            await client.patch_activity(existing["id"], {"name": title, "project": project_id})
+                            await client.patch_activity(
+                                existing["id"], {"name": title, "project": project_id}
+                            )
                         except httpx.HTTPStatusError as exc:
-                            logger.error(
+                            logger.exception(
                                 "Failed to update activity name for %s: %s %s",
                                 comment,
                                 exc.response.status_code,
@@ -315,7 +317,7 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
                         )
                         count += 1
                     except httpx.HTTPStatusError as exc:
-                        logger.error(
+                        logger.exception(
                             "Failed to create activity for task %s: %s %s",
                             comment,
                             exc.response.status_code,

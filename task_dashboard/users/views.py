@@ -21,6 +21,7 @@ from django.db.models import Q
 from django.db.models import Value
 from django.db.models import When
 from django.db.models.expressions import RawSQL
+from django.http import HttpResponseForbidden
 from django.http import HttpResponseRedirect
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
@@ -112,8 +113,6 @@ def force_refresh_view(request):
 @login_required
 def refresh_single_task_view(request, pk):
     if not Task.objects.filter(pk=pk).filter(get_rbac_q(request.user)).exists():
-        from django.http import HttpResponseForbidden
-
         return HttpResponseForbidden()
     task = get_object_or_404(Task, pk=pk)
     service_class = SERVICE_CLASSES.get(task.service.service_type)

@@ -12,7 +12,7 @@ MIN_TOKEN_LENGTH = 3
 def _extract_email(s: str) -> str:
     """Extract email from 'Name <email@domain.com>' or return string as-is."""
     if "<" in s and ">" in s:
-        return s.split("<")[-1].split(">")[0].strip()
+        return s.rsplit("<", maxsplit=1)[-1].split(">", maxsplit=1)[0].strip()
     return s.strip()
 
 

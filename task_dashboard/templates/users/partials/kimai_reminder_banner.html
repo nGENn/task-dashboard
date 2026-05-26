@@ -16,8 +16,10 @@
       {% if kimai_reminder.never_booked %}
         {% trans "You haven't booked any time in Kimai yet." %}
       {% else %}
-        {% blocktrans trimmed with days=kimai_reminder.days_behind %}
-          You are <strong>{{ days }} business day{{ days|pluralize }}</strong> behind on time tracking in Kimai.
+        {% blocktrans trimmed count days=kimai_reminder.days_behind %}
+          You are <strong>{{ days }} business day</strong> behind on time tracking in Kimai.
+        {% plural %}
+          You are <strong>{{ days }} business days</strong> behind on time tracking in Kimai.
         {% endblocktrans %}
         <span class="text-xs opacity-70">{% trans "Incorrect? Adjust your working days in the menu." %}</span>
       {% endif %}

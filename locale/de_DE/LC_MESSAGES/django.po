@@ -509,3 +509,47 @@ msgstr "Standard / Fallback"
 
 msgid "Close"
 msgstr "Schließen"
+
+msgid "Working Days"
+msgstr "Arbeitstage"
+
+msgid "Mo"
+msgstr "Mo"
+
+msgid "Tu"
+msgstr "Di"
+
+msgid "We"
+msgstr "Mi"
+
+msgid "Th"
+msgstr "Do"
+
+msgid "Fr"
+msgstr "Fr"
+
+msgid "Sa"
+msgstr "Sa"
+
+msgid "Su"
+msgstr "So"
+
+msgid "You haven't booked any time in Kimai yet."
+msgstr "Sie haben noch keine Zeit in Kimai gebucht."
+
+#, python-format
+msgid ""
+"You are <strong>%(days)s business day</strong> behind on time tracking in "
+"Kimai."
+msgid_plural ""
+"You are <strong>%(days)s business days</strong> behind on time tracking in "
+"Kimai."
+msgstr[0] ""
+"Sie sind mit der Zeiterfassung in Kimai um <strong>%(days)s Werktag</strong> "
+"im Rückstand."
+msgstr[1] ""
+"Sie sind mit der Zeiterfassung in Kimai um <strong>%(days)s Werktage</strong> "
+"im Rückstand."
+
+msgid "Incorrect? Adjust your working days in the menu."
+msgstr "Falsch? Arbeitstage im Menü anpassen."
