@@ -1,5 +1,6 @@
 import logging
 import math
+from urllib.parse import urlparse
 
 from django.core.cache import cache
 from django.utils import timezone
@@ -205,7 +206,9 @@ def kimai_reminder(request):
     kimai_config = ServiceConfiguration.objects.filter(
         service_type="kimai", is_active=True
     ).first()
-    kimai_base_url = kimai_config.api_url.rstrip("/") if kimai_config else ""
+    kimai_base_url = ""
+    if kimai_config and urlparse(kimai_config.api_url).scheme in ("http", "https"):
+        kimai_base_url = kimai_config.api_url.rstrip("/")
 
     return {
         "kimai_reminder": {

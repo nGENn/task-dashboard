@@ -1,7 +1,9 @@
-import contextlib
+import logging
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+
+logger = logging.getLogger(__name__)
 
 
 class KimaiSettings(models.Model):
@@ -59,7 +61,7 @@ class KimaiSettings(models.Model):
     def save(self, *args, **kwargs):
         self.pk = 1
         super().save(*args, **kwargs)
-        with contextlib.suppress(Exception):
+        try:
             from django_q.models import Schedule
 
             Schedule.objects.filter(
@@ -70,6 +72,10 @@ class KimaiSettings(models.Model):
             ).update(
                 minutes=self.reminder_interval_minutes, schedule_type=Schedule.MINUTES
             )
+        except ImportError:
+            pass
+        except Exception:
+            logger.exception("Failed to update Django-Q schedules for KimaiSettings")
 
     @classmethod
     def load(cls):

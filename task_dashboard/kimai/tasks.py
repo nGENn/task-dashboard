@@ -139,7 +139,7 @@ def sync_kimai_activities_for_service(config_id: int) -> int:
     return async_to_sync(_sync_activities_async)(client, config, settings)
 
 
-async def _sync_activities_async(  # noqa: C901, PLR0912, PLR0915
+async def _sync_activities_async(  # noqa: C901, PLR0915
     client: KimaiClient, config: ServiceConfiguration, settings: KimaiSettings
 ) -> int:
     # Fetch global settings and Kimai customers/projects once
@@ -191,11 +191,10 @@ async def _sync_activities_async(  # noqa: C901, PLR0912, PLR0915
 
     fallback_company = global_settings.company_name if global_settings else config.name
 
-    processed = 0
+    # Phase 1: resolve project IDs sequentially (avoids duplicate create races)
+    resolved: list[tuple[int, list[dict]]] = []  # (project_id, group_tasks)
     for group_name, group_tasks in by_group.items():
-        # Project comment key = "{config.name}::{group_name}"
         project_comment_key = f"{config.name}::{group_name}"
-
         kimai_project = project_by_comment.get(project_comment_key)
         if not kimai_project:
             # Determine customer: service override → task customer → global company name
@@ -240,73 +239,80 @@ async def _sync_activities_async(  # noqa: C901, PLR0912, PLR0915
                 logger.exception("Failed to create Kimai project %r", group_name)
                 continue
 
-        project_id = kimai_project["id"]
+        resolved.append((kimai_project["id"], group_tasks))
 
-        try:
-            existing_activities = await client.get_activities(project_id)
-        except Exception:
-            logger.exception("Failed to fetch activities for project %d", project_id)
-            continue
+    # Phase 2: sync activities for each project concurrently (capped at 5 in parallel).
+    sem = asyncio.Semaphore(5)
 
-        # Build map: comment → activity dict (only our synced ones via V3)
-        activity_by_comment: dict[str, dict] = {}
-        for act in existing_activities:
-            parsed = _parse_activity_comment(act.get("comment"))
-            if parsed and parsed[0] == config.id:
-                activity_by_comment[act["comment"]] = act
+    async def _sync_project(project_id: int, group_tasks: list[dict]) -> int:  # noqa: C901, PLR0912
+        async with sem:
+            try:
+                existing_activities = await client.get_activities(project_id)
+            except Exception:
+                logger.exception(
+                    "Failed to fetch activities for project %d", project_id
+                )
+                return 0
 
-        # Current task IDs in this group
-        current_comments = {
-            _activity_comment(config.id, t["external_id"]): t for t in group_tasks
-        }
+            activity_by_comment: dict[str, dict] = {}
+            for act in existing_activities:
+                parsed = _parse_activity_comment(act.get("comment"))
+                if parsed and parsed[0] == config.id:
+                    activity_by_comment[act["comment"]] = act
 
-        # Hide activities whose source task no longer exists / is closed (V12, C13)
-        for comment, act in activity_by_comment.items():
-            task_data = current_comments.get(comment)
-            if task_data is None or task_data.get("status") == "closed":
-                if act.get("visible") is not False:
+            current_comments = {
+                _activity_comment(config.id, t["external_id"]): t for t in group_tasks
+            }
+
+            count = 0
+            # Hide activities whose source task no longer exists / is closed (V12, C13)
+            for comment, act in activity_by_comment.items():
+                task_data = current_comments.get(comment)
+                if task_data is None or task_data.get("status") == "closed":
+                    if act.get("visible") is not False:
+                        try:
+                            await client.patch_activity(act["id"], {"visible": False})
+                        except Exception:
+                            logger.exception("Failed to hide activity %d", act["id"])
+                elif act.get("visible") is False:
                     try:
-                        await client.patch_activity(act["id"], {"visible": False})
+                        await client.patch_activity(act["id"], {"visible": True})
                     except Exception:
-                        logger.exception("Failed to hide activity %d", act["id"])
-            # Re-show if previously hidden (V12)
-            elif act.get("visible") is False:
-                try:
-                    await client.patch_activity(act["id"], {"visible": True})
-                except Exception:
-                    logger.exception("Failed to unhide activity %d", act["id"])
+                        logger.exception("Failed to unhide activity %d", act["id"])
 
-        # Create/update open tasks (V12: only non-closed)
-        for comment, task_data in current_comments.items():
-            if task_data.get("status") == "closed":
-                continue
-
-            existing = activity_by_comment.get(comment)
-            title = task_data.get("title") or task_data["external_id"]
-
-            if existing:
-                if existing.get("name") != title:
+            # Create/update open tasks (V12: only non-closed)
+            for comment, task_data in current_comments.items():
+                if task_data.get("status") == "closed":
+                    continue
+                existing = activity_by_comment.get(comment)
+                title = task_data.get("title") or task_data["external_id"]
+                if existing:
+                    if existing.get("name") != title:
+                        try:
+                            await client.patch_activity(existing["id"], {"name": title})
+                        except Exception:
+                            logger.exception(
+                                "Failed to update activity name for %s", comment
+                            )
+                else:
                     try:
-                        await client.patch_activity(existing["id"], {"name": title})
+                        await client.create_activity(
+                            {
+                                "name": title,
+                                "project": project_id,
+                                "comment": comment,
+                                "visible": True,
+                            }
+                        )
+                        count += 1
                     except Exception:
                         logger.exception(
-                            "Failed to update activity name for %s", comment
+                            "Failed to create activity for task %s", comment
                         )
-            else:
-                try:
-                    await client.create_activity(
-                        {
-                            "name": title,
-                            "project": project_id,
-                            "comment": comment,
-                            "visible": True,
-                        }
-                    )
-                    processed += 1
-                except Exception:
-                    logger.exception("Failed to create activity for task %s", comment)
+            return count
 
-    return processed
+    counts = await asyncio.gather(*(_sync_project(pid, gt) for pid, gt in resolved))
+    return sum(counts)
 
 
 def sync_kimai_activities() -> int:
@@ -348,19 +354,31 @@ def run_reminder_evaluation() -> int:
     return async_to_sync(_run_reminder_evaluation_async)(client, settings)
 
 
-async def _run_reminder_evaluation_async(  # noqa: C901
+async def _run_reminder_evaluation_async(  # noqa: C901, PLR0912, PLR0915
     client: KimaiClient, settings: KimaiSettings
 ) -> int:
     exempt = settings.get_exempt_email_set()
-    email_map = get_kimai_email_map()
-    if not email_map:
-        logger.warning("kimai_email_map empty — skipping reminder evaluation")
-        return 0
 
     try:
         kimai_users = await client.get_users()
     except Exception:
         logger.exception("Failed to fetch Kimai users for reminder evaluation")
+        return 0
+
+    # Build and refresh the email map from the already-fetched user list.
+    # Avoids a sync get_kimai_email_map() call inside an async context (re-entry risk).
+    email_map: dict[str, int] = {}
+    for u in kimai_users:
+        email = (u.get("email") or u.get("title") or "").strip().lower()
+        uid = u.get("id")
+        if email and uid:
+            email_map[email] = uid
+    await asyncio.to_thread(
+        lambda: cache.set("kimai_email_map", email_map, timeout=CACHE_TTL_EMAIL_MAP)
+    )
+
+    if not email_map:
+        logger.warning("kimai_email_map empty — skipping reminder evaluation")
         return 0
 
     kimai_by_id: dict[int, dict] = {u["id"]: u for u in kimai_users}

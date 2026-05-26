@@ -6,6 +6,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.models import Group
 from django.contrib.postgres.indexes import GinIndex
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import BooleanField
 from django.db.models import CharField
@@ -277,6 +278,13 @@ class ServiceConfiguration(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.get_service_type_display()})"
+
+    def clean(self) -> None:
+        super().clean()
+        if self.api_url and not self.api_url.startswith("https://"):
+            raise ValidationError(
+                {"api_url": _("API URL must use HTTPS to protect the bearer token.")}
+            )
 
 
 class GlobalSetting(models.Model):

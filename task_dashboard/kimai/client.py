@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Any
 
@@ -6,6 +7,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 TIMEOUT = 30.0
+BULK_CONCURRENCY = 10
 
 
 class KimaiClient:
@@ -40,17 +42,28 @@ class KimaiClient:
     ) -> dict[int, dict[str, Any] | None]:
         """Fetch each user's last timesheet concurrently.
 
+        Uses a single shared AsyncClient and a semaphore to cap concurrency.
         Returns {user_id: entry|None}.
         """
-        import asyncio
+        sem = asyncio.Semaphore(BULK_CONCURRENCY)
 
-        async def _fetch_one(uid: int) -> tuple[int, dict[str, Any] | None]:
-            try:
-                return uid, await self.get_last_timesheet(uid)
-            except Exception:  # noqa: BLE001
-                return uid, None
+        async def _fetch_one(
+            client: httpx.AsyncClient, uid: int
+        ) -> tuple[int, dict[str, Any] | None]:
+            async with sem:
+                try:
+                    resp = await client.get(
+                        f"{self.base_url}/api/timesheets",
+                        params={"user": uid, "size": 1},
+                    )
+                    resp.raise_for_status()
+                    data = resp.json()
+                    return uid, data[0] if data else None
+                except Exception:  # noqa: BLE001
+                    return uid, None
 
-        results = await asyncio.gather(*(_fetch_one(uid) for uid in user_ids))
+        async with self._client() as c:
+            results = await asyncio.gather(*(_fetch_one(c, uid) for uid in user_ids))
         return dict(results)
 
     async def get_projects(self) -> list[dict[str, Any]]:

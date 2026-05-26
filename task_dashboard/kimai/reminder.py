@@ -29,11 +29,10 @@ def parse_working_days(account_number: str | None) -> frozenset[int]:
     """
     Parse Kimai user.accountNumber field into a set of weekday ints.
 
-    Empty/None → returns empty frozenset (V7: caller skips reminder for that user).
-    Invalid tokens logged and skipped (V15).
+    Empty/None → defaults to Mon–Fri (0–4). Invalid tokens logged and skipped (V15).
     """
     if not account_number or not account_number.strip():
-        return frozenset({0, 1, 2, 3, 4})  # default Mo-Fr
+        return frozenset({0, 1, 2, 3, 4})
 
     result = set()
     for raw_token in account_number.split(","):
