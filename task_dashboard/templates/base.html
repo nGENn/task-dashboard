@@ -463,9 +463,10 @@
                         });
                       })();
                     </script>
+                    <div class="divider my-2"></div>
+                    <button class="btn btn-ghost btn-xs text-error ml-auto block" onclick="logout_modal.showModal()">{% trans "Log Out" %}</button>
                   </div>
                 </div>
-                <button class="btn btn-sm btn-outline" onclick="logout_modal.showModal()">{% trans "Log Out" %}</button>
                 <dialog id="logout_modal" class="modal">
                   <div class="modal-box">
                     <h3 class="font-bold text-lg">{% trans "Confirm Logout" %}</h3>
@@ -484,8 +485,6 @@
                     <button>close</button>
                   </form>
                 </dialog>
-              {% else %}
-                <a href="{% url 'account_login' %}" class="btn btn-sm btn-primary">{% trans "Log In" %}</a>
               {% endif %}
             </div>
           </div>

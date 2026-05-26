@@ -14,6 +14,7 @@ from datetime import UTC
 from datetime import datetime
 from typing import Any
 
+import httpx
 from asgiref.sync import async_to_sync
 from django.core.cache import cache
 from django.utils.dateparse import parse_datetime
@@ -285,11 +286,19 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
                 if task_data.get("status") == "closed":
                     continue
                 existing = activity_by_comment.get(comment)
-                title = task_data.get("title") or task_data["external_id"]
+                raw_title = task_data.get("title") or task_data["external_id"]
+                title = raw_title.translate(str.maketrans('<>"=', "()'-"))
                 if existing:
                     if existing.get("name") != title:
                         try:
-                            await client.patch_activity(existing["id"], {"name": title})
+                            await client.patch_activity(existing["id"], {"name": title, "project": project_id})
+                        except httpx.HTTPStatusError as exc:
+                            logger.error(
+                                "Failed to update activity name for %s: %s %s",
+                                comment,
+                                exc.response.status_code,
+                                exc.response.text,
+                            )
                         except Exception:
                             logger.exception(
                                 "Failed to update activity name for %s", comment
@@ -305,6 +314,13 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
                             }
                         )
                         count += 1
+                    except httpx.HTTPStatusError as exc:
+                        logger.error(
+                            "Failed to create activity for task %s: %s %s",
+                            comment,
+                            exc.response.status_code,
+                            exc.response.text,
+                        )
                     except Exception:
                         logger.exception(
                             "Failed to create activity for task %s", comment
