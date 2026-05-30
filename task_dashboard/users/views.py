@@ -4,12 +4,14 @@ import logging
 import re
 import sys
 from typing import Any
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.core.cache import cache
 from django.core.paginator import Paginator
 from django.db.models import BooleanField
@@ -28,11 +30,13 @@ from django.shortcuts import get_object_or_404
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils import timezone as django_timezone
+from django.utils.translation import get_language
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 from django.views.generic import TemplateView
 from django.views.generic import UpdateView
 
+from task_dashboard.kimai.models import KimaiSettings
 from task_dashboard.users.identity import UNASSIGNED_MARKERS
 from task_dashboard.users.identity import get_identity_bridging_data
 from task_dashboard.users.identity import get_user_tokens
@@ -40,6 +44,7 @@ from task_dashboard.users.identity import normalize_identity_string
 from task_dashboard.users.identity import post_process_task_owners
 from task_dashboard.users.models import GlobalSetting
 from task_dashboard.users.models import SavedView
+from task_dashboard.users.models import ServiceConfiguration
 from task_dashboard.users.models import Task
 from task_dashboard.users.models import User
 from task_dashboard.users.models import compare_query_params
@@ -108,6 +113,122 @@ def force_refresh_view(request):
     if referer:
         return HttpResponseRedirect(referer)
     return HttpResponseRedirect(reverse("home"))
+
+
+# --- MANAGER PANEL ---
+
+# Status categories for the manager Kimai overview, ordered by urgency
+# (lower rank sorts first / more urgent).
+_KIMAI_STATUS_NEVER_BOOKED = "never_booked"
+_KIMAI_STATUS_BEHIND = "behind"
+_KIMAI_STATUS_GRACE = "grace"
+_KIMAI_STATUS_ON_TRACK = "on_track"
+_KIMAI_STATUS_NOT_EVALUATED = "not_evaluated"
+
+_KIMAI_STATUS_RANK = {
+    _KIMAI_STATUS_NEVER_BOOKED: 0,
+    _KIMAI_STATUS_BEHIND: 1,
+    _KIMAI_STATUS_GRACE: 2,
+    _KIMAI_STATUS_ON_TRACK: 3,
+    _KIMAI_STATUS_NOT_EVALUATED: 4,
+}
+
+
+def _kimai_base_url() -> str:
+    """Return the active Kimai base URL (no trailing slash), or "" if none."""
+    config = ServiceConfiguration.objects.filter(
+        service_type="kimai", is_active=True
+    ).first()
+    if config and urlparse(config.api_url).scheme in ("http", "https"):
+        return config.api_url.rstrip("/")
+    return ""
+
+
+class ManagerKimaiView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
+    """
+    Manager overview of who is behind on Kimai time tracking.
+
+    Request-time join over the per-user reminder caches the hourly evaluation
+    (task_dashboard.kimai.tasks.run_reminder_evaluation) already writes — no
+    Kimai API calls in the request path. Starting from the full User table means
+    unlinked / not-yet-evaluated users still appear (cache miss).
+    """
+
+    template_name = "users/manager_kimai.html"
+    permission_required = "users.view_kimai_overview"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        grace_period = KimaiSettings.load().grace_period_days
+        users = list(
+            User.objects.filter(is_active=True)
+            .values("pk", "name", "email")
+            .order_by("name", "email")
+        )
+        reminder = cache.get_many([f"kimai_reminder:{u['pk']}" for u in users])
+        email_map = cache.get("kimai_email_map") or {}
+
+        base_url = _kimai_base_url()
+        lang = (get_language() or "en")[:2]
+
+        rows: list[dict[str, Any]] = []
+        latest_ts: str | None = None
+        for u in users:
+            data = reminder.get(f"kimai_reminder:{u['pk']}")
+            kimai_uid = email_map.get((u["email"] or "").lower())
+
+            if data is None:
+                status = _KIMAI_STATUS_NOT_EVALUATED
+                days_behind = 0
+                never_booked = False
+            else:
+                never_booked = bool(data.get("never_booked"))
+                days_behind = int(data.get("days_behind", 0))
+                ts = data.get("ts")
+                if ts and (latest_ts is None or ts > latest_ts):
+                    latest_ts = ts
+                if never_booked:
+                    status = _KIMAI_STATUS_NEVER_BOOKED
+                elif days_behind > grace_period:
+                    status = _KIMAI_STATUS_BEHIND
+                elif days_behind > 0:
+                    status = _KIMAI_STATUS_GRACE
+                else:
+                    status = _KIMAI_STATUS_ON_TRACK
+
+            kimai_url = ""
+            if base_url and kimai_uid:
+                # Kimai's team/admin timesheet listing, pre-filtered to this user.
+                # Route `admin_timesheet` = /{lang}/team/timesheet/ ; the toolbar
+                # filter form binds the `users[]` GET param (renamed from `user`
+                # when multi-select was introduced). Viewing it requires the
+                # `view_other_timesheet` permission in Kimai.
+                kimai_url = f"{base_url}/{lang}/team/timesheet/?users[]={kimai_uid}"
+
+            rows.append(
+                {
+                    "name": u["name"] or u["email"],
+                    "email": u["email"],
+                    "status": status,
+                    "days_behind": days_behind,
+                    "never_booked": never_booked,
+                    "kimai_url": kimai_url,
+                }
+            )
+
+        rows.sort(
+            key=lambda r: (_KIMAI_STATUS_RANK[str(r["status"])], -int(r["days_behind"]))
+        )
+
+        context["rows"] = rows
+        context["grace_period"] = grace_period
+        context["last_updated"] = parse_dt(latest_ts) if latest_ts else None
+        context["reminder_enabled"] = KimaiSettings.load().reminder_enabled
+        return context
+
+
+manager_kimai_view = ManagerKimaiView.as_view()
 
 
 @login_required

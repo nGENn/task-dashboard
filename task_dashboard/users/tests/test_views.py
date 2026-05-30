@@ -1,9 +1,15 @@
+from http import HTTPStatus
+from typing import cast
+
 import pytest
 from django.contrib import messages
 from django.contrib.auth.models import Group
+from django.contrib.auth.models import Permission
 from django.contrib.messages.middleware import MessageMiddleware
 from django.contrib.sessions.middleware import SessionMiddleware
+from django.core.cache import cache
 from django.http import HttpRequest
+from django.test import Client
 from django.test import RequestFactory
 from django.urls import reverse
 from django.utils import timezone
@@ -848,3 +854,114 @@ class TestDashboardView:
         tasks = context["tasks"].object_list
         task_ids = [t.external_id for t in tasks]
         assert "ZAM-1" in task_ids
+
+
+class TestManagerKimaiView:
+    url = reverse("users:manager-kimai")
+
+    @staticmethod
+    def _make_user(**kwargs) -> User:
+        return cast(User, UserFactory(**kwargs))
+
+    @staticmethod
+    def _grant(user: User) -> None:
+        perm = Permission.objects.get(codename="view_kimai_overview")
+        user.user_permissions.add(perm)
+
+    @staticmethod
+    def _reminder(pk: int, *, days_behind: int = 0, never_booked: bool = False):
+        cache.set(
+            f"kimai_reminder:{pk}",
+            {
+                "days_behind": days_behind,
+                "never_booked": never_booked,
+                "ts": timezone.now().isoformat(),
+            },
+        )
+
+    @pytest.fixture(autouse=True)
+    def _clear_cache(self):
+        cache.clear()
+        yield
+        cache.clear()
+
+    def test_requires_permission(self, user: User, client: Client):
+        client.force_login(user)
+        response = client.get(self.url)
+        assert response.status_code == HTTPStatus.FORBIDDEN
+
+    def test_anonymous_redirected(self, client: Client):
+        response = client.get(self.url)
+        assert response.status_code == HTTPStatus.FOUND
+
+    def test_grants_access_with_permission(self, user: User, client: Client):
+        self._grant(user)
+        client.force_login(user)
+        response = client.get(self.url)
+        assert response.status_code == HTTPStatus.OK
+        assert "rows" in response.context
+
+    def test_status_classification_and_sort(self, client: Client):
+        manager = self._make_user(email="boss@example.com", name="Boss")
+        self._grant(manager)
+
+        behind = self._make_user(email="behind@example.com", name="Behind")
+        grace = self._make_user(email="grace@example.com", name="Grace")
+        ontrack = self._make_user(email="ontrack@example.com", name="OnTrack")
+        never = self._make_user(email="never@example.com", name="Never")
+        unevaluated = self._make_user(
+            email="unevaluated@example.com", name="Unevaluated"
+        )
+
+        # grace_period defaults to 3
+        self._reminder(behind.pk, days_behind=5)
+        self._reminder(grace.pk, days_behind=2)
+        self._reminder(ontrack.pk, days_behind=0)
+        self._reminder(never.pk, never_booked=True)
+        # `unevaluated` and `manager` intentionally have no cache entry
+        _ = unevaluated
+
+        client.force_login(manager)
+        response = client.get(self.url)
+        rows = {r["email"]: r for r in response.context["rows"]}
+
+        assert rows["behind@example.com"]["status"] == "behind"
+        assert rows["grace@example.com"]["status"] == "grace"
+        assert rows["ontrack@example.com"]["status"] == "on_track"
+        assert rows["never@example.com"]["status"] == "never_booked"
+        assert rows["unevaluated@example.com"]["status"] == "not_evaluated"
+
+        # Sort: never_booked first, then behind (by days desc), then grace,
+        # on_track, not_evaluated last.
+        order = [r["email"] for r in response.context["rows"]]
+        assert order.index("never@example.com") < order.index("behind@example.com")
+        assert order.index("behind@example.com") < order.index("grace@example.com")
+        assert order.index("grace@example.com") < order.index("ontrack@example.com")
+        assert order.index("ontrack@example.com") < order.index(
+            "unevaluated@example.com"
+        )
+
+    def test_kimai_link_present_when_linked(self, client: Client):
+        manager = self._make_user(email="boss@example.com", name="Boss")
+        self._grant(manager)
+        linked = self._make_user(email="linked@example.com", name="Linked")
+        self._reminder(linked.pk, days_behind=4)
+
+        ServiceConfiguration.objects.create(
+            name="Kimai",
+            service_type="kimai",
+            api_url="https://kimai.example.com",
+            is_active=True,
+        )
+        cache.set("kimai_email_map", {"linked@example.com": 42})
+
+        client.force_login(manager)
+        response = client.get(self.url)
+        rows = {r["email"]: r for r in response.context["rows"]}
+
+        assert (
+            rows["linked@example.com"]["kimai_url"]
+            == "https://kimai.example.com/en/team/timesheet/?users[]=42"
+        )
+        # Manager has no Kimai mapping -> no link
+        assert rows["boss@example.com"]["kimai_url"] == ""

@@ -3,6 +3,7 @@ from django.urls import path
 from .views import DashboardView
 from .views import delete_saved_view
 from .views import force_refresh_view
+from .views import manager_kimai_view
 from .views import refresh_single_task_view
 from .views import save_view
 from .views import stats_view
@@ -14,6 +15,7 @@ urlpatterns = [
     path("~update/", view=user_update_view, name="update"),
     path("working-days/", update_working_days_view, name="update-working-days"),
     path("force-refresh/", force_refresh_view, name="force-refresh"),
+    path("manager/kimai/", manager_kimai_view, name="manager-kimai"),
     path(
         "tasks/<int:pk>/refresh/", refresh_single_task_view, name="refresh-single-task"
     ),

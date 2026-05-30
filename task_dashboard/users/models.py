@@ -283,6 +283,7 @@ class ServiceConfiguration(models.Model):
         permissions = [
             ("view_system_health", _("Can view system health indicator")),
             ("view_admin_button", _("Can view admin panel button")),
+            ("view_kimai_overview", _("Can view the Kimai manager overview")),
         ]
 
     def __str__(self):

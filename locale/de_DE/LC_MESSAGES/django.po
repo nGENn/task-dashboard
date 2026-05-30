@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-13 05:56+0200\n"
+"POT-Creation-Date: 2026-05-30 02:34+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,498 +17,214 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: config/settings/base.py:36
 msgid "English"
 msgstr ""
 
-#: config/settings/base.py:37
 msgid "Deutsch"
 msgstr ""
 
-#: task_dashboard/context_processors.py:126
-msgid "No Services"
-msgstr "Keine Dienste"
-
-#: task_dashboard/context_processors.py:128
-#: task_dashboard/templates/base.html:200
-msgid "Offline"
-msgstr "Offline"
-
-#: task_dashboard/context_processors.py:130
-#: task_dashboard/templates/base.html:204
-msgid "Auth Error"
-msgstr "Authentifizierungsfehler"
-
-#: task_dashboard/context_processors.py:132
-msgid "Setup Needed"
-msgstr "Einrichtung nötig"
-
-#: task_dashboard/context_processors.py:137
-msgid "Degraded"
-msgstr "Eingeschränkt"
-
-#: task_dashboard/context_processors.py:139
-msgid "Healthy"
-msgstr "Gesund"
-
-#: task_dashboard/templates/account/login.html:8
-#: task_dashboard/templates/allauth/layouts/entrance.html:13
-msgid "Sign In"
-msgstr ""
-
-#: task_dashboard/templates/account/login.html:92
-msgid "Forgot Password?"
-msgstr ""
-
-#: task_dashboard/templates/account/logout.html:6
-#: task_dashboard/templates/account/logout.html:12
-#: task_dashboard/templates/account/logout.html:21
-msgid "Sign Out"
-msgstr ""
-
-#: task_dashboard/templates/account/logout.html:13
-msgid "Are you sure you want to sign out?"
-msgstr ""
-
-#: task_dashboard/templates/account/password_reset.html:7
-msgid "Password Reset"
-msgstr ""
-
-#: task_dashboard/templates/account/password_reset.html:24
-msgid "Reset Password"
-msgstr ""
-
-#: task_dashboard/templates/account/password_reset.html:29
-msgid ""
-"Forgotten your password? Enter your email address below, and we'll send you "
-"an email allowing you to reset it."
-msgstr ""
-
-#: task_dashboard/templates/account/password_reset.html:39
-msgid "Reset My Password"
-msgstr ""
-
-#: task_dashboard/templates/base.html:140
-msgid "Track tasks across all platforms"
-msgstr "Aufgaben plattformweit verfolgen"
-
-#: task_dashboard/templates/base.html:158
-#: task_dashboard/templates/users/partials/system_health.html:6
-msgid "System:"
-msgstr "System:"
-
-#: task_dashboard/templates/base.html:176
-msgid "Service status and latency."
-msgstr "Service-Status & Latenz."
-
-#: task_dashboard/templates/base.html:178
-msgid "Service Health"
-msgstr "Dienststatus"
-
-#: task_dashboard/templates/base.html:202
-msgid "Setup"
-msgstr "Einrichtung"
-
-#: task_dashboard/templates/base.html:211
-msgid "No services configured."
-msgstr "Keine Dienste konfiguriert."
-
-#: task_dashboard/templates/base.html:220
-msgid "Access administrative settings"
-msgstr "Admin-Einstellungen öffnen"
-
-#: task_dashboard/templates/base.html:229
-msgid "Admin"
+#, fuzzy
+#| msgid "Admin"
+msgid "Admin Panel"
 msgstr "Admin"
 
-#: task_dashboard/templates/base.html:244
-msgid "Fetch fresh data from all platforms"
-msgstr "Alle Daten aktualisieren"
-
-#: task_dashboard/templates/base.html:263
-msgid "Change Language"
-msgstr "Sprache wechseln"
-
-#: task_dashboard/templates/base.html:307
-msgid "Light"
-msgstr "Hell"
-
-#: task_dashboard/templates/base.html:319
-msgid "Dark"
-msgstr "Dunkel"
-
-#: task_dashboard/templates/base.html:331
-msgid "System"
-msgstr "System"
-
-#: task_dashboard/templates/base.html:342
-msgid "Log Out"
-msgstr "Abmelden"
-
-#: task_dashboard/templates/users/partials/filter_form.html:26
-msgid "Search by Task ID, Title, or Customer..."
-msgstr "Suche ID, Titel, Kunde..."
-
-#: task_dashboard/templates/users/partials/filter_form.html:48
-msgid "Save Current View"
-msgstr "Aktuelle Ansicht speichern"
-
-#: task_dashboard/templates/users/partials/filter_form.html:49
-msgid "Enter a name for your current filter configuration."
-msgstr "Namen für diese Filter eingeben."
-
-#: task_dashboard/templates/users/partials/filter_form.html:52
-msgid "View Name"
-msgstr "Ansichtsname"
-
-#: task_dashboard/templates/users/partials/filter_form.html:57
-msgid "e.g. My High Priority Tasks"
-msgstr "z.B. Wichtige Aufgaben"
-
-#: task_dashboard/templates/users/partials/filter_form.html:61
-#: task_dashboard/templates/users/partials/filter_form.html:80
-msgid "Cancel"
-msgstr "Abbrechen"
-
-#: task_dashboard/templates/users/partials/filter_form.html:63
-msgid "Click to save these filters"
-msgstr "Filter speichern"
-
-#: task_dashboard/templates/users/partials/filter_form.html:64
-msgid "Save View"
-msgstr "Ansicht speichern"
-
-#: task_dashboard/templates/users/partials/filter_form.html:74
-msgid "Delete Saved View"
-msgstr "Ansicht löschen"
-
-#: task_dashboard/templates/users/partials/filter_form.html:76
-msgid ""
-"Are you sure you want to delete this view? This action cannot be undone."
+msgid "Configuration"
 msgstr ""
-"Ansicht unwiderruflich löschen?Sind Sie sicher, dass Sie diese Ansicht "
-"löschen möchten? Dies kann nicht rückgängig gemacht werden."
 
-#: task_dashboard/templates/users/partials/filter_form.html:82
-#: task_dashboard/templates/users/partials/tabs.html:28
-msgid "Delete View"
-msgstr "Ansicht löschen"
+#, fuzzy
+#| msgid "No Services"
+msgid "Services"
+msgstr "Keine Dienste"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:9
-msgid "Source platform"
-msgstr "Quellplattform"
+msgid "Global Settings"
+msgstr ""
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:13
-#: task_dashboard/templates/users/partials/tasks_table.html:19
-msgid "Origin"
-msgstr "Herkunft"
+msgid "Kimai Settings"
+msgstr ""
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:49
-msgid "Filter by customer name"
-msgstr "Nach Kunde filtern"
+msgid "Access Control"
+msgstr ""
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:53
-#: task_dashboard/templates/users/partials/tasks_table.html:82
-msgid "Customer"
-msgstr "Kunde"
-
-#: task_dashboard/templates/users/partials/filter_form_content.html:89
-msgid "Filter by functional group or department"
-msgstr "Nach Gruppe filtern"
-
-#: task_dashboard/templates/users/partials/filter_form_content.html:93
-#: task_dashboard/templates/users/partials/tasks_table.html:103
-msgid "Group"
+#, fuzzy
+#| msgid "Group"
+msgid "Groups"
 msgstr "Gruppe"
 
-#: task_dashboard/templates/users/partials/filter_form_content.html:129
-msgid "Filter by assigned user in source system"
-msgstr "Nach Benutzer filtern"
-
-#: task_dashboard/templates/users/partials/filter_form_content.html:133
-#: task_dashboard/templates/users/partials/tasks_table.html:124
-msgid "Owner"
-msgstr "Besitzer"
-
-#: task_dashboard/templates/users/partials/filter_form_content.html:169
-msgid "Filter by current task status"
-msgstr "Nach Status filtern"
-
-#: task_dashboard/templates/users/partials/filter_form_content.html:173
-#: task_dashboard/templates/users/partials/tasks_table.html:144
-msgid "State"
-msgstr "Status"
-
-#: task_dashboard/templates/users/partials/filter_form_content.html:209
-msgid "Filter by task priority level"
-msgstr "Nach Priorität filtern"
-
-#: task_dashboard/templates/users/partials/filter_form_content.html:213
-#: task_dashboard/templates/users/partials/tasks_table.html:163
-msgid "Priority"
-msgstr "Priorität"
-
-#: task_dashboard/templates/users/partials/filter_form_content.html:250
-msgid "Creation date"
-msgstr "Erstellungsdatum der Aufgabe"
-
-#: task_dashboard/templates/users/partials/filter_form_content.html:260
-#: task_dashboard/templates/users/partials/scripts.html:46
-#: task_dashboard/templates/users/partials/tasks_table.html:182
-msgid "Created"
-msgstr "Erstellt"
-
-#: task_dashboard/templates/users/partials/filter_form_content.html:268
-msgid "Last modified"
-msgstr "Zeitpunkt der letzten Aktualisierung"
-
-#: task_dashboard/templates/users/partials/filter_form_content.html:278
-#: task_dashboard/templates/users/partials/scripts.html:47
-#: task_dashboard/templates/users/partials/tasks_table.html:201
-msgid "Updated"
-msgstr "Aktualisiert"
-
-#: task_dashboard/templates/users/partials/filter_form_content.html:286
-msgid "Due date"
-msgstr "Fälligkeitsdatum der Aufgabe"
-
-#: task_dashboard/templates/users/partials/filter_form_content.html:296
-#: task_dashboard/templates/users/partials/scripts.html:48
-msgid "Due"
-msgstr "Fällig"
-
-#: task_dashboard/templates/users/partials/filter_form_content.html:308
-msgid "Active filters:"
-msgstr "Aktive Filter:"
-
-#: task_dashboard/templates/users/partials/filter_form_content.html:313
-msgid "Hard reset to global view with no filters"
-msgstr "Alle Filter zurücksetzen"
-
-#: task_dashboard/templates/users/partials/filter_form_content.html:313
-msgid "Reset"
-msgstr "Zurücksetzen"
-
-#: task_dashboard/templates/users/partials/filter_form_content.html:316
-msgid "Apply filters"
-msgstr "Filter anwenden"
-
-#: task_dashboard/templates/users/partials/filter_form_content.html:316
-msgid "Apply Filters"
-msgstr "Filter anwenden"
-
-#: task_dashboard/templates/users/partials/scripts.html:256
-msgid "Clear all"
-msgstr "Alles löschen"
-
-#: task_dashboard/templates/users/partials/stats_cards.html:6
-msgid "Total tasks across all platforms"
-msgstr "Aufgaben (Alle)"
-
-#: task_dashboard/templates/users/partials/stats_cards.html:16
-msgid "Total Tasks"
-msgstr "Gesamtaufgaben"
-
-#: task_dashboard/templates/users/partials/stats_cards.html:20
-msgid "Tasks assigned to you"
-msgstr "Dir zugewiesene Aufgaben"
-
-#: task_dashboard/templates/users/partials/stats_cards.html:30
-msgid "Assigned to Me"
-msgstr "Mir zugewiesen"
-
-#: task_dashboard/templates/users/partials/stats_cards.html:34
-msgid "Tasks requiring immediate attention"
-msgstr "Dringende Aufgaben"
-
-#: task_dashboard/templates/users/partials/stats_cards.html:44
-#: task_dashboard/templates/users/partials/tasks_table.html:310
-msgid "Open"
-msgstr "Offen"
-
-#: task_dashboard/templates/users/partials/stats_cards.html:48
-msgid "Tasks waiting on feedback"
-msgstr "Warten auf Feedback"
-
-#: task_dashboard/templates/users/partials/stats_cards.html:58
-msgid "Pending"
-msgstr "Ausstehend"
-
-#: task_dashboard/templates/users/partials/tabs.html:9
-msgid "All sources unfiltered"
-msgstr "Ungefiltert"
-
-#: task_dashboard/templates/users/partials/tabs.html:10
-msgid "All Tasks"
-msgstr "Alle Aufgaben"
-
-#: task_dashboard/templates/users/partials/tabs.html:23
-msgid "Custom saved filter:"
-msgstr "Eigener Filter:"
-
-#: task_dashboard/templates/users/partials/tabs.html:43
-msgid "Save current filters as a custom view"
-msgstr "Filter als Ansicht speichern"
-
-#: task_dashboard/templates/users/partials/tasks_table.html:40
-msgid "ID"
+msgid "External Groups"
 msgstr ""
 
-#: task_dashboard/templates/users/partials/tasks_table.html:61
-msgid "Title"
-msgstr "Titel"
-
-#: task_dashboard/templates/users/partials/tasks_table.html:220
-msgid "Due Date"
-msgstr "Fälligkeitsdatum der Aufgabe"
-
-#: task_dashboard/templates/users/partials/tasks_table.html:244
-msgid "Re-sync this task"
-msgstr "Task synchronisieren"
-
-#: task_dashboard/templates/users/partials/tasks_table.html:271
-msgid "Copy ID & Link"
-msgstr "ID kopieren"
-
-#: task_dashboard/templates/users/partials/tasks_table.html:272
-msgid "ID copied to clipboard!"
-msgstr "ID kopiert!"
-
-#: task_dashboard/templates/users/partials/tasks_table.html:313
-msgid "Resolved"
-msgstr ""
-
-#: task_dashboard/templates/users/partials/tasks_table.html:340
-msgid "No tasks found matching your filters."
-msgstr ""
-
-#: task_dashboard/users/admin.py:42
-msgid "Personal info"
-msgstr ""
-
-#: task_dashboard/users/admin.py:44
-msgid "Permissions"
-msgstr ""
-
-#: task_dashboard/users/admin.py:55
-msgid "Important dates"
-msgstr ""
-
-#: task_dashboard/users/admin.py:116
-msgid "API Configuration"
-msgstr ""
-
-#: task_dashboard/users/apps.py:34
 msgid "Users"
 msgstr ""
 
-#: task_dashboard/users/forms.py:65 task_dashboard/users/tests/test_forms.py:35
-msgid "This email has already been taken."
-msgstr ""
-
-#: task_dashboard/users/models.py:25
-msgid "Name of User"
-msgstr ""
-
-#: task_dashboard/users/models.py:28
-msgid "email address"
-msgstr ""
-
-#: task_dashboard/users/models.py:47
-msgid "Full Access (See all tasks)"
-msgstr ""
-
-#: task_dashboard/users/models.py:48
-msgid "Limited (Own tasks + Unassigned only)"
-msgstr ""
-
-#: task_dashboard/users/models.py:49
-msgid "Only own tasks"
-msgstr ""
-
-#: task_dashboard/users/models.py:50
-msgid "No Access"
-msgstr ""
-
-#: task_dashboard/users/tests/test_views.py:81 task_dashboard/users/views.py:79
-msgid "Information successfully updated"
-msgstr ""
-
-#: task_dashboard/users/views.py:122 task_dashboard/users/views.py:123
-#: task_dashboard/users/views.py:254 task_dashboard/users/views.py:443
-#: task_dashboard/users/views.py:488 task_dashboard/users/views.py:627
-msgid "Unassigned"
-msgstr "Nicht zugewiesen"
-
-#: task_dashboard/users/views.py:253 task_dashboard/users/views.py:626
-msgid "My Tasks"
+#, fuzzy
+#| msgid "My Tasks"
+msgid "Tasks"
 msgstr "Meine Aufgaben"
 
-#: task_dashboard/users/views.py:253 task_dashboard/users/views.py:626
-msgid "Tasks assigned to you."
-msgstr "Dir zugewiesene Aufgaben"
-
-#: task_dashboard/users/views.py:254 task_dashboard/users/views.py:627
-msgid "Tasks without an owner."
-msgstr "Aufgaben ohne Besitzer."
-
-#: task_dashboard/users/views.py:639
-msgid "Name is required"
+msgid "Background Jobs"
 msgstr ""
 
-#: task_dashboard/users/views.py:642
-msgid "Internal server error"
+msgid "Schedules"
 msgstr ""
 
-#~ msgid "Force immediate re-sync for this task."
-#~ msgstr "Synchronisierung"
+msgid "Successful Tasks"
+msgstr ""
 
-#: task_dashboard/templates/users/partials/scripts.html:200
-#: task_dashboard/templates/users/partials/filter_form_content.html:315
-msgid "Search"
-msgstr "Suche"
+#, fuzzy
+#| msgid "Total Tasks"
+msgid "Failed Tasks"
+msgstr "Gesamtaufgaben"
 
-#: task_dashboard/templates/users/partials/scripts.html:202
-msgid "Clear search query"
-msgstr "Suche löschen"
+msgid "No Services"
+msgstr "Keine Dienste"
 
-#: task_dashboard/templates/users/partials/tasks_table.html:159
-msgid "View status mapping rules"
-msgstr "Status-Mapping-Regeln anzeigen"
+msgid "Offline"
+msgstr "Offline"
 
-#: task_dashboard/templates/users/partials/tasks_table.html:193
-msgid "View priority mapping rules"
-msgstr "Prioritäts-Mapping-Regeln anzeigen"
+msgid "Auth Error"
+msgstr "Authentifizierungsfehler"
 
-#: task_dashboard/templates/users/partials/tasks_table.html:398
-msgid "Service Mapping Transparency"
-msgstr "Service-Mapping-Transparenz"
+msgid "Setup Needed"
+msgstr "Einrichtung nötig"
 
-#: task_dashboard/templates/users/partials/tasks_table.html:411
-msgid "Status Mapping"
-msgstr "Status-Mapping"
+msgid "Degraded"
+msgstr "Eingeschränkt"
 
-#: task_dashboard/templates/users/partials/tasks_table.html:442
-msgid "Priority Mapping"
-msgstr "Prioritäts-Mapping"
+msgid "Healthy"
+msgstr "Gesund"
 
-msgid "This table shows how each external service's original states and priorities are normalized in the dashboard."
-msgstr "Diese Tabelle zeigt, wie die ursprünglichen Zustände und Prioritäten der einzelnen externen Dienste im Dashboard normalisiert werden."
+msgid "Reminder"
+msgstr ""
 
-msgid "Normalized"
-msgstr "Normalisiert"
+msgid "Activity Sync"
+msgstr ""
 
-msgid "Original Values"
-msgstr "Ursprüngliche Werte"
+msgid "Kimai Integration"
+msgstr ""
 
-msgid "All other values"
-msgstr "Alle anderen Werte"
+msgid "Grace Period (days)"
+msgstr ""
 
-msgid "Default / Fallback"
-msgstr "Standard / Fallback"
+msgid "Business days behind before reminder triggers."
+msgstr ""
 
-msgid "Close"
-msgstr "Schließen"
+msgid "Holiday Country Code"
+msgstr ""
+
+msgid "ISO 3166-1 alpha-2 country code for public holidays (e.g. DE)."
+msgstr ""
+
+msgid "Exempt Emails"
+msgstr ""
+
+msgid "Newline-separated list of emails to exclude from reminders and sync."
+msgstr ""
+
+msgid "Activity Sync Enabled"
+msgstr ""
+
+msgid "Sync service tasks to Kimai activities."
+msgstr ""
+
+msgid "Sync Interval (minutes)"
+msgstr ""
+
+msgid "How often to sync activities to Kimai. Takes effect after saving."
+msgstr ""
+
+msgid "Reminder Enabled"
+msgstr ""
+
+msgid "Show reminder banner when user is behind on time tracking."
+msgstr ""
+
+msgid "Reminder Interval (minutes)"
+msgstr ""
+
+msgid "How often to evaluate reminder status. Takes effect after saving."
+msgstr ""
+
+msgid "Sign In"
+msgstr ""
+
+msgid "Welcome Back"
+msgstr ""
+
+msgid "Task Management System"
+msgstr ""
+
+msgid "Sign in with SSO (Keycloak)"
+msgstr ""
+
+msgid "OR"
+msgstr ""
+
+#, fuzzy
+#| msgid "Admin"
+msgid "Admin Login"
+msgstr "Admin"
+
+msgid "Email"
+msgstr ""
+
+msgid "Password"
+msgstr ""
+
+msgid "Remember Me"
+msgstr ""
+
+msgid "Sign Out"
+msgstr ""
+
+msgid "Are you sure you want to sign out?"
+msgstr ""
+
+msgid "Track tasks across all platforms"
+msgstr "Aufgaben plattformweit verfolgen"
+
+msgid "Time tracking overview"
+msgstr "Zeiterfassungsübersicht"
+
+msgid "Manager"
+msgstr "Manager"
+
+#, fuzzy
+#| msgid "System:"
+msgid "System Status:"
+msgstr "System:"
+
+msgid "Service status and latency."
+msgstr "Service-Status & Latenz."
+
+msgid "Service Health"
+msgstr "Dienststatus"
+
+msgid "Setup"
+msgstr "Einrichtung"
+
+msgid "No services configured."
+msgstr "Keine Dienste konfiguriert."
+
+msgid "Access administrative settings"
+msgstr "Admin-Einstellungen öffnen"
+
+msgid "Admin"
+msgstr "Admin"
+
+msgid "Fetch fresh data from all platforms"
+msgstr "Alle Daten aktualisieren"
+
+msgid "Change Language"
+msgstr "Sprache wechseln"
+
+msgid "Light"
+msgstr "Hell"
+
+msgid "Dark"
+msgstr "Dunkel"
+
+msgid "System"
+msgstr "System"
 
 msgid "Working Days"
 msgstr "Arbeitstage"
@@ -534,6 +250,197 @@ msgstr "Sa"
 msgid "Su"
 msgstr "So"
 
+msgid "Log Out"
+msgstr "Abmelden"
+
+msgid "Confirm Logout"
+msgstr ""
+
+msgid "Are you sure you want to sign out of the dashboard?"
+msgstr ""
+
+#, fuzzy
+#| msgid "Log Out"
+msgid "Yes, Log Out"
+msgstr "Abmelden"
+
+msgid "Cancel"
+msgstr "Abbrechen"
+
+msgid "Time Tracking Overview"
+msgstr "Zeiterfassungsübersicht"
+
+msgid "Who is behind on Kimai time tracking, and by how many working days."
+msgstr ""
+"Wer bei der Kimai-Zeiterfassung im Rückstand ist und um wie viele Arbeitstage."
+
+#, python-format
+msgid "Last updated %(when)s ago"
+msgstr "Zuletzt aktualisiert vor %(when)s"
+
+msgid ""
+"Reminder evaluation is disabled in Kimai settings, so no tracking data is "
+"available. Enable it to populate this overview."
+msgstr ""
+"Die Erinnerungsauswertung ist in den Kimai-Einstellungen deaktiviert, daher "
+"sind keine Zeiterfassungsdaten verfügbar. Aktivieren Sie sie, um diese "
+"Übersicht zu füllen."
+
+msgid "User"
+msgstr "Benutzer"
+
+msgid "Days behind"
+msgstr "Tage im Rückstand"
+
+msgid "Status"
+msgstr "Status"
+
+msgid "Kimai"
+msgstr "Kimai"
+
+msgid "Never booked"
+msgstr "Nie gebucht"
+
+msgid "Behind"
+msgstr "Im Rückstand"
+
+msgid "Within grace"
+msgstr "In Karenzzeit"
+
+msgid "On track"
+msgstr "Aktuell"
+
+msgid "Not evaluated"
+msgstr "Nicht ausgewertet"
+
+msgid "Timesheet"
+msgstr "Stundenzettel"
+
+msgid "No Kimai account"
+msgstr "Kein Kimai-Konto"
+
+msgid "No users found."
+msgstr "Keine Benutzer gefunden."
+
+#, python-format
+msgid ""
+"\"Behind\" means more than %(grace)s working days since the last booking. "
+"Working days are configured per user."
+msgstr ""
+"„Im Rückstand“ bedeutet mehr als %(grace)s Arbeitstage seit der letzten "
+"Buchung. Arbeitstage werden pro Benutzer konfiguriert."
+
+msgid "Save Current View"
+msgstr "Aktuelle Ansicht speichern"
+
+msgid "Enter a name for your current filter configuration."
+msgstr "Namen für diese Filter eingeben."
+
+msgid "View Name"
+msgstr "Ansichtsname"
+
+msgid "e.g. My High Priority Tasks"
+msgstr "z.B. Wichtige Aufgaben"
+
+msgid "Click to save these filters"
+msgstr "Filter speichern"
+
+msgid "Save View"
+msgstr "Ansicht speichern"
+
+msgid "Delete Saved View"
+msgstr "Ansicht löschen"
+
+msgid ""
+"Are you sure you want to delete this view? This action cannot be undone."
+msgstr ""
+"Ansicht unwiderruflich löschen?Sind Sie sicher, dass Sie diese Ansicht "
+"löschen möchten? Dies kann nicht rückgängig gemacht werden."
+
+msgid "Delete View"
+msgstr "Ansicht löschen"
+
+msgid "Source platform"
+msgstr "Quellplattform"
+
+msgid "Origin"
+msgstr "Herkunft"
+
+msgid "Loading..."
+msgstr ""
+
+msgid "No data"
+msgstr ""
+
+msgid "Filter by customer name"
+msgstr "Nach Kunde filtern"
+
+msgid "Customer"
+msgstr "Kunde"
+
+msgid "Filter by functional group or department"
+msgstr "Nach Gruppe filtern"
+
+msgid "Group"
+msgstr "Gruppe"
+
+msgid "Filter by assigned user in source system"
+msgstr "Nach Benutzer filtern"
+
+msgid "Owner"
+msgstr "Besitzer"
+
+msgid "Filter by current task status"
+msgstr "Nach Status filtern"
+
+msgid "State"
+msgstr "Status"
+
+msgid "Filter by task priority level"
+msgstr "Nach Priorität filtern"
+
+msgid "Priority"
+msgstr "Priorität"
+
+msgid "Creation date"
+msgstr "Erstellungsdatum der Aufgabe"
+
+msgid "Created"
+msgstr "Erstellt"
+
+msgid "Last modified"
+msgstr "Zeitpunkt der letzten Aktualisierung"
+
+msgid "Updated"
+msgstr "Aktualisiert"
+
+msgid "Due date"
+msgstr "Fälligkeitsdatum der Aufgabe"
+
+msgid "Due"
+msgstr "Fällig"
+
+msgid "Active filters:"
+msgstr "Aktive Filter:"
+
+msgid "Search"
+msgstr "Suche"
+
+msgid "Clear all"
+msgstr "Alles löschen"
+
+msgid "Hard reset to global view with no filters"
+msgstr "Alle Filter zurücksetzen"
+
+msgid "Reset"
+msgstr "Zurücksetzen"
+
+msgid "Apply filters"
+msgstr "Filter anwenden"
+
+msgid "Apply Filters"
+msgstr "Filter anwenden"
+
 msgid "You haven't booked any time in Kimai yet."
 msgstr "Sie haben noch keine Zeit in Kimai gebucht."
 
@@ -548,8 +455,389 @@ msgstr[0] ""
 "Sie sind mit der Zeiterfassung in Kimai um <strong>%(days)s Werktag</strong> "
 "im Rückstand."
 msgstr[1] ""
-"Sie sind mit der Zeiterfassung in Kimai um <strong>%(days)s Werktage</strong> "
-"im Rückstand."
+"Sie sind mit der Zeiterfassung in Kimai um <strong>%(days)s Werktage</"
+"strong> im Rückstand."
 
 msgid "Incorrect? Adjust your working days in the menu."
 msgstr "Falsch? Arbeitstage im Menü anpassen."
+
+msgid "Clear search query"
+msgstr "Suche löschen"
+
+msgid "Tasks assigned to you"
+msgstr "Dir zugewiesene Aufgaben"
+
+msgid "Assigned to Me"
+msgstr "Mir zugewiesen"
+
+msgid "Tasks requiring immediate attention"
+msgstr "Dringende Aufgaben"
+
+msgid "Open"
+msgstr "Offen"
+
+msgid "Tasks without an owner."
+msgstr "Aufgaben ohne Besitzer."
+
+msgid "Unassigned"
+msgstr "Nicht zugewiesen"
+
+msgid "System:"
+msgstr "System:"
+
+msgid "All sources unfiltered"
+msgstr "Ungefiltert"
+
+msgid "All Tasks"
+msgstr "Alle Aufgaben"
+
+msgid "Custom saved filter:"
+msgstr "Eigener Filter:"
+
+msgid "Save current filters as a custom view"
+msgstr "Filter als Ansicht speichern"
+
+msgid "Search by Task ID, Title, or Customer..."
+msgstr "Suche ID, Titel, Kunde..."
+
+msgid "ID"
+msgstr ""
+
+msgid "Title"
+msgstr "Titel"
+
+msgid "View status mapping rules"
+msgstr "Status-Mapping-Regeln anzeigen"
+
+msgid "View priority mapping rules"
+msgstr "Prioritäts-Mapping-Regeln anzeigen"
+
+msgid "Re-sync this task"
+msgstr "Task synchronisieren"
+
+msgid "Copy ID & Link"
+msgstr "ID kopieren"
+
+msgid "ID copied to clipboard!"
+msgstr "ID kopiert!"
+
+#, fuzzy
+#| msgid "Origin"
+msgid "Original"
+msgstr "Herkunft"
+
+msgid "Pending"
+msgstr "Ausstehend"
+
+msgid "Resolved"
+msgstr ""
+
+#, fuzzy
+#| msgid "Close"
+msgid "Closed"
+msgstr "Schließen"
+
+msgid "Critical"
+msgstr ""
+
+msgid "No tasks found matching your filters."
+msgstr ""
+
+msgid "Service Mapping Transparency"
+msgstr "Service-Mapping-Transparenz"
+
+msgid ""
+"This table shows how each external service's original states and priorities "
+"are normalized in the dashboard."
+msgstr ""
+"Diese Tabelle zeigt, wie die ursprünglichen Zustände und Prioritäten der "
+"einzelnen externen Dienste im Dashboard normalisiert werden."
+
+msgid "Status Mapping"
+msgstr "Status-Mapping"
+
+msgid "Normalized"
+msgstr "Normalisiert"
+
+msgid "Original Values"
+msgstr "Ursprüngliche Werte"
+
+msgid "All other values"
+msgstr "Alle anderen Werte"
+
+msgid "Priority Mapping"
+msgstr "Prioritäts-Mapping"
+
+msgid "Default / Fallback"
+msgstr "Standard / Fallback"
+
+msgid "Close"
+msgstr "Schließen"
+
+msgid "Personal info"
+msgstr ""
+
+msgid "Permissions"
+msgstr ""
+
+msgid "Important dates"
+msgstr ""
+
+msgid "API Configuration"
+msgstr ""
+
+msgid "Extra Data (Slug/ID)"
+msgstr ""
+
+msgid "Scheduling"
+msgstr ""
+
+msgid "Administration"
+msgstr ""
+
+msgid "Default Task States"
+msgstr ""
+
+msgid "Select the default task states to show in the table."
+msgstr ""
+
+msgid "SSO Default Group"
+msgstr ""
+
+msgid ""
+"Group assigned to SSO users when Keycloak provides no groups. Leave blank to "
+"use the built-in 'sso-default-fallback' group."
+msgstr ""
+
+msgid "— sso-default-fallback (built-in) —"
+msgstr ""
+
+msgid "This email has already been taken."
+msgstr ""
+
+msgid "Name of User"
+msgstr ""
+
+msgid "email address"
+msgstr ""
+
+msgid "Full Access (See all tasks)"
+msgstr ""
+
+msgid "Limited (Own tasks + Unassigned only)"
+msgstr ""
+
+msgid "Only own tasks"
+msgstr ""
+
+msgid "No Access"
+msgstr ""
+
+#, fuzzy
+#| msgid "View Name"
+msgid "Name"
+msgstr "Ansichtsname"
+
+msgid "Display Name (e.g. Internal Helpdesk)"
+msgstr ""
+
+#, fuzzy
+#| msgid "Service Health"
+msgid "Service Type"
+msgstr "Dienststatus"
+
+msgid "Type of service to connect to."
+msgstr ""
+
+msgid "Default Access Level"
+msgstr ""
+
+msgid "Default access level for all users on this service."
+msgstr ""
+
+msgid "API URL"
+msgstr ""
+
+msgid "Base URL for the service API."
+msgstr ""
+
+msgid "API Token or Secret for authentication."
+msgstr ""
+
+msgid "Username for Basic Authentication (e.g. Eramba)"
+msgstr ""
+
+msgid "Password for Basic Authentication (e.g. Eramba)"
+msgstr ""
+
+msgid "Active"
+msgstr ""
+
+msgid "Uncheck to hide this service from the dashboard completely."
+msgstr ""
+
+msgid "Kimai Customer Name Override"
+msgstr ""
+
+msgid ""
+"Override the Kimai customer for all activities from this service. Leave "
+"blank to use the task's own customer field, falling back to the global "
+"company name."
+msgstr ""
+
+#, fuzzy
+#| msgid "No services configured."
+msgid "Service Configuration"
+msgstr "Keine Dienste konfiguriert."
+
+#, fuzzy
+#| msgid "No services configured."
+msgid "Service Configurations"
+msgstr "Keine Dienste konfiguriert."
+
+msgid "Can view system health indicator"
+msgstr ""
+
+msgid "Can view admin panel button"
+msgstr ""
+
+msgid "Can view the Kimai manager overview"
+msgstr ""
+
+msgid "API URL must use HTTPS to protect the bearer token."
+msgstr ""
+
+msgid "Company Name"
+msgstr ""
+
+msgid "Used as fallback customer name across services if none is specified."
+msgstr ""
+
+msgid ""
+"Comma-separated list of default task states to show in the table (e.g., open,"
+"pending,new)."
+msgstr ""
+
+msgid ""
+"Fallback group assigned to SSO users when Keycloak provides no groups. Leave "
+"blank to use the built-in 'sso-default-fallback' group."
+msgstr ""
+
+msgid "Kimai Customer Country"
+msgstr ""
+
+msgid "ISO 3166-1 alpha-2 country code used when creating Kimai customers."
+msgstr ""
+
+msgid "Kimai Customer Timezone"
+msgstr ""
+
+msgid "Timezone used when creating Kimai customers (e.g. Europe/Berlin)."
+msgstr ""
+
+msgid "Task Fetch Interval (minutes)"
+msgstr ""
+
+msgid "How often to fetch tasks from all services. Takes effect after saving."
+msgstr ""
+
+msgid "Global Setting"
+msgstr ""
+
+msgid "Last Seen"
+msgstr ""
+
+msgid "External Group"
+msgstr ""
+
+msgid ""
+"FULL: View everything. LIMITED: View only unassigned tasks or those assigned "
+"to the user. OWN: View only tasks assigned to the user. NONE: No access."
+msgstr ""
+
+msgid "Task Permission"
+msgstr ""
+
+msgid "Task Permissions"
+msgstr ""
+
+msgid "Service Permission"
+msgstr ""
+
+msgid "Service Permissions"
+msgstr ""
+
+msgid "External ID"
+msgstr ""
+
+#, fuzzy
+#| msgid "My Tasks"
+msgid "Task"
+msgstr "Meine Aufgaben"
+
+#, python-format
+msgid "%(hours)dh %(minutes)dm left"
+msgstr ""
+
+#, python-format
+msgid "%(minutes)dm left"
+msgstr ""
+
+#, python-format
+msgid "%(hours)dh %(minutes)dm ago"
+msgstr ""
+
+#, python-format
+msgid "%(minutes)dm ago"
+msgstr ""
+
+msgid "Today"
+msgstr ""
+
+msgid "High"
+msgstr ""
+
+msgid "Medium"
+msgstr ""
+
+msgid "Low"
+msgstr ""
+
+msgid "New"
+msgstr ""
+
+msgid "Information successfully updated"
+msgstr ""
+
+msgid "Refresh started for all services."
+msgstr ""
+
+msgid "Service type not supported for single refresh."
+msgstr ""
+
+msgid "Task updated successfully."
+msgstr ""
+
+msgid "Task could not be found in the remote service."
+msgstr ""
+
+msgid "Failed to refresh task."
+msgstr ""
+
+msgid "My Tasks"
+msgstr "Meine Aufgaben"
+
+#~ msgid "Total tasks across all platforms"
+#~ msgstr "Aufgaben (Alle)"
+
+#~ msgid "Tasks waiting on feedback"
+#~ msgstr "Warten auf Feedback"
+
+#~ msgid "Due Date"
+#~ msgstr "Fälligkeitsdatum der Aufgabe"
+
+#~ msgid "Tasks assigned to you."
+#~ msgstr "Dir zugewiesene Aufgaben"
+
+#~ msgid "Force immediate re-sync for this task."
+#~ msgstr "Synchronisierung"
