@@ -5,5 +5,8 @@ set -o pipefail
 set -o nounset
 
 
+# Apply DB migrations before serving (runs only in the web container;
+# qcluster overrides `command`, so this never double-runs).
+python manage.py migrate --noinput
 
 exec gunicorn config.wsgi --bind 0.0.0.0:5000 --chdir=/app
