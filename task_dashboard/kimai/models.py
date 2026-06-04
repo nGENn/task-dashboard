@@ -5,6 +5,25 @@ from django.utils.translation import gettext_lazy as _
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_REMINDER_EMAIL_SUBJECT = (
+    "{% if never_booked %}Reminder: please start tracking your time in Kimai"
+    "{% else %}Reminder: you are {{ days_behind }} working days behind in Kimai"
+    "{% endif %}"
+)
+
+DEFAULT_REMINDER_EMAIL_BODY = """Hi {{ name }},
+
+{% if never_booked %}We have no time-tracking entries for you in Kimai yet. \
+Please start booking your hours.{% else %}You are currently {{ days_behind }} \
+working days behind on your time tracking in Kimai \
+(grace period: {{ grace_period }} days).{% endif %}
+
+{% if kimai_url %}Open Kimai: {{ kimai_url }}{% endif %}
+
+Thanks,
+Task Dashboard
+"""
+
 
 class KimaiSettings(models.Model):
     grace_period_days = models.IntegerField(
@@ -61,6 +80,26 @@ class KimaiSettings(models.Model):
         verbose_name=_("Reminder Email Hour"),
         help_text=_(
             "Hour of day (0-23, server time) to send the daily reminder email."
+        ),
+    )
+    reminder_email_subject = models.CharField(
+        max_length=255,
+        default=DEFAULT_REMINDER_EMAIL_SUBJECT,
+        verbose_name=_("Reminder Email Subject"),
+        help_text=_(
+            "Subject line for the reminder email. Placeholders: {{ name }}, "
+            "{{ days_behind }}, {{ grace_period }}, {{ kimai_url }}, "
+            "{{ never_booked }}."
+        ),
+    )
+    reminder_email_body = models.TextField(
+        default=DEFAULT_REMINDER_EMAIL_BODY,
+        verbose_name=_("Reminder Email Message"),
+        help_text=_(
+            "Body of the reminder email (plain text). Placeholders: "
+            "{{ name }}, {{ days_behind }}, {{ grace_period }}, "
+            "{{ kimai_url }}, {{ never_booked }}. Django template tags such "
+            "as {% if never_booked %}…{% endif %} are supported."
         ),
     )
 

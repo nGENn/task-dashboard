@@ -2,13 +2,14 @@ from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from unfold.admin import ModelAdmin
 
+from task_dashboard.users.admin_site import SingletonModelAdmin
 from task_dashboard.users.admin_site import admin_site
 
 from .models import KimaiSettings
 
 
 @admin.register(KimaiSettings, site=admin_site)
-class KimaiSettingsAdmin(ModelAdmin):
+class KimaiSettingsAdmin(SingletonModelAdmin, ModelAdmin):
     autocomplete_fields = ["exempt_owners"]
     fieldsets = (
         (
@@ -25,7 +26,14 @@ class KimaiSettingsAdmin(ModelAdmin):
         ),
         (
             _("Reminder Emails"),
-            {"fields": ("reminder_email_enabled", "reminder_email_hour")},
+            {
+                "fields": (
+                    "reminder_email_enabled",
+                    "reminder_email_hour",
+                    "reminder_email_subject",
+                    "reminder_email_body",
+                ),
+            },
         ),
         (
             _("Activity Sync"),

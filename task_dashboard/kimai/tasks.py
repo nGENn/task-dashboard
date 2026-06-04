@@ -19,8 +19,10 @@ import httpx
 from asgiref.sync import async_to_sync
 from django.core.cache import cache
 from django.core.mail import send_mail
-from django.template.loader import render_to_string
+from django.template import Context
+from django.template import Template
 from django.utils.dateparse import parse_datetime
+from django.utils.html import linebreaks
 
 from task_dashboard.users.models import EmailConfiguration
 from task_dashboard.users.models import GlobalSetting
@@ -30,6 +32,8 @@ from task_dashboard.users.models import TaskOwner
 
 from .client import KimaiClient
 from .holidays import get_public_holidays
+from .models import DEFAULT_REMINDER_EMAIL_BODY
+from .models import DEFAULT_REMINDER_EMAIL_SUBJECT
 from .models import KimaiSettings
 from .reminder import calc_days_behind
 
@@ -691,6 +695,24 @@ def _kimai_base_url() -> str:
     return config.api_url.rstrip("/") if config and config.api_url else ""
 
 
+def _render_template_string(source: str, context: dict) -> str:
+    """Render an admin-edited template string with the reminder context."""
+    return Template(source).render(Context(context))
+
+
+def _build_reminder_email(settings, context: dict) -> tuple[str, str, str]:
+    """Render (subject, text_body, html_body) from the admin-editable fields."""
+    subject_tpl = (
+        settings.reminder_email_subject.strip()
+        or DEFAULT_REMINDER_EMAIL_SUBJECT
+    )
+    body_tpl = settings.reminder_email_body.strip() or DEFAULT_REMINDER_EMAIL_BODY
+    subject = _render_template_string(subject_tpl, context).strip()
+    text_body = _render_template_string(body_tpl, context)
+    html_body = linebreaks(text_body)
+    return subject, text_body, html_body
+
+
 def send_kimai_reminder_emails() -> int:
     """
     Email every owner who is currently behind on time tracking (T13).
@@ -744,9 +766,7 @@ def send_kimai_reminder_emails() -> int:
             "grace_period": grace,
             "kimai_url": kimai_url,
         }
-        subject = render_to_string("kimai/emails/reminder_subject.txt", context).strip()
-        text_body = render_to_string("kimai/emails/reminder.txt", context)
-        html_body = render_to_string("kimai/emails/reminder.html", context)
+        subject, text_body, html_body = _build_reminder_email(settings, context)
         try:
             send_mail(
                 subject,

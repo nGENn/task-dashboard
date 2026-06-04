@@ -14,6 +14,7 @@ from django_q.models import Schedule
 from django_q.models import Success
 from unfold.admin import ModelAdmin
 
+from .admin_site import SingletonModelAdmin
 from .admin_site import admin_site
 from .forms import GlobalSettingForm
 from .forms import UserAdminChangeForm
@@ -201,7 +202,7 @@ class EmailConfigurationForm(forms.ModelForm):
 
 
 @admin.register(EmailConfiguration, site=admin_site)
-class EmailConfigurationAdmin(ModelAdmin):
+class EmailConfigurationAdmin(SingletonModelAdmin, ModelAdmin):
     form = EmailConfigurationForm
     fieldsets = (
         (None, {"fields": ("enabled", "default_from_email")}),
@@ -229,7 +230,7 @@ class EmailConfigurationAdmin(ModelAdmin):
 
 
 @admin.register(GlobalSetting, site=admin_site)
-class GlobalSettingAdmin(ModelAdmin):
+class GlobalSettingAdmin(SingletonModelAdmin, ModelAdmin):
     form = GlobalSettingForm
     list_display = ["company_name", "sso_default_group", "default_task_states"]
     fieldsets = (

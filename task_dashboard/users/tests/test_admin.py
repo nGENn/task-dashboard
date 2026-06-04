@@ -64,3 +64,20 @@ class TestUserAdmin:
         # The `admin` login view should redirect to the `allauth` login view
         target_url = reverse(settings.LOGIN_URL) + "?next=" + request.path
         assertRedirects(response, target_url, fetch_redirect_response=False)
+
+
+class TestSingletonAdminRedirect:
+    @pytest.mark.django_db
+    @pytest.mark.parametrize(
+        "changelist",
+        [
+            "admin:users_globalsetting_changelist",
+            "admin:users_emailconfiguration_changelist",
+            "admin:kimai_kimaisettings_changelist",
+        ],
+    )
+    def test_changelist_redirects_to_change_page(self, admin_client, changelist):
+        response = admin_client.get(reverse(changelist))
+        assert response.status_code == HTTPStatus.FOUND
+        expected = reverse(changelist.replace("_changelist", "_change"), args=[1])
+        assert response.url == expected
