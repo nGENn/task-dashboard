@@ -21,6 +21,8 @@ from task_dashboard.services.zammad import ZammadService
 from .models import ExternalGroup
 from .models import ServiceConfiguration
 from .models import Task
+from .models import TaskOwner
+from .models import User
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +94,59 @@ def _prepare_upsert_data(config, tasks_data, group_map=None):
                 extra_data=task_dict.get("extra_info") or {},
             )
     return tasks_to_upsert, groups_to_upsert
+
+
+def _iter_owner_pairs(tasks_data):
+    """Yield (email, name) for every distinct owner across all tasks.
+
+    ``owner_email`` / ``owner`` may be comma-separated (multi-owner tasks); names
+    are aligned with emails by position when the two lists match in length.
+    """
+    seen: dict[str, str] = {}
+    for td in tasks_data:
+        emails = [e.strip().lower() for e in (td.get("owner_email") or "").split(",")]
+        emails = [e for e in emails if e and "@" in e]
+        names = [n.strip() for n in (td.get("owner") or "").split(",")]
+        for idx, email in enumerate(emails):
+            name = names[idx] if len(names) == len(emails) else ""
+            # First non-empty name wins; never downgrade a known name to "".
+            if email not in seen or (name and not seen[email]):
+                seen[email] = name
+    yield from seen.items()
+
+
+def upsert_task_owners(tasks_data) -> int:
+    """Create/refresh TaskOwner rows from synced tasks; link to Django users.
+
+    Never deletes owners (independent lifetime — only admin removes them).
+    Returns the number of owner emails processed.
+    """
+    pairs = list(_iter_owner_pairs(tasks_data))
+    if not pairs:
+        return 0
+
+    now = django_timezone.now()
+    TaskOwner.objects.bulk_create(
+        [TaskOwner(email=email, name=name, last_seen=now) for email, name in pairs],
+        batch_size=500,
+        update_conflicts=True,
+        unique_fields=["email"],
+        update_fields=["name", "last_seen"],
+    )
+
+    # Auto-link owners to existing Django users by email (where not yet linked).
+    emails = [email for email, _ in pairs]
+    user_by_email = {u.email.lower(): u for u in User.objects.filter(email__in=emails)}
+    to_link = []
+    for owner in TaskOwner.objects.filter(email__in=emails, user__isnull=True):
+        user = user_by_email.get(owner.email.lower())
+        if user:
+            owner.user = user
+            to_link.append(owner)
+    if to_link:
+        TaskOwner.objects.bulk_update(to_link, ["user"], batch_size=500)
+
+    return len(pairs)
 
 
 def _get_task_hash(task_dict: dict[str, Any]) -> str:
@@ -224,6 +279,13 @@ def fetch_service_tasks(config_id: int):  # noqa: C901
     except Exception:
         logger.exception("Database error while syncing tasks for %s", config.name)
         return 0
+
+    # Owner records have an independent lifetime: upsert from the full task set,
+    # never pruned with tasks. Failures here must not fail the task sync.
+    try:
+        upsert_task_owners(tasks_data)
+    except Exception:
+        logger.exception("Failed to upsert task owners for %s", config.name)
 
     logger.info(
         "Successfully processed %s tasks (upserted %s) for %s",

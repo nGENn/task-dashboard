@@ -27,6 +27,12 @@ class KimaiClient:
             resp.raise_for_status()
             return resp.json()
 
+    async def create_user(self, payload: dict[str, Any]) -> dict[str, Any]:
+        async with self._client() as c:
+            resp = await c.post(f"{self.base_url}/api/users", json=payload)
+            resp.raise_for_status()
+            return resp.json()
+
     async def get_last_timesheet(self, user_id: int) -> dict[str, Any] | None:
         async with self._client() as c:
             resp = await c.get(
@@ -97,6 +103,13 @@ class KimaiClient:
             resp.raise_for_status()
             return resp.json()
 
+    async def get_activity(self, activity_id: int) -> dict[str, Any]:
+        """Fetch a single activity's detail (includes its assigned ``teams``)."""
+        async with self._client() as c:
+            resp = await c.get(f"{self.base_url}/api/activities/{activity_id}")
+            resp.raise_for_status()
+            return resp.json()
+
     async def create_activity(self, payload: dict[str, Any]) -> dict[str, Any]:
         async with self._client() as c:
             resp = await c.post(f"{self.base_url}/api/activities", json=payload)
@@ -140,6 +153,42 @@ class KimaiClient:
     async def patch_team(self, team_id: int, payload: dict[str, Any]) -> dict[str, Any]:
         async with self._client() as c:
             resp = await c.patch(f"{self.base_url}/api/teams/{team_id}", json=payload)
+            resp.raise_for_status()
+            return resp.json()
+
+    async def add_team_member(self, team_id: int, user_id: int) -> dict[str, Any]:
+        async with self._client() as c:
+            resp = await c.post(
+                f"{self.base_url}/api/teams/{team_id}/members/{user_id}"
+            )
+            resp.raise_for_status()
+            return resp.json()
+
+    async def grant_team_activity(
+        self, team_id: int, activity_id: int
+    ) -> dict[str, Any]:
+        async with self._client() as c:
+            resp = await c.post(
+                f"{self.base_url}/api/teams/{team_id}/activities/{activity_id}"
+            )
+            resp.raise_for_status()
+            return resp.json()
+
+    async def revoke_team_activity(
+        self, team_id: int, activity_id: int
+    ) -> dict[str, Any]:
+        async with self._client() as c:
+            resp = await c.delete(
+                f"{self.base_url}/api/teams/{team_id}/activities/{activity_id}"
+            )
+            resp.raise_for_status()
+            return resp.json()
+
+    async def grant_team_project(self, team_id: int, project_id: int) -> dict[str, Any]:
+        async with self._client() as c:
+            resp = await c.post(
+                f"{self.base_url}/api/teams/{team_id}/projects/{project_id}"
+            )
             resp.raise_for_status()
             return resp.json()
 

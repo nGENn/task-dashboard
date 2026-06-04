@@ -1,0 +1,1 @@
+{% load i18n %}{% if never_booked %}{% translate "Reminder: please start tracking your time in Kimai" %}{% else %}{% blocktranslate %}Reminder: you are {{ days_behind }} working days behind in Kimai{% endblocktranslate %}{% endif %}

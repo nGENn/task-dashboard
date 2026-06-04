@@ -9,6 +9,7 @@ from .models import KimaiSettings
 
 @admin.register(KimaiSettings, site=admin_site)
 class KimaiSettingsAdmin(ModelAdmin):
+    autocomplete_fields = ["exempt_owners"]
     fieldsets = (
         (
             _("Reminder"),
@@ -18,9 +19,13 @@ class KimaiSettingsAdmin(ModelAdmin):
                     "reminder_interval_minutes",
                     "grace_period_days",
                     "holiday_country",
-                    "exempt_emails",
+                    "exempt_owners",
                 ),
             },
+        ),
+        (
+            _("Reminder Emails"),
+            {"fields": ("reminder_email_enabled", "reminder_email_hour")},
         ),
         (
             _("Activity Sync"),

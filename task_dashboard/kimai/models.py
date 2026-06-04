@@ -18,12 +18,13 @@ class KimaiSettings(models.Model):
         verbose_name=_("Holiday Country Code"),
         help_text=_("ISO 3166-1 alpha-2 country code for public holidays (e.g. DE)."),
     )
-    exempt_emails = models.TextField(
+    exempt_owners = models.ManyToManyField(
+        "users.TaskOwner",
         blank=True,
-        default="",
         verbose_name=_("Exempt Emails"),
         help_text=_(
-            "Newline-separated list of emails to exclude from reminders and sync."
+            "Emails (incl. discovered, not-yet-registered) excluded from "
+            "reminders and reminder emails."
         ),
     )
     sync_enabled = models.BooleanField(
@@ -50,6 +51,18 @@ class KimaiSettings(models.Model):
             "How often to evaluate reminder status. Takes effect after saving."
         ),
     )
+    reminder_email_enabled = models.BooleanField(
+        default=False,
+        verbose_name=_("Reminder Emails Enabled"),
+        help_text=_("Send a daily email to owners who are behind on time tracking."),
+    )
+    reminder_email_hour = models.PositiveIntegerField(
+        default=7,
+        verbose_name=_("Reminder Email Hour"),
+        help_text=_(
+            "Hour of day (0-23, server time) to send the daily reminder email."
+        ),
+    )
 
     class Meta:
         verbose_name = _("Kimai Settings")
@@ -72,6 +85,14 @@ class KimaiSettings(models.Model):
             ).update(
                 minutes=self.reminder_interval_minutes, schedule_type=Schedule.MINUTES
             )
+            from .apps import next_run_at_hour
+
+            Schedule.objects.filter(
+                func="task_dashboard.kimai.tasks.send_kimai_reminder_emails"
+            ).update(
+                next_run=next_run_at_hour(self.reminder_email_hour),
+                schedule_type=Schedule.DAILY,
+            )
         except ImportError:
             pass
         except Exception:
@@ -83,4 +104,4 @@ class KimaiSettings(models.Model):
         return obj
 
     def get_exempt_email_set(self) -> set[str]:
-        return {e.strip().lower() for e in self.exempt_emails.splitlines() if e.strip()}
+        return {o.email.strip().lower() for o in self.exempt_owners.all() if o.email}

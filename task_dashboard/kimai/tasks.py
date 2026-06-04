@@ -10,6 +10,7 @@ T12: run_reminder_evaluation
 
 import asyncio
 import logging
+import secrets
 from datetime import UTC
 from datetime import datetime
 from typing import Any
@@ -17,12 +18,15 @@ from typing import Any
 import httpx
 from asgiref.sync import async_to_sync
 from django.core.cache import cache
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
 from django.utils.dateparse import parse_datetime
 
+from task_dashboard.users.models import EmailConfiguration
 from task_dashboard.users.models import GlobalSetting
 from task_dashboard.users.models import ServiceConfiguration
 from task_dashboard.users.models import Task
-from task_dashboard.users.models import User
+from task_dashboard.users.models import TaskOwner
 
 from .client import KimaiClient
 from .holidays import get_public_holidays
@@ -33,9 +37,13 @@ logger = logging.getLogger(__name__)
 
 CACHE_TTL_EMAIL_MAP = 86400  # 24h
 CACHE_TTL_REMINDER = 3600  # 1h
+CACHE_TTL_EMAILED = 82800  # 23h — one reminder email per owner per day
 _MAX_WEEKDAY = 6
 
 KIMAI_ACTIVITY_COMMENT_SEP = ":"
+# Marker prefix for the 1-member per-owner teams we manage (item 6). Used both
+# to name new teams readably and to recognise which teams we may auto-revoke.
+_OWNER_TEAM_PREFIX = "Owner: "
 
 
 def _get_kimai_client() -> KimaiClient | None:
@@ -140,15 +148,24 @@ def sync_kimai_activities_for_service(config_id: int) -> int:
     return async_to_sync(_sync_activities_async)(client, config, settings)
 
 
+def _split_owner_emails(raw: str | None) -> list[str]:
+    """Split a (possibly comma-separated) owner_email field into clean emails."""
+    if not raw:
+        return []
+    return [e.strip().lower() for e in raw.split(",") if e.strip() and "@" in e]
+
+
 async def _sync_activities_async(  # noqa: C901, PLR0915
     client: KimaiClient, config: ServiceConfiguration, settings: KimaiSettings
 ) -> int:
-    # Fetch global settings and Kimai customers/projects once
+    # Fetch global settings and Kimai customers/projects/users/teams once
     global_settings = await GlobalSetting.objects.afirst()
 
     try:
         customers = await client.get_customers()
         all_projects = await client.get_projects()
+        kimai_users = await client.get_users()
+        existing_teams = await client.get_teams()
     except Exception:
         logger.exception(
             "Failed to fetch Kimai customers/projects for config %s", config.name
@@ -160,7 +177,117 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
         p["comment"]: p for p in all_projects if p.get("comment")
     }
 
-    # Group tasks by ExternalGroup name
+    # email -> kimai user id (membership). Teams are keyed by owner email so a
+    # team exists for every owner, including discovered ones with no Kimai
+    # account yet (the activity is still restricted; membership is added once
+    # they get an account).
+    email_map: dict[str, int] = {}
+    for u in kimai_users:
+        email = (u.get("email") or u.get("title") or "").strip().lower()
+        uid = u.get("id")
+        if email and uid:
+            email_map[email] = uid
+
+    # Per-owner team. Name = "Owner: {email}" — readable + unique + stable lookup.
+    def _owner_team_name(email: str) -> str:
+        return f"{_OWNER_TEAM_PREFIX}{email}"
+
+    team_name_to_id: dict[str, int] = {
+        t["name"]: t["id"] for t in existing_teams if t.get("name")
+    }
+    team_by_email: dict[str, int | None] = {}
+    team_lock = asyncio.Lock()
+    owners_without_kimai_account: set[str] = set()
+    created_kimai_users: set[str] = set()
+    kimai_timezone = (
+        global_settings.kimai_customer_timezone if global_settings else "Europe/Berlin"
+    )
+
+    async def provision_kimai_user(email: str) -> int | None:
+        """Create a Kimai user for a discovered owner so they can have a team.
+
+        Kimai requires a password on creation; a random one is set (the user logs
+        in via SSO / password reset, never this password). Returns the new uid.
+        """
+        try:
+            user = await client.create_user(
+                {
+                    "username": email,
+                    "alias": email,
+                    "email": email,
+                    "language": "en",
+                    "timezone": kimai_timezone,
+                    "enabled": True,
+                    "plainPassword": secrets.token_urlsafe(24),
+                }
+            )
+            uid = user["id"]
+            email_map[email] = uid
+            created_kimai_users.add(email)
+        except Exception:
+            logger.exception("Failed to create Kimai user for %s", email)
+            return None
+        else:
+            return uid
+
+    # Ids of teams we manage (one per owner) — only these may be auto-revoked,
+    # so manually-assigned teams on an activity are never touched.
+    owner_team_ids: set[int] = {
+        tid
+        for name, tid in team_name_to_id.items()
+        if name.startswith(_OWNER_TEAM_PREFIX)
+    }
+
+    async def ensure_owner_team(email: str) -> int | None:
+        """Return the id of the 1-member team for an owner email, creating it once.
+
+        Named by email and restricted to that owner. Kimai rejects memberless
+        teams, so a team can only be created once the owner has a Kimai account;
+        owners without one are tracked and their activities are left without a
+        per-user team (see the summary log).
+        """
+        if email in team_by_email:
+            return team_by_email[email]
+        async with team_lock:
+            if email in team_by_email:
+                return team_by_email[email]
+            uid = email_map.get(email)
+            name = _owner_team_name(email)
+            tid = team_name_to_id.get(name)
+            if tid is None:
+                if uid is None:
+                    # No Kimai account → auto-provision one (Kimai rejects
+                    # memberless teams, so a member is required).
+                    uid = await provision_kimai_user(email)
+                    if uid is None:
+                        owners_without_kimai_account.add(email)
+                        team_by_email[email] = None
+                        return None
+                try:
+                    team = await client.create_team(
+                        {"name": name, "members": [{"user": uid, "teamlead": True}]}
+                    )
+                    tid = team["id"]
+                    team_name_to_id[name] = tid
+                    owner_team_ids.add(tid)
+                except Exception:
+                    logger.exception("Failed to create Kimai team %r", name)
+                    tid = None
+            elif uid:
+                # Pre-existing team — make sure the owner is actually a member.
+                try:
+                    await client.add_team_member(tid, uid)
+                except httpx.HTTPError:
+                    logger.debug(
+                        "add_team_member(%d, %d) failed (likely already a member)",
+                        tid,
+                        uid,
+                    )
+            team_by_email[email] = tid
+            return tid
+
+    # Group tasks by (ExternalGroup name, customer) so a project never spans
+    # two customers — the customer is the Zammad organization (item 2).
     tasks_qs = await asyncio.to_thread(
         lambda: list(
             Task.objects.filter(service=config)
@@ -172,37 +299,29 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
                 "service_group__name",
                 "service_group__origin",
                 "customer",
+                "owner_email",
             )
         )
     )
 
-    # Group by external group name
-    by_group: dict[str, list[dict]] = {}
-    ungrouped = []
-    for t in tasks_qs:
-        group_name = t.get("service_group__name") or ""
-        if group_name:
-            by_group.setdefault(group_name, []).append(t)
-        else:
-            ungrouped.append(t)
-
-    # Treat ungrouped tasks under a synthetic group named after the config
-    if ungrouped:
-        by_group.setdefault(config.name, []).extend(ungrouped)
-
     fallback_company = global_settings.company_name if global_settings else config.name
+
+    def _customer_for(t: dict) -> str:
+        if config.kimai_customer_name:
+            return config.kimai_customer_name
+        return t.get("customer") or fallback_company
+
+    by_group: dict[tuple[str, str], list[dict]] = {}
+    for t in tasks_qs:
+        group_name = t.get("service_group__name") or config.name
+        by_group.setdefault((group_name, _customer_for(t)), []).append(t)
 
     # Phase 1: resolve project IDs sequentially (avoids duplicate create races)
     resolved: list[tuple[int, list[dict]]] = []  # (project_id, group_tasks)
-    for group_name, group_tasks in by_group.items():
-        project_comment_key = f"{config.name}::{group_name}"
+    for (group_name, customer_name), group_tasks in by_group.items():
+        project_comment_key = f"{config.name}::{group_name}::{customer_name}"
         kimai_project = project_by_comment.get(project_comment_key)
         if not kimai_project:
-            # Determine customer: service override → task customer → global company name
-            if config.kimai_customer_name:
-                customer_name = config.kimai_customer_name
-            else:
-                customer_name = group_tasks[0].get("customer") or fallback_company
             kimai_customer = customer_by_name.get(customer_name)
             if not kimai_customer:
                 try:
@@ -244,6 +363,54 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
 
     # Phase 2: sync activities for each project concurrently (capped at 5 in parallel).
     sem = asyncio.Semaphore(5)
+
+    async def _grant_owner_teams(
+        activity_id: int, task_data: dict, *, is_new: bool
+    ) -> None:
+        """Restrict an activity to its owners' 1-member teams (item 6).
+
+        A team is ensured for every owner email (incl. discovered ones with no
+        Kimai account). Kimai allows multiple teams per activity, so a multi-owner
+        task is granted to each owner's team. When ownership changes, owner teams
+        we manage that are no longer owners are revoked (access control);
+        manually-assigned teams are never touched.
+        """
+        emails = _split_owner_emails(task_data.get("owner_email"))
+        if not emails:
+            return
+        desired: set[int] = set()
+        for email in emails:
+            tid = await ensure_owner_team(email)
+            if tid:
+                desired.add(tid)
+
+        # Read the activity's current teams from its detail (the list endpoint
+        # does not include them). Newly created activities have none.
+        current_tids: set[int] = set()
+        if not is_new:
+            try:
+                detail = await client.get_activity(activity_id)
+                current_tids = {
+                    tm.get("id") for tm in detail.get("teams", []) if tm.get("id")
+                }
+            except Exception:
+                logger.exception("Failed to read teams for activity %d", activity_id)
+
+        for tid in desired - current_tids:
+            try:
+                await client.grant_team_activity(tid, activity_id)
+            except Exception:
+                logger.exception(
+                    "Failed to grant team %d to activity %d", tid, activity_id
+                )
+        # Revoke only owner teams we manage that are no longer owners.
+        for tid in (current_tids & owner_team_ids) - desired:
+            try:
+                await client.revoke_team_activity(tid, activity_id)
+            except Exception:
+                logger.exception(
+                    "Failed to revoke team %d from activity %d", tid, activity_id
+                )
 
     async def _sync_project(project_id: int, group_tasks: list[dict]) -> int:  # noqa: C901, PLR0912
         async with sem:
@@ -288,6 +455,7 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
                 existing = activity_by_comment.get(comment)
                 raw_title = task_data.get("title") or task_data["external_id"]
                 title = raw_title.translate(str.maketrans('<>"=', "()'-"))
+                activity_id = existing["id"] if existing else None
                 if existing:
                     if existing.get("name") != title:
                         try:
@@ -307,7 +475,7 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
                             )
                 else:
                     try:
-                        await client.create_activity(
+                        created = await client.create_activity(
                             {
                                 "name": title,
                                 "project": project_id,
@@ -315,6 +483,7 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
                                 "visible": True,
                             }
                         )
+                        activity_id = created["id"]
                         count += 1
                     except httpx.HTTPStatusError as exc:
                         logger.exception(
@@ -327,9 +496,30 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
                         logger.exception(
                             "Failed to create activity for task %s", comment
                         )
+
+                # Restrict visibility to the owner(s) (item 6).
+                if activity_id:
+                    await _grant_owner_teams(
+                        activity_id, task_data, is_new=existing is None
+                    )
             return count
 
     counts = await asyncio.gather(*(_sync_project(pid, gt) for pid, gt in resolved))
+    if created_kimai_users:
+        logger.info(
+            "Auto-created %d Kimai user(s) for config %s: %s",
+            len(created_kimai_users),
+            config.name,
+            ", ".join(sorted(created_kimai_users)),
+        )
+    if owners_without_kimai_account:
+        logger.warning(
+            "%d owner(s) could not be provisioned in Kimai for config %s — their "
+            "activities remain globally visible: %s",
+            len(owners_without_kimai_account),
+            config.name,
+            ", ".join(sorted(owners_without_kimai_account)),
+        )
     return sum(counts)
 
 
@@ -356,10 +546,11 @@ def sync_kimai_activities() -> int:
 
 def run_reminder_evaluation() -> int:
     """
-    For every Django user with a matching Kimai account, compute days_behind
-    and write to kimai_reminder:{user_pk} Valkey cache (V5, V6, V9).
+    For every task owner with a matching Kimai account, compute days_behind and
+    write to kimai_reminder:owner:{owner_pk} Valkey cache (and the legacy
+    kimai_reminder:{user_pk} key for linked users so the banner keeps working).
     Fetches all last timesheets concurrently (parallel HTTP calls).
-    Returns count of users evaluated.
+    Returns count of owners evaluated.
     """
     settings = KimaiSettings.load()
     if not settings.reminder_enabled:
@@ -372,10 +563,10 @@ def run_reminder_evaluation() -> int:
     return async_to_sync(_run_reminder_evaluation_async)(client, settings)
 
 
-async def _run_reminder_evaluation_async(  # noqa: C901, PLR0912
+async def _run_reminder_evaluation_async(  # noqa: C901, PLR0912, PLR0915
     client: KimaiClient, settings: KimaiSettings
 ) -> int:
-    exempt = settings.get_exempt_email_set()
+    exempt = await asyncio.to_thread(settings.get_exempt_email_set)
 
     try:
         kimai_users = await client.get_users()
@@ -402,29 +593,43 @@ async def _run_reminder_evaluation_async(  # noqa: C901, PLR0912
     today = datetime.now(tz=UTC).date()
     holidays = get_public_holidays(settings.holiday_country, today.year)
 
-    django_users = await asyncio.to_thread(
+    owners = await asyncio.to_thread(
         lambda: list(
-            User.objects.filter(is_active=True).values("pk", "email", "working_days")
+            TaskOwner.objects.values(
+                "pk", "email", "user_id", "user__working_days", "kimai_user_id"
+            )
         )
     )
 
-    # Build list of (user_row, kimai_uid, working_days) for users that need evaluation
+    # Build list of (owner_row, kimai_uid, working_days) for owners to evaluate
     to_evaluate: list[tuple[Any, int, frozenset[int]]] = []
-    for user_row in django_users:
-        email = (user_row["email"] or "").lower()
-        if email in exempt:
+    uid_updates: list[tuple[int, int]] = []  # (owner_pk, kimai_uid)
+    for owner_row in owners:
+        email = (owner_row["email"] or "").lower()
+        if not email or email in exempt:
             continue
         kimai_uid = email_map.get(email)
         if not kimai_uid:
-            logger.debug("No Kimai user for email %s — skipping reminder", email)
+            logger.debug("No Kimai user for owner %s — skipping reminder", email)
             continue
-        raw_days = user_row.get("working_days") or [0, 1, 2, 3, 4]
+        if owner_row.get("kimai_user_id") != kimai_uid:
+            uid_updates.append((owner_row["pk"], kimai_uid))
+        raw_days = owner_row.get("user__working_days") or [0, 1, 2, 3, 4]
         working_days = frozenset(
             int(d) for d in raw_days if 0 <= int(d) <= _MAX_WEEKDAY
         )
         if not working_days:
             continue
-        to_evaluate.append((user_row, kimai_uid, working_days))
+        to_evaluate.append((owner_row, kimai_uid, working_days))
+
+    # Persist resolved Kimai user ids so the overview can link without a cache hit.
+    if uid_updates:
+
+        def _persist_uids() -> None:
+            for owner_pk, uid in uid_updates:
+                TaskOwner.objects.filter(pk=owner_pk).update(kimai_user_id=uid)
+
+        await asyncio.to_thread(_persist_uids)
 
     if not to_evaluate:
         return 0
@@ -437,7 +642,7 @@ async def _run_reminder_evaluation_async(  # noqa: C901, PLR0912
     evaluated = 0
     cache_data: dict[str, dict] = {}
 
-    for user_row, kimai_uid, working_days in to_evaluate:
+    for owner_row, kimai_uid, working_days in to_evaluate:
         last_ts = uid_to_ts.get(kimai_uid)
         never_booked = last_ts is None
         last_entry_end: datetime | None = None
@@ -451,11 +656,15 @@ async def _run_reminder_evaluation_async(  # noqa: C901, PLR0912
                     )
 
         days_behind = calc_days_behind(last_entry_end, working_days, holidays)
-        cache_data[f"kimai_reminder:{user_row['pk']}"] = {
+        payload = {
             "days_behind": days_behind,
             "never_booked": never_booked,
             "ts": datetime.now(tz=UTC).isoformat(),
         }
+        cache_data[f"kimai_reminder:owner:{owner_row['pk']}"] = payload
+        # Legacy per-user key powers the request-time banner / context processor.
+        if owner_row.get("user_id"):
+            cache_data[f"kimai_reminder:{owner_row['user_id']}"] = payload
         evaluated += 1
 
     # Write all cache entries
@@ -465,5 +674,92 @@ async def _run_reminder_evaluation_async(  # noqa: C901, PLR0912
 
     await asyncio.to_thread(_write_cache)
 
-    logger.info("Reminder evaluation complete: %d users processed.", evaluated)
+    logger.info("Reminder evaluation complete: %d owners processed.", evaluated)
     return evaluated
+
+
+# ---------------------------------------------------------------------------
+# T13 — send_kimai_reminder_emails (daily digest)
+# ---------------------------------------------------------------------------
+
+
+def _kimai_base_url() -> str:
+    """Active Kimai base URL (no trailing slash), or "" if none."""
+    config = ServiceConfiguration.objects.filter(
+        service_type="kimai", is_active=True
+    ).first()
+    return config.api_url.rstrip("/") if config and config.api_url else ""
+
+
+def send_kimai_reminder_emails() -> int:
+    """
+    Email every owner who is currently behind on time tracking (T13).
+
+    Reads the per-owner reminder cache the evaluation job already wrote — no
+    Kimai API calls. Runs once per day (CRON schedule), so each owner gets at
+    most one mail/day. Returns the count of emails sent.
+    """
+    settings = KimaiSettings.load()
+    if not (settings.reminder_enabled and settings.reminder_email_enabled):
+        return 0
+
+    grace = settings.grace_period_days
+    exempt = settings.get_exempt_email_set()
+    owners = list(TaskOwner.objects.values("pk", "email", "name"))
+    if not owners:
+        return 0
+
+    keys = {o["pk"]: f"kimai_reminder:owner:{o['pk']}" for o in owners}
+    cached = cache.get_many(list(keys.values()))
+    kimai_url = _kimai_base_url()
+    today = datetime.now(tz=UTC).date().isoformat()
+
+    email_conf = EmailConfiguration.load()
+    connection = email_conf.get_connection()
+    from_email = email_conf.get_from_email()
+
+    sent = 0
+    for o in owners:
+        email = (o["email"] or "").strip()
+        if not email or email.lower() in exempt:
+            continue
+        data = cached.get(keys[o["pk"]])
+        if not data:
+            continue
+        never_booked = bool(data.get("never_booked"))
+        days_behind = int(data.get("days_behind", 0))
+        if not (never_booked or days_behind > grace):
+            continue
+
+        # At most one email per owner per day — guards manual re-runs / restarts
+        # / double-fires on top of the daily schedule.
+        sent_key = f"kimai_reminder_emailed:{o['pk']}"
+        if cache.get(sent_key) == today:
+            continue
+
+        context = {
+            "name": o["name"] or email,
+            "days_behind": days_behind,
+            "never_booked": never_booked,
+            "grace_period": grace,
+            "kimai_url": kimai_url,
+        }
+        subject = render_to_string("kimai/emails/reminder_subject.txt", context).strip()
+        text_body = render_to_string("kimai/emails/reminder.txt", context)
+        html_body = render_to_string("kimai/emails/reminder.html", context)
+        try:
+            send_mail(
+                subject,
+                text_body,
+                from_email,
+                [email],
+                html_message=html_body,
+                connection=connection,
+            )
+            cache.set(sent_key, today, timeout=CACHE_TTL_EMAILED)
+            sent += 1
+        except Exception:
+            logger.exception("Failed to send reminder email to %s", email)
+
+    logger.info("Reminder emails sent: %d", sent)
+    return sent

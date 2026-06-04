@@ -18,10 +18,12 @@ from .admin_site import admin_site
 from .forms import GlobalSettingForm
 from .forms import UserAdminChangeForm
 from .forms import UserAdminCreationForm
+from .models import EmailConfiguration
 from .models import ExternalGroup
 from .models import GlobalSetting
 from .models import ServiceConfiguration
 from .models import Task
+from .models import TaskOwner
 from .models import User
 
 if settings.DJANGO_ADMIN_FORCE_ALLAUTH:
@@ -161,6 +163,69 @@ class TaskAdmin(ModelAdmin):
     list_filter = ["service", "status", "priority", "group", "service_group"]
     search_fields = ["title", "external_id", "customer", "owner", "owner_email"]
     ordering = ["-updated_at"]
+
+
+@admin.register(TaskOwner, site=admin_site)
+class TaskOwnerAdmin(ModelAdmin):
+    list_display = ["email", "name", "user", "is_discovered", "last_seen"]
+    list_filter = [("user", admin.EmptyFieldListFilter)]
+    search_fields = ["email", "name"]
+    ordering = ["name", "email"]
+    readonly_fields = ["first_seen", "last_seen", "kimai_user_id"]
+    autocomplete_fields = ["user"]
+    actions = ["promote_to_user"]
+
+    @admin.display(boolean=True, description=_("Discovered"))
+    def is_discovered(self, obj):
+        return obj.is_discovered
+
+    @admin.action(description=_("Promote selected owners to users"))
+    def promote_to_user(self, request, queryset):
+        promoted = 0
+        for owner in queryset.filter(user__isnull=True):
+            owner.promote()
+            promoted += 1
+        self.message_user(
+            request,
+            _("%(n)d owner(s) promoted to users.") % {"n": promoted},
+        )
+
+
+class EmailConfigurationForm(forms.ModelForm):
+    class Meta:
+        model = EmailConfiguration
+        fields = "__all__"  # noqa: DJ007
+        widgets = {
+            "password": forms.PasswordInput(render_value=True),
+        }
+
+
+@admin.register(EmailConfiguration, site=admin_site)
+class EmailConfigurationAdmin(ModelAdmin):
+    form = EmailConfigurationForm
+    fieldsets = (
+        (None, {"fields": ("enabled", "default_from_email")}),
+        (
+            _("SMTP Server"),
+            {
+                "fields": (
+                    "host",
+                    "port",
+                    "username",
+                    "password",
+                    "use_tls",
+                    "use_ssl",
+                    "timeout",
+                ),
+            },
+        ),
+    )
+
+    def has_add_permission(self, request):
+        return not EmailConfiguration.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(GlobalSetting, site=admin_site)

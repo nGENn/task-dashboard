@@ -54,18 +54,27 @@ class TestSsoFilter:
 
 @pytest.mark.django_db
 class TestKimaiSettingsExempt:
-    """V9: exempt_emails checked before any Kimai call."""
+    """V9: exempt owners checked before any Kimai call."""
 
     def test_exempt_email_set_normalised(self):
-        s = KimaiSettings(exempt_emails="Admin@example.com\nops@example.com\n")
+        from task_dashboard.users.models import TaskOwner
+
+        s = KimaiSettings.load()
+        a = TaskOwner.objects.create(email="admin@example.com")
+        b = TaskOwner.objects.create(email="ops@example.com")
+        s.exempt_owners.add(a, b)
         exempt = s.get_exempt_email_set()
         assert "admin@example.com" in exempt
         assert "ops@example.com" in exempt
 
     def test_empty_exempt_returns_empty_set(self):
-        s = KimaiSettings(exempt_emails="")
+        s = KimaiSettings.load()
         assert s.get_exempt_email_set() == set()
 
-    def test_blank_lines_ignored(self):
-        s = KimaiSettings(exempt_emails="\n  \nuser@x.com\n")
+    def test_exempt_owner_emails_lowercased(self):
+        from task_dashboard.users.models import TaskOwner
+
+        s = KimaiSettings.load()
+        owner = TaskOwner.objects.create(email="user@x.com")
+        s.exempt_owners.add(owner)
         assert s.get_exempt_email_set() == {"user@x.com"}

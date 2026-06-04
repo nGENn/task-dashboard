@@ -67,6 +67,67 @@ class User(AbstractUser):
         return reverse("users:update")
 
 
+class TaskOwner(models.Model):
+    """
+    A distinct task owner discovered from synced tasks (keyed by email).
+
+    Spine that links a task owner email to an optional Django ``User`` and to a
+    Kimai account. Created/updated during task sync and never deleted when a
+    task is pruned — only removable in the admin. An owner with no linked
+    ``user`` is "discovered" and can be promoted to a full Django user for
+    permission assignment.
+    """
+
+    email = EmailField(_("email address"), unique=True)
+    name = CharField(_("Name"), blank=True, max_length=255)
+    user = models.OneToOneField(
+        "users.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="task_owner",
+        help_text=_("Linked Django user; empty means this owner is undiscovered."),
+    )
+    # Resolved from the Kimai email map (kept for overview/reminder convenience).
+    kimai_user_id = models.IntegerField(null=True, blank=True)
+    first_seen = models.DateTimeField(auto_now_add=True)
+    last_seen = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name", "email"]
+        verbose_name = _("Task Owner")
+        verbose_name_plural = _("Task Owners")
+
+    def __str__(self) -> str:
+        # Email is the identity — shown in pickers (e.g. exempt list) and admin.
+        return self.email
+
+    @property
+    def is_discovered(self) -> bool:
+        """True when no Django user is linked yet."""
+        return self.user_id is None
+
+    def promote(self) -> "User":
+        """
+        Promote a discovered owner to a permission-only Django user.
+
+        Creates (or reuses) an active ``User`` with an unusable local password so
+        it is assignable to groups for RBAC while Keycloak SSO login still works
+        (allauth links by email). Returns the linked user.
+        """
+        user, _created = User.objects.get_or_create(
+            email=self.email,
+            defaults={"name": self.name},
+        )
+        if not user.has_usable_password():
+            user.set_unusable_password()
+            user.save(update_fields=["password"])
+        if self.user_id != user.pk:
+            self.user = user
+            self.save(update_fields=["user"])
+        return user
+
+
 ACCESS_LEVEL_CHOICES = [
     ("FULL", _("Full Access (See all tasks)")),
     ("LIMITED", _("Limited (Own tasks + Unassigned only)")),
@@ -376,6 +437,71 @@ class GlobalSetting(models.Model):
     def load(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+class EmailConfiguration(models.Model):
+    """
+    Singleton outgoing-mail (SMTP) settings, configurable in the admin.
+
+    When ``enabled`` and a ``host`` is set, these override the environment
+    EMAIL_* defaults for app-sent mail (e.g. Kimai reminder emails).
+    """
+
+    enabled = models.BooleanField(
+        default=False,
+        verbose_name=_("Enabled"),
+        help_text=_("Use these SMTP settings instead of the environment defaults."),
+    )
+    host = models.CharField(_("SMTP Host"), max_length=255, blank=True, default="")
+    port = models.PositiveIntegerField(_("SMTP Port"), default=587)
+    username = models.CharField(_("Username"), max_length=255, blank=True, default="")
+    password = EncryptedCharField(_("Password"), max_length=255, blank=True, default="")
+    use_tls = models.BooleanField(_("Use TLS"), default=True)
+    use_ssl = models.BooleanField(_("Use SSL"), default=False)
+    default_from_email = models.CharField(
+        _("From Address"),
+        max_length=255,
+        blank=True,
+        default="",
+        help_text=_('e.g. "Task Dashboard <noreply@example.com>".'),
+    )
+    timeout = models.PositiveIntegerField(_("Timeout (seconds)"), default=10)
+
+    class Meta:
+        verbose_name = _("Email Settings")
+        verbose_name_plural = _("Email Settings")
+
+    def __str__(self) -> str:
+        return "Email Settings"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        obj, _created = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def get_connection(self):
+        """Return a configured SMTP connection, or None to use env defaults."""
+        if not self.enabled or not self.host:
+            return None
+        from django.core.mail import get_connection
+
+        return get_connection(
+            backend="django.core.mail.backends.smtp.EmailBackend",
+            host=self.host,
+            port=self.port,
+            username=self.username,
+            password=self.password or "",
+            use_tls=self.use_tls,
+            use_ssl=self.use_ssl,
+            timeout=self.timeout,
+        )
+
+    def get_from_email(self) -> str:
+        return self.default_from_email or settings.DEFAULT_FROM_EMAIL
 
 
 class ExternalGroup(models.Model):

@@ -869,9 +869,17 @@ class TestManagerKimaiView:
         user.user_permissions.add(perm)
 
     @staticmethod
-    def _reminder(pk: int, *, days_behind: int = 0, never_booked: bool = False):
+    def _owner(email: str, name: str = "", *, kimai_user_id: int | None = 1):
+        from task_dashboard.users.models import TaskOwner
+
+        return TaskOwner.objects.create(
+            email=email, name=name, kimai_user_id=kimai_user_id
+        )
+
+    @staticmethod
+    def _reminder(owner_pk: int, *, days_behind: int = 0, never_booked: bool = False):
         cache.set(
-            f"kimai_reminder:{pk}",
+            f"kimai_reminder:owner:{owner_pk}",
             {
                 "days_behind": days_behind,
                 "never_booked": never_booked,
@@ -905,21 +913,19 @@ class TestManagerKimaiView:
         manager = self._make_user(email="boss@example.com", name="Boss")
         self._grant(manager)
 
-        behind = self._make_user(email="behind@example.com", name="Behind")
-        grace = self._make_user(email="grace@example.com", name="Grace")
-        ontrack = self._make_user(email="ontrack@example.com", name="OnTrack")
-        never = self._make_user(email="never@example.com", name="Never")
-        unevaluated = self._make_user(
-            email="unevaluated@example.com", name="Unevaluated"
-        )
+        # Owners only appear when they map to a Kimai account (kimai_user_id set).
+        behind = self._owner("behind@example.com", "Behind", kimai_user_id=2)
+        grace = self._owner("grace@example.com", "Grace", kimai_user_id=3)
+        ontrack = self._owner("ontrack@example.com", "OnTrack", kimai_user_id=4)
+        never = self._owner("never@example.com", "Never", kimai_user_id=5)
+        # Owner with a Kimai account but no reminder cache -> not_evaluated
+        self._owner("unevaluated@example.com", "Unevaluated", kimai_user_id=6)
 
         # grace_period defaults to 3
         self._reminder(behind.pk, days_behind=5)
         self._reminder(grace.pk, days_behind=2)
         self._reminder(ontrack.pk, days_behind=0)
         self._reminder(never.pk, never_booked=True)
-        # `unevaluated` and `manager` intentionally have no cache entry
-        _ = unevaluated
 
         client.force_login(manager)
         response = client.get(self.url)
@@ -944,7 +950,8 @@ class TestManagerKimaiView:
     def test_kimai_link_present_when_linked(self, client: Client):
         manager = self._make_user(email="boss@example.com", name="Boss")
         self._grant(manager)
-        linked = self._make_user(email="linked@example.com", name="Linked")
+        # No stored kimai_user_id — resolved via the email map instead.
+        linked = self._owner("linked@example.com", "Linked", kimai_user_id=None)
         self._reminder(linked.pk, days_behind=4)
 
         ServiceConfiguration.objects.create(
@@ -963,5 +970,3 @@ class TestManagerKimaiView:
             rows["linked@example.com"]["kimai_url"]
             == "https://kimai.example.com/en/team/timesheet/?users[]=42"
         )
-        # Manager has no Kimai mapping -> no link
-        assert rows["boss@example.com"]["kimai_url"] == ""

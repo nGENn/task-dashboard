@@ -82,6 +82,45 @@ class ZammadService(BaseService):
             logger.warning("Zammad User Map failed: %s", e)
         return user_map
 
+    async def _get_org_map(self, client: httpx.AsyncClient) -> dict[int, str]:
+        """Map Zammad Organization ID -> Name (used as the Kimai customer)."""
+        cache_key = f"zammad_{self.config.id}_org_map"
+        cached_map = cache.get(cache_key)
+        if cached_map:
+            return cached_map
+
+        org_map: dict[int, str] = {}
+        try:
+            url = f"{self.base_url}/api/v1/organizations"
+            page = 1
+            per_page = 250
+
+            while True:
+                resp = await client.get(
+                    url,
+                    headers=self.headers,
+                    params=cast("dict[str, Any]", {"page": page, "per_page": per_page}),
+                    timeout=30.0,
+                )
+                if resp.status_code != HTTPStatus.OK:
+                    break
+                elements = resp.json()
+                if not elements:
+                    break
+                for o in elements:
+                    oid = o.get("id")
+                    name = o.get("name")
+                    if oid and name:
+                        org_map[oid] = name
+                if len(elements) < per_page:
+                    break
+                page += 1
+
+            cache.set(cache_key, org_map, timeout=3600)
+        except httpx.HTTPError as e:
+            logger.warning("Zammad Org Map failed: %s", e)
+        return org_map
+
     async def get_tasks_async(self, *, force_refresh=False):
         cache_key = f"zammad_{self.config.id}_active_tasks_cache"
 
@@ -101,11 +140,12 @@ class ZammadService(BaseService):
 
         async with httpx.AsyncClient() as client:
             user_map = await self._get_user_map(client)
+            org_map = await self._get_org_map(client)
 
             try:
                 raw_tasks = await self._fetch_all_tasks_async(client)
                 normalized_tasks = self._normalize_tasks(
-                    raw_tasks, user_map, company_name
+                    raw_tasks, user_map, company_name, org_map
                 )
             except httpx.HTTPError:
                 logger.exception("Error fetching Zammad tasks")
@@ -138,13 +178,16 @@ class ZammadService(BaseService):
 
         async with httpx.AsyncClient() as client:
             user_map = await self._get_user_map(client)
+            org_map = await self._get_org_map(client)
             try:
                 resp = await client.get(
                     url, headers=self.headers, params={"expand": "true"}, timeout=45.0
                 )
                 resp.raise_for_status()
                 raw_task = resp.json()
-                normalized = self._normalize_tasks([raw_task], user_map, company_name)
+                normalized = self._normalize_tasks(
+                    [raw_task], user_map, company_name, org_map
+                )
                 return normalized[0] if normalized else None
             except Exception:
                 logger.exception("Error fetching single Zammad task %s", ticket_id)
@@ -230,13 +273,21 @@ class ZammadService(BaseService):
             current_page += batch_size
         return remaining_tasks
 
-    def _normalize_tasks(self, raw_tasks, user_map, company_name):
+    def _normalize_tasks(self, raw_tasks, user_map, company_name, org_map=None):
+        org_map = org_map or {}
         normalized_tasks = []
         for task in raw_tasks:
             owner_id = task.get("owner_id")
             user_info = user_map.get(owner_id, {})
             owner_name = user_info.get("name", "Unassigned")
             owner_email = user_info.get("email")
+
+            # Customer = Zammad organization (resolved by id, then expanded value),
+            # falling back to the ticket customer / global company name.
+            org_name = org_map.get(task.get("organization_id"))
+            if not org_name and isinstance(task.get("organization"), str):
+                org_name = task.get("organization")
+            customer = org_name or task.get("customer") or company_name
 
             raw_state = task.get("state")
             if isinstance(raw_state, dict):
@@ -259,7 +310,7 @@ class ZammadService(BaseService):
                     "original_status": original_status,
                     "original_priority": original_priority,
                     "origin": self.config.name,
-                    "customer": task.get("customer") or company_name,
+                    "customer": customer,
                     "group": task.get("group", "Support"),
                     "owner": owner_name,
                     "owner_email": owner_email,

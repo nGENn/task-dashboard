@@ -466,6 +466,13 @@ UNFOLD = {
                         "icon": "timer",
                         "link": reverse_lazy("admin:kimai_kimaisettings_changelist"),
                     },
+                    {
+                        "title": _("Email Settings"),
+                        "icon": "mail",
+                        "link": reverse_lazy(
+                            "admin:users_emailconfiguration_changelist"
+                        ),
+                    },
                 ],
             },
             {
@@ -490,6 +497,11 @@ UNFOLD = {
                         "title": _("Users"),
                         "icon": "person",
                         "link": reverse_lazy("admin:users_user_changelist"),
+                    },
+                    {
+                        "title": _("Discovered Emails"),
+                        "icon": "alternate_email",
+                        "link": reverse_lazy("admin:users_taskowner_changelist"),
                     },
                 ],
             },

@@ -46,6 +46,7 @@ from task_dashboard.users.models import GlobalSetting
 from task_dashboard.users.models import SavedView
 from task_dashboard.users.models import ServiceConfiguration
 from task_dashboard.users.models import Task
+from task_dashboard.users.models import TaskOwner
 from task_dashboard.users.models import User
 from task_dashboard.users.models import compare_query_params
 from task_dashboard.users.rbac import get_rbac_q
@@ -148,10 +149,10 @@ class ManagerKimaiView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView
     """
     Manager overview of who is behind on Kimai time tracking.
 
-    Request-time join over the per-user reminder caches the hourly evaluation
-    (task_dashboard.kimai.tasks.run_reminder_evaluation) already writes — no
-    Kimai API calls in the request path. Starting from the full User table means
-    unlinked / not-yet-evaluated users still appear (cache miss).
+    Iterates task owners (decision 4: all owners with a Kimai account, not just
+    registered Django users). Request-time join over the per-owner reminder
+    caches the evaluation job already writes — no Kimai API calls in the request
+    path. Discovered owners (no linked Django user) can be promoted from here.
     """
 
     template_name = "users/manager_kimai.html"
@@ -161,23 +162,29 @@ class ManagerKimaiView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView
         context = super().get_context_data(**kwargs)
 
         grace_period = KimaiSettings.load().grace_period_days
-        users = list(
-            User.objects.filter(is_active=True)
-            .values("pk", "name", "email")
-            .order_by("name", "email")
-        )
-        reminder = cache.get_many([f"kimai_reminder:{u['pk']}" for u in users])
         email_map = cache.get("kimai_email_map") or {}
+
+        owners = list(
+            TaskOwner.objects.values(
+                "pk", "name", "email", "user_id", "kimai_user_id"
+            ).order_by("name", "email")
+        )
+        reminder = cache.get_many([f"kimai_reminder:owner:{o['pk']}" for o in owners])
 
         base_url = _kimai_base_url()
         lang = (get_language() or "en")[:2]
 
         rows: list[dict[str, Any]] = []
         latest_ts: str | None = None
-        for u in users:
-            data = reminder.get(f"kimai_reminder:{u['pk']}")
-            kimai_uid = email_map.get((u["email"] or "").lower())
+        for o in owners:
+            kimai_uid = o.get("kimai_user_id") or email_map.get(
+                (o["email"] or "").lower()
+            )
+            # Only owners with a Kimai account belong on the tracking overview.
+            if not kimai_uid:
+                continue
 
+            data = reminder.get(f"kimai_reminder:owner:{o['pk']}")
             if data is None:
                 status = _KIMAI_STATUS_NOT_EVALUATED
                 days_behind = 0
@@ -200,20 +207,20 @@ class ManagerKimaiView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView
             kimai_url = ""
             if base_url and kimai_uid:
                 # Kimai's team/admin timesheet listing, pre-filtered to this user.
-                # Route `admin_timesheet` = /{lang}/team/timesheet/ ; the toolbar
-                # filter form binds the `users[]` GET param (renamed from `user`
-                # when multi-select was introduced). Viewing it requires the
-                # `view_other_timesheet` permission in Kimai.
+                # The toolbar filter form binds the `users[]` GET param; viewing it
+                # requires the `view_other_timesheet` permission in Kimai.
                 kimai_url = f"{base_url}/{lang}/team/timesheet/?users[]={kimai_uid}"
 
             rows.append(
                 {
-                    "name": u["name"] or u["email"],
-                    "email": u["email"],
+                    "pk": o["pk"],
+                    "name": o["name"] or o["email"],
+                    "email": o["email"],
                     "status": status,
                     "days_behind": days_behind,
                     "never_booked": never_booked,
                     "kimai_url": kimai_url,
+                    "is_discovered": o["user_id"] is None,
                 }
             )
 
@@ -229,6 +236,22 @@ class ManagerKimaiView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView
 
 
 manager_kimai_view = ManagerKimaiView.as_view()
+
+
+@require_POST
+@login_required
+def promote_owner_view(request, pk):
+    """Promote a discovered task owner to a permission-only Django user."""
+    if not request.user.has_perm("users.view_kimai_overview"):
+        return HttpResponseForbidden()
+    owner = get_object_or_404(TaskOwner, pk=pk)
+    owner.promote()
+    messages.success(
+        request,
+        _("%(email)s promoted to a user — assign groups to grant access.")
+        % {"email": owner.email},
+    )
+    return HttpResponseRedirect(reverse("users:manager-kimai"))
 
 
 @login_required

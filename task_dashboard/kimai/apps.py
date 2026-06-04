@@ -1,9 +1,22 @@
 import contextlib
+from datetime import timedelta
 
 from django.apps import AppConfig
 from django.db import connection
 from django.db.models.signals import post_migrate
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+
+DEFAULT_REMINDER_EMAIL_HOUR = 7
+
+
+def next_run_at_hour(hour: int):
+    """Return the next datetime at the given local hour (today or tomorrow)."""
+    now = timezone.localtime()
+    candidate = now.replace(hour=hour % 24, minute=0, second=0, microsecond=0)
+    if candidate <= now:
+        candidate += timedelta(days=1)
+    return candidate
 
 
 def _setup_schedules(sender, **kwargs):
@@ -30,6 +43,12 @@ def _setup_schedules(sender, **kwargs):
             "Kimai: Reminder Evaluation",
             Schedule.MINUTES,
             {"minutes": 60},
+        ),
+        (
+            "task_dashboard.kimai.tasks.send_kimai_reminder_emails",
+            "Kimai: Reminder Emails (daily)",
+            Schedule.DAILY,
+            {"next_run": next_run_at_hour(DEFAULT_REMINDER_EMAIL_HOUR)},
         ),
     ]
 

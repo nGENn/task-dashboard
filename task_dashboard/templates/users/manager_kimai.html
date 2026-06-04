@@ -39,6 +39,7 @@
             <th>{% trans "User" %}</th>
             <th class="text-center">{% trans "Days behind" %}</th>
             <th>{% trans "Status" %}</th>
+            <th>{% trans "Account" %}</th>
             <th class="text-right">{% trans "Kimai" %}</th>
           </tr>
         </thead>
@@ -73,6 +74,19 @@
                   <span class="badge badge-ghost gap-1">{% trans "Not evaluated" %}</span>
                 {% endif %}
               </td>
+              <td>
+                {% if row.is_discovered %}
+                  <form method="post"
+                        action="{% url 'users:promote-owner' row.pk %}"
+                        class="inline">
+                    {% csrf_token %}
+                    <span class="badge badge-ghost badge-sm mr-1">{% trans "Discovered" %}</span>
+                    <button type="submit" class="btn btn-primary btn-xs">{% trans "Promote to user" %}</button>
+                  </form>
+                {% else %}
+                  <span class="badge badge-success badge-outline badge-sm">{% trans "User" %}</span>
+                {% endif %}
+              </td>
               <td class="text-right">
                 {% if row.kimai_url %}
                   <a href="{{ row.kimai_url }}"
@@ -95,7 +109,7 @@
             </tr>
           {% empty %}
             <tr>
-              <td colspan="4" class="text-center text-base-content/50 py-8">{% trans "No users found." %}</td>
+              <td colspan="5" class="text-center text-base-content/50 py-8">{% trans "No users found." %}</td>
             </tr>
           {% endfor %}
         </tbody>
