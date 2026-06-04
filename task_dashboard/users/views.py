@@ -152,7 +152,8 @@ class ManagerKimaiView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView
     Iterates task owners (decision 4: all owners with a Kimai account, not just
     registered Django users). Request-time join over the per-owner reminder
     caches the evaluation job already writes — no Kimai API calls in the request
-    path. Discovered owners (no linked Django user) can be promoted from here.
+    path. Discovered owners (no linked Django user) are flagged here; promoting
+    them to a Django user is an admin action (see the TaskOwner admin).
     """
 
     template_name = "users/manager_kimai.html"
@@ -236,22 +237,6 @@ class ManagerKimaiView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView
 
 
 manager_kimai_view = ManagerKimaiView.as_view()
-
-
-@require_POST
-@login_required
-def promote_owner_view(request, pk):
-    """Promote a discovered task owner to a permission-only Django user."""
-    if not request.user.has_perm("users.view_kimai_overview"):
-        return HttpResponseForbidden()
-    owner = get_object_or_404(TaskOwner, pk=pk)
-    owner.promote()
-    messages.success(
-        request,
-        _("%(email)s promoted to a user — assign groups to grant access.")
-        % {"email": owner.email},
-    )
-    return HttpResponseRedirect(reverse("users:manager-kimai"))
 
 
 @login_required

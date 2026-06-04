@@ -1,15 +1,43 @@
-{% load i18n %}<!doctype html>
-<html>
-<body style="font-family: Arial, sans-serif; color: #1f2937;">
-  <p>{% blocktranslate %}Hi {{ name }},{% endblocktranslate %}</p>
-  {% if never_booked %}
-    <p>{% translate "We have no time-tracking entries for you in Kimai yet. Please start booking your hours." %}</p>
-  {% else %}
-    <p>{% blocktranslate %}You are currently <strong>{{ days_behind }}</strong> working days behind on your time tracking in Kimai (grace period: {{ grace_period }} days).{% endblocktranslate %}</p>
-  {% endif %}
-  {% if kimai_url %}
-    <p><a href="{{ kimai_url }}" style="background:#2563eb;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;">{% translate "Open Kimai" %}</a></p>
-  {% endif %}
-  <p>{% translate "Thanks," %}<br>{% translate "Task Dashboard" %}</p>
-</body>
+{% load i18n %}
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>{% translate "Kimai time-tracking reminder" %}</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        color: #1f2937;
+      }
+
+      .btn {
+        background: #2563eb;
+        color: #fff;
+        padding: 10px 16px;
+        border-radius: 6px;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <p>{% blocktranslate %}Hi {{ name }},{% endblocktranslate %}</p>
+    {% if never_booked %}
+      <p>{% translate "We have no time-tracking entries for you in Kimai yet. Please start booking your hours." %}</p>
+    {% else %}
+      <p>
+        {% blocktranslate %}You are currently <strong>{{ days_behind }}</strong> working days behind on your time tracking in Kimai (grace period: {{ grace_period }} days).{% endblocktranslate %}
+      </p>
+    {% endif %}
+    {% if kimai_url %}
+      <p>
+        <a href="{{ kimai_url }}" class="btn">{% translate "Open Kimai" %}</a>
+      </p>
+    {% endif %}
+    <p>
+      {% translate "Thanks," %}
+      <br />
+      {% translate "Task Dashboard" %}
+    </p>
+  </body>
 </html>

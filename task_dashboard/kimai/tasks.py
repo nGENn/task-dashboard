@@ -703,8 +703,7 @@ def _render_template_string(source: str, context: dict) -> str:
 def _build_reminder_email(settings, context: dict) -> tuple[str, str, str]:
     """Render (subject, text_body, html_body) from the admin-editable fields."""
     subject_tpl = (
-        settings.reminder_email_subject.strip()
-        or DEFAULT_REMINDER_EMAIL_SUBJECT
+        settings.reminder_email_subject.strip() or DEFAULT_REMINDER_EMAIL_SUBJECT
     )
     body_tpl = settings.reminder_email_body.strip() or DEFAULT_REMINDER_EMAIL_BODY
     subject = _render_template_string(subject_tpl, context).strip()

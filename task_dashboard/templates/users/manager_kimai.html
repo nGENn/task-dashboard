@@ -76,13 +76,7 @@
               </td>
               <td>
                 {% if row.is_discovered %}
-                  <form method="post"
-                        action="{% url 'users:promote-owner' row.pk %}"
-                        class="inline">
-                    {% csrf_token %}
-                    <span class="badge badge-ghost badge-sm mr-1">{% trans "Discovered" %}</span>
-                    <button type="submit" class="btn btn-primary btn-xs">{% trans "Promote to user" %}</button>
-                  </form>
+                  <span class="badge badge-ghost badge-sm">{% trans "Discovered" %}</span>
                 {% else %}
                   <span class="badge badge-success badge-outline badge-sm">{% trans "User" %}</span>
                 {% endif %}
