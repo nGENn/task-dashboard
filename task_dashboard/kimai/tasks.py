@@ -45,6 +45,13 @@ CACHE_TTL_EMAILED = 82800  # 23h — one reminder email per owner per day
 _MAX_WEEKDAY = 6
 
 KIMAI_ACTIVITY_COMMENT_SEP = ":"
+# Per-config sync lock. Kimai has no unique constraint on customer/project
+# names, so two overlapping syncs of the same service each create their own
+# copies (observed: duplicated customers). cache.add is atomic on the Valkey
+# backend, so it acts as a cross-worker lock. TTL is a safety release in case a
+# worker dies mid-sync (a full run is ~15 min, the schedule interval is 15 min).
+_SYNC_LOCK_PREFIX = "kimai_sync_lock:"
+_SYNC_LOCK_TTL = 1800  # 30 min
 # Marker prefix for the 1-member per-owner teams we manage (item 6). Used both
 # to name new teams readably and to recognise which teams we may auto-revoke.
 _OWNER_TEAM_PREFIX = "Owner: "
@@ -149,7 +156,20 @@ def sync_kimai_activities_for_service(config_id: int) -> int:
     if not client:
         return 0
 
-    return async_to_sync(_sync_activities_async)(client, config, settings)
+    # Skip if another run for this service is already in progress (prevents the
+    # duplicate-customer race). cache.add returns False when the key exists.
+    lock_key = f"{_SYNC_LOCK_PREFIX}{config_id}"
+    if not cache.add(lock_key, 1, timeout=_SYNC_LOCK_TTL):
+        logger.info(
+            "Kimai sync for config %d (%s) already running — skipping this run.",
+            config_id,
+            config.name,
+        )
+        return 0
+    try:
+        return async_to_sync(_sync_activities_async)(client, config, settings)
+    finally:
+        cache.delete(lock_key)
 
 
 def _split_owner_emails(raw: str | None) -> list[str]:
@@ -157,6 +177,16 @@ def _split_owner_emails(raw: str | None) -> list[str]:
     if not raw:
         return []
     return [e.strip().lower() for e in raw.split(",") if e.strip() and "@" in e]
+
+
+def _norm_customer_key(name: str | None) -> str:
+    """Case/whitespace-insensitive customer key.
+
+    Names that differ only in case or surrounding whitespace (e.g. 'nGENn GmbH'
+    from Zammad vs 'nGENn Gmbh' from OpenProject) should map to a single Kimai
+    customer rather than creating duplicates.
+    """
+    return (name or "").strip().casefold()
 
 
 async def _sync_activities_async(  # noqa: C901, PLR0915
@@ -176,7 +206,9 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
         )
         return 0
 
-    customer_by_name: dict[str, dict] = {c["name"]: c for c in customers}
+    customer_by_name: dict[str, dict] = {
+        _norm_customer_key(c["name"]): c for c in customers
+    }
     project_by_comment: dict[str, dict] = {
         p["comment"]: p for p in all_projects if p.get("comment")
     }
@@ -326,7 +358,7 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
         project_comment_key = f"{config.name}::{group_name}::{customer_name}"
         kimai_project = project_by_comment.get(project_comment_key)
         if not kimai_project:
-            kimai_customer = customer_by_name.get(customer_name)
+            kimai_customer = customer_by_name.get(_norm_customer_key(customer_name))
             if not kimai_customer:
                 try:
                     kimai_customer = await client.create_customer(
@@ -342,7 +374,7 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
                             else "Europe/Berlin",
                         }
                     )
-                    customer_by_name[customer_name] = kimai_customer
+                    customer_by_name[_norm_customer_key(customer_name)] = kimai_customer
                 except Exception:
                     logger.exception(
                         "Failed to create Kimai customer %r", customer_name

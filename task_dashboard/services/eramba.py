@@ -483,6 +483,16 @@ class ErambaService(BaseService):
 
         original_priority = self._get_priority_raw(item)
 
+        # Eramba carries owner emails inside the parsed owner string (direct
+        # users + expanded group members). Derive owner_email from the full,
+        # un-truncated string so emails are complete (the display ``owner`` is
+        # truncated to 250 chars and may cut mid-token). Without this, eramba
+        # owners are never discovered as TaskOwners / pushed to Kimai.
+        owners_str = self._parse_owners(self._get_owners_raw(item))
+        owner_emails = ", ".join(
+            tok for tok in (t.strip() for t in owners_str.split(",")) if "@" in tok
+        )
+
         return {
             "id": f"ERA-{group_label[:3].upper()}-{item_id}",
             "title": str(title)[:250],
@@ -493,7 +503,8 @@ class ErambaService(BaseService):
             "origin": self.config.name,
             "customer": company_name,
             "group": group_label,
-            "owner": self._parse_owners(self._get_owners_raw(item))[:250],
+            "owner": owners_str[:250],
+            "owner_email": owner_emails,
             "created_at": self._format_date(
                 item.get("created") or item.get("open_date") or item.get("start")
             ),
@@ -650,7 +661,10 @@ class ErambaService(BaseService):
             if o.get("id") and o.get("model"):
                 names.append(f"{o.get('model')} #{o.get('id')}")
 
-        return ", ".join(filter(None, names)) or "-"
+        # Dedup preserving order — group expansion + direct owners often repeat
+        # the same email, which otherwise bloats both owner and owner_email.
+        names = list(dict.fromkeys(filter(None, names)))
+        return ", ".join(names) or "-"
 
     def _format_date(self, date_str):
         """Standardizes Eramba dates to ISO format."""
