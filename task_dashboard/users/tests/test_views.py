@@ -494,6 +494,61 @@ class TestDashboardView:
         assert "ZAM-3" not in task_ids
         assert len(tasks) == 1
 
+    def test_owner_dropdown_scoped_to_visible_tasks(
+        self, user: User, rf: RequestFactory
+    ):
+        """RBAC regression: global identity clustering must NOT leak owners the
+        user cannot see into their filter dropdown.
+
+        Clustering is global (so the dashboard and Kimai agree on identities),
+        but the owner option list stays scoped to the user's RBAC-filtered
+        tasks. A naive `{g["best"] for g in merged}` over the global merge would
+        expose `secret.owner@example.com` here.
+        """
+        group = Group.objects.create(name="Support Group")
+        user.groups.add(group)
+        ext_group = ExternalGroup.objects.create(origin="Zammad", name="Support")
+        TaskPermission.objects.create(
+            django_group=group, allowed_external_group=ext_group, access_level="OWN"
+        )
+        service = ServiceConfiguration.objects.create(
+            name="Zammad", service_type="zammad", is_active=True
+        )
+        # Visible — owned by the requesting user.
+        Task.objects.create(
+            external_id="ZAM-1",
+            title="Mine",
+            status="open",
+            service=service,
+            group="Support",
+            owner_email=user.email,
+            owner=user.name,
+            updated_at=timezone.now(),
+        )
+        # Hidden — a different owner the user has no access to (OWN level).
+        Task.objects.create(
+            external_id="ZAM-2",
+            title="Theirs",
+            status="open",
+            service=service,
+            group="Support",
+            owner_email="secret.owner@example.com",
+            owner="Secret Owner",
+            updated_at=timezone.now(),
+        )
+
+        request = rf.get("/?view=all")
+        request.user = user
+        view = DashboardView()
+        view.perspective = "all"
+        view.request = request
+        context = view.get_context_data()
+
+        owners = context["filter_options"]["owners"]
+        assert user.email in owners
+        assert "secret.owner@example.com" not in owners
+        assert "Secret Owner" not in owners
+
     def test_advanced_ownership_mapping(self, user: User, rf: RequestFactory):
         # Setup: User "First Last" with email "last@example.com"
         user.name = "First Last"

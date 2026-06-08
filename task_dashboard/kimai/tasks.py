@@ -24,6 +24,7 @@ from django.template import Template
 from django.utils.dateparse import parse_datetime
 from django.utils.html import linebreaks
 
+from task_dashboard.users.identity import compute_global_bridging
 from task_dashboard.users.models import EmailConfiguration
 from task_dashboard.users.models import GlobalSetting
 from task_dashboard.users.models import ServiceConfiguration
@@ -179,6 +180,30 @@ def _split_owner_emails(raw: str | None) -> list[str]:
     return [e.strip().lower() for e in raw.split(",") if e.strip() and "@" in e]
 
 
+def _canonical_emails(
+    owner_email: str | None, canonical_map: dict[str, str]
+) -> list[str]:
+    """Owner emails mapped through the canonical map, de-duped and sorted.
+
+    Collapses address variants of one person (e.g. m.handsche@ and handsche@) to
+    a single email so a multi-variant owner resolves to one Kimai user/team.
+    Unmapped emails pass through unchanged.
+    """
+    return sorted({canonical_map.get(e, e) for e in _split_owner_emails(owner_email)})
+
+
+def _load_canonical_owner_email_map() -> dict[str, str]:
+    """Global owner-email → canonical-email map (single source of truth).
+
+    Reuses :func:`compute_global_bridging` — the same clustering the dashboard
+    renders — so a person provisioned in Kimai matches what users see. Pooled
+    across every service (not just the config being synced): the two variants of
+    one person can arrive from different services, so a per-config pool would
+    never see both at once and could not merge them.
+    """
+    return compute_global_bridging().email_canonical
+
+
 def _norm_customer_key(name: str | None) -> str:
     """Case/whitespace-insensitive customer key.
 
@@ -223,6 +248,12 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
         uid = u.get("id")
         if email and uid:
             email_map[email] = uid
+
+    # Collapse address variants of one person (e.g. m.handsche@ vs handsche@)
+    # to a single canonical email, matching the dashboard's identity bridging.
+    # Owners are keyed by email below, so without this each variant would spawn
+    # its own Kimai user + team.
+    canonical_email_map = await asyncio.to_thread(_load_canonical_owner_email_map)
 
     # Per-owner team. Name = "Owner: {email}" — readable + unique + stable lookup.
     def _owner_team_name(email: str) -> str:
@@ -411,7 +442,9 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
         we manage that are no longer owners are revoked (access control);
         manually-assigned teams are never touched.
         """
-        emails = _split_owner_emails(task_data.get("owner_email"))
+        # Canonicalise + de-dupe so a person reported under two address variants
+        # resolves to one owner team/user (see _canonical_emails).
+        emails = _canonical_emails(task_data.get("owner_email"), canonical_email_map)
         if not emails:
             return
         desired: set[int] = set()

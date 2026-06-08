@@ -306,6 +306,7 @@
             {% if perms.users.view_kimai_overview %}
               <a href="{% url 'users:manager-kimai' %}"
                  class="btn btn-ghost btn-sm gap-1.5 normal-case min-h-fit h-auto py-2"
+                 aria-label="{% trans 'Manager' %}"
                  data-tip="{% trans 'Time tracking overview' %}">
                 <svg xmlns="http://www.w3.org/2000/svg"
                      class="h-4 w-4"
@@ -314,7 +315,6 @@
                      stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span class="hidden lg:inline">{% trans "Manager" %}</span>
               </a>
             {% endif %}
             <!-- Language Selector -->

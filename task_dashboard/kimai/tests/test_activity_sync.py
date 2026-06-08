@@ -1,6 +1,7 @@
 """Tests for activity sync helpers (V3, V12)."""
 
 from task_dashboard.kimai.tasks import _activity_comment
+from task_dashboard.kimai.tasks import _canonical_emails
 from task_dashboard.kimai.tasks import _parse_activity_comment
 
 
@@ -44,3 +45,27 @@ class TestActivityCommentFormat:
         assert c1 != c2
         assert _parse_activity_comment(c1) == (1, "TASK-1")
         assert _parse_activity_comment(c2) == (2, "TASK-1")
+
+
+class TestCanonicalEmails:
+    """The owner-team chokepoint: address variants collapse to one team/user."""
+
+    def test_variants_collapse_to_one(self):
+        """The reported bug: two variants of one person → a single email."""
+        m = {"m.handsche@ngenn.net": "handsche@ngenn.net"}
+        assert _canonical_emails("m.handsche@ngenn.net, handsche@ngenn.net", m) == [
+            "handsche@ngenn.net"
+        ]
+
+    def test_unmapped_passthrough(self):
+        assert _canonical_emails("alice@example.com", {}) == ["alice@example.com"]
+
+    def test_empty(self):
+        assert _canonical_emails("", {}) == []
+        assert _canonical_emails(None, {}) == []
+
+    def test_distinct_owners_sorted_and_deduped(self):
+        assert _canonical_emails("b@x.com, a@x.com, b@x.com", {}) == [
+            "a@x.com",
+            "b@x.com",
+        ]

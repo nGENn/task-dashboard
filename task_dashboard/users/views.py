@@ -38,10 +38,11 @@ from django.views.generic import UpdateView
 
 from task_dashboard.kimai.models import KimaiSettings
 from task_dashboard.users.identity import UNASSIGNED_MARKERS
-from task_dashboard.users.identity import get_identity_bridging_data
+from task_dashboard.users.identity import canonical_owner_for_label
+from task_dashboard.users.identity import compute_global_bridging
 from task_dashboard.users.identity import get_user_tokens
-from task_dashboard.users.identity import normalize_identity_string
 from task_dashboard.users.identity import post_process_task_owners
+from task_dashboard.users.identity import scoped_canonical_owners
 from task_dashboard.users.models import GlobalSetting
 from task_dashboard.users.models import SavedView
 from task_dashboard.users.models import ServiceConfiguration
@@ -521,7 +522,7 @@ class DashboardFilterMixin:
             db_field = f"-{db_field}"
         return qs.order_by(db_field, "-created_at")
 
-    def _get_filter_options(self, base_tasks, merged):
+    def _get_filter_options(self, base_tasks, token_to_canonical):
         def get_opts(qs, field):
             return sorted(qs.order_by().values_list(field, flat=True).distinct())
 
@@ -536,7 +537,15 @@ class DashboardFilterMixin:
             ),
             "owners": [
                 _("Unassigned"),
-                *sorted({g["best"] for g in merged.values()}, key=str.lower),
+                # Clustering is global, but options stay scoped to owners in the
+                # user's RBAC-filtered tasks (no leaking globally-known owners).
+                *sorted(
+                    scoped_canonical_owners(
+                        base_tasks.order_by().values("owner", "owner_email").distinct(),
+                        token_to_canonical,
+                    ),
+                    key=str.lower,
+                ),
             ],
         }
 
@@ -783,21 +792,28 @@ class DashboardView(
             resolved=Count("id", filter=Q(status="resolved"), distinct=True),
         )
 
-        merged, best_to_raw, token_to_canonical = get_identity_bridging_data(
-            base_tasks, user
+        # Global identity clustering — single source of truth shared with the
+        # Kimai sync, so both agree on who is the same person.
+        gb = compute_global_bridging()
+        merged, best_to_raw, token_to_canonical = (
+            gb.merged,
+            gb.best_to_raw,
+            gb.token_to_canonical,
         )
 
-        s_norm = normalize_identity_string(my_owner)
-        anchor = re.sub(r"[^a-z0-9]", "", s_norm.split("@")[0])
-        if anchor in merged:
-            my_owner = merged[anchor]["best"]
+        # Resolve the viewer's own owner label to its canonical form. Domain-aware
+        # (via the token index) — a bare local-part anchor would collide across
+        # domains now that the clustering is global (e.g. shared@a vs shared@b).
+        my_owner = canonical_owner_for_label(my_owner, token_to_canonical)
 
         if self.perspective == "home":
             view = self._determine_perspective_from_params(request, my_owner)
         context["current_view"] = view
 
         applied_filters = self._get_applied_filter_lists(request, view, my_owner)
-        context["filter_options"] = self._get_filter_options(base_tasks, merged)
+        context["filter_options"] = self._get_filter_options(
+            base_tasks, token_to_canonical
+        )
 
         display_tasks = self._apply_context_filters(
             base_tasks, request, best_to_raw, my_owner, perspective=view
