@@ -172,8 +172,12 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         user.sso_synced_groups) are removed if they no longer appear in
         the token. Groups assigned manually in the admin are never touched.
 
-        SECURITY: To prevent privilege escalation, only groups that ALREADY EXIST
-        in Django OR start with 'sso-' are allowed to be synced.
+        SECURITY: Keycloak-provided group names are untrusted, so only names in
+        the 'sso-' namespace are synced from the token — a Keycloak admin can
+        never map a user onto an arbitrary existing Django group (e.g. a
+        privileged one). The admin-configured fallback group
+        (GlobalSetting.sso_default_group) is exempt because it is set in our own
+        admin, not by Keycloak.
         """
         if sociallogin.account.provider not in _SSO_PROVIDERS:
             return
@@ -189,15 +193,18 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         }
 
         if token_groups:
-            target_names = token_groups
+            # Untrusted (Keycloak-provided): restrict to the 'sso-' namespace so
+            # a token can never map onto an arbitrary existing Django group.
+            allowed_target_names = {
+                name for name in token_groups if name.startswith("sso-")
+            }
         else:
+            # Trusted (set in our own admin): the configured default group is
+            # used verbatim, no prefix filter, falling back to the built-in one.
             setting = GlobalSetting.load()
-            target_names = {setting.sso_default_group.strip() or _FALLBACK_GROUP}
-
-        # SECURITY FILTER: Strictly only allow groups with 'sso-' prefix
-        allowed_target_names = {
-            name for name in target_names if name.startswith("sso-")
-        }
+            allowed_target_names = {
+                setting.sso_default_group.strip() or _FALLBACK_GROUP
+            }
 
         # Ensure all allowed target groups exist in Django
         target_groups: list[Group] = []

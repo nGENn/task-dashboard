@@ -2,7 +2,6 @@ import datetime
 import json
 import logging
 import re
-import sys
 from typing import Any
 from urllib.parse import urlparse
 
@@ -349,13 +348,7 @@ class DashboardFilterMixin:
         if not user_tokens:
             return qs.annotate(is_owner=Value(value=False, output_field=BooleanField()))
 
-        is_test = (
-            getattr(settings, "TESTING", False)
-            or "pytest" in sys.modules
-            or not self.request.META.get("REMOTE_ADDR")
-            or "testserver" in self.request.META.get("SERVER_NAME", "")
-        )
-        if is_test:
+        if getattr(settings, "TESTING", False):
             email_tokens = [t for t in user_tokens if "@" in t]
             name_tokens = [t for t in user_tokens if "@" not in t]
             q_match = Q()
@@ -745,12 +738,7 @@ class DashboardView(
         has_filters = any(
             k not in ["page", "sort", "direction", "refresh"] for k in request.GET
         )
-        is_test = (
-            getattr(settings, "TESTING", False)
-            or "pytest" in sys.modules
-            or not request.META.get("REMOTE_ADDR")
-            or "testserver" in request.META.get("SERVER_NAME", "")
-        )
+        is_test = getattr(settings, "TESTING", False)
         if not is_htmx and not has_filters and not search_q and not is_test:
             context.update(
                 {

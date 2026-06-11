@@ -296,7 +296,11 @@ CACHES = {
 
 # django-allauth
 # ------------------------------------------------------------------------------
-ACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_ACCOUNT_ALLOW_REGISTRATION", True)
+# Default closed: Keycloak SSO is the intended entry path. Opening local
+# self-service signup also requires email verification (set
+# ACCOUNT_EMAIL_VERIFICATION = "mandatory" below) to avoid account takeover by
+# pre-registering a victim's email before their first SSO login.
+ACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_ACCOUNT_ALLOW_REGISTRATION", False)
 # https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_LOGIN_METHODS = {"email"}
 # https://docs.allauth.org/en/latest/account/configuration.html

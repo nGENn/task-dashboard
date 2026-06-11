@@ -177,11 +177,7 @@ class TaskQuerySet(models.QuerySet):
                 else self.filter(q_fallback)
             )
 
-        is_test = getattr(settings, "TESTING", False) or "testserver" in getattr(
-            settings, "ALLOWED_HOSTS", []
-        )
-
-        if is_test:
+        if getattr(settings, "TESTING", False):
             q_owner = Q()
             for token in tokens_list:
                 if "@" in token:

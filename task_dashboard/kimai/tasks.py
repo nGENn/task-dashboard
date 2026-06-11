@@ -53,6 +53,15 @@ KIMAI_ACTIVITY_COMMENT_SEP = ":"
 # worker dies mid-sync (a full run is ~15 min, the schedule interval is 15 min).
 _SYNC_LOCK_PREFIX = "kimai_sync_lock:"
 _SYNC_LOCK_TTL = 1800  # 30 min
+# Global (cross-config) lock around customer creation. The per-config lock above
+# only serializes runs of the SAME service; different configs sync in parallel
+# and each fetches the customer list once up front, so a shared fallback
+# customer could be created by several configs at once. This lock + a re-query
+# inside it makes "check-then-create customer" atomic across all configs.
+_CUSTOMER_LOCK_KEY = "kimai_customer_create_lock"
+_CUSTOMER_LOCK_TTL = 60  # held only around a few API calls
+_CUSTOMER_LOCK_MAX_WAIT = 30.0
+_CUSTOMER_LOCK_POLL = 0.25
 # Marker prefix for the 1-member per-owner teams we manage (item 6). Used both
 # to name new teams readably and to recognise which teams we may auto-revoke.
 _OWNER_TEAM_PREFIX = "Owner: "
@@ -238,6 +247,77 @@ def _norm_customer_key(name: str | None) -> str:
     return (name or "").strip().casefold()
 
 
+async def _acquire_global_lock(
+    key: str, ttl: int, max_wait: float, poll: float
+) -> bool:
+    """Spin-acquire a cross-worker lock via ``cache.add``; True if acquired.
+
+    Unlike the per-config sync lock (which skips when held), this waits up to
+    ``max_wait`` seconds because the caller needs the critical section, not a
+    fast skip. Returns False on timeout so the caller can proceed anyway rather
+    than stall the whole sync.
+    """
+    waited = 0.0
+    while waited < max_wait:
+        if await asyncio.to_thread(cache.add, key, 1, ttl):
+            return True
+        await asyncio.sleep(poll)
+        waited += poll
+    return False
+
+
+async def _ensure_customer(
+    client: KimaiClient,
+    customer_name: str,
+    customer_by_name: dict[str, dict],
+    global_settings,
+) -> dict:
+    """Get-or-create a Kimai customer by name, atomic across all configs.
+
+    Fast path (steady state): return the already-known customer with no lock.
+    Slow path (genuinely missing): take the global customer lock and RE-QUERY
+    Kimai before creating, so a customer another config created after our
+    initial fetch is reused instead of duplicated. On lock timeout, fall back to
+    creating anyway (pre-existing behavior — a rare duplicate beats a stalled
+    sync).
+    """
+    key = _norm_customer_key(customer_name)
+    existing = customer_by_name.get(key)
+    if existing:
+        return existing
+
+    got_lock = await _acquire_global_lock(
+        _CUSTOMER_LOCK_KEY,
+        _CUSTOMER_LOCK_TTL,
+        _CUSTOMER_LOCK_MAX_WAIT,
+        _CUSTOMER_LOCK_POLL,
+    )
+    try:
+        if got_lock:
+            for c in await client.get_customers():
+                if _norm_customer_key(c.get("name")) == key:
+                    customer_by_name[key] = c
+                    return c
+        created = await client.create_customer(
+            {
+                "name": customer_name,
+                "visible": True,
+                "currency": "EUR",
+                "country": global_settings.kimai_customer_country
+                if global_settings
+                else "DE",
+                "timezone": global_settings.kimai_customer_timezone
+                if global_settings
+                else "Europe/Berlin",
+            }
+        )
+        customer_by_name[key] = created
+        return created
+    finally:
+        if got_lock:
+            await asyncio.to_thread(cache.delete, _CUSTOMER_LOCK_KEY)
+
+
 async def _sync_activities_async(  # noqa: C901, PLR0915
     client: KimaiClient, config: ServiceConfiguration, settings: KimaiSettings
 ) -> int:
@@ -414,28 +494,13 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
         project_comment_key = f"{config.name}::{group_name}::{customer_name}"
         kimai_project = project_by_comment.get(project_comment_key)
         if not kimai_project:
-            kimai_customer = customer_by_name.get(_norm_customer_key(customer_name))
-            if not kimai_customer:
-                try:
-                    kimai_customer = await client.create_customer(
-                        {
-                            "name": customer_name,
-                            "visible": True,
-                            "currency": "EUR",
-                            "country": global_settings.kimai_customer_country
-                            if global_settings
-                            else "DE",
-                            "timezone": global_settings.kimai_customer_timezone
-                            if global_settings
-                            else "Europe/Berlin",
-                        }
-                    )
-                    customer_by_name[_norm_customer_key(customer_name)] = kimai_customer
-                except Exception:
-                    logger.exception(
-                        "Failed to create Kimai customer %r", customer_name
-                    )
-                    continue
+            try:
+                kimai_customer = await _ensure_customer(
+                    client, customer_name, customer_by_name, global_settings
+                )
+            except Exception:
+                logger.exception("Failed to create Kimai customer %r", customer_name)
+                continue
 
             try:
                 kimai_project = await client.create_project(

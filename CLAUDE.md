@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Django-based multi-service task aggregation dashboard that pulls tasks/tasks from Zammad, GitLab, EspoCRM, OpenProject, and Eramba into a unified interface with RBAC-based access control. Uses Keycloak for SSO via django-allauth.
+Django-based multi-service task aggregation dashboard that pulls tasks from Zammad, GitLab, EspoCRM, OpenProject, and Eramba into a unified interface with RBAC-based access control. A sixth integration, Kimai, is a push/export target (not a task source): it provisions customers/projects/activities/teams and drives time-tracking reminders. Uses Keycloak for SSO via django-allauth, configurable either through `KEYCLOAK_*` env vars or the admin-managed `SSOConfiguration` singleton (which takes precedence).
 
 ## Tech Stack
 
@@ -59,22 +59,24 @@ uv run manage.py seed_espocrm_demo
 
 Split settings: `base.py` (shared), `local.py` (dev with LocMem cache + debug toolbar), `production.py` (Valkey cache + Sentry + SSL), `test.py` (fast hashing, no external deps). Test settings are used by pytest via `--ds=config.settings.test` in pyproject.toml.
 
-### Single Django App (task_dashboard/)
+### Django Apps (task_dashboard/)
 
-All business logic lives in `task_dashboard/users/` — models, views, tasks, admin, templatetags.
+Most business logic lives in `task_dashboard/users/` — models, views, tasks, admin, templatetags. The Kimai integration is a separate app, `task_dashboard/kimai/` (its own models, tasks, client, service, tests).
 
 ### Key Models (task_dashboard/users/models.py)
 
 - **User** — custom AbstractUser, email as USERNAME_FIELD (no username)
-- **ServiceConfiguration** — stores external service URLs + encrypted API tokens (EncryptedCharField), toggled via `is_active`
+- **ServiceConfiguration** — stores external service URLs + encrypted API tokens (EncryptedCharField), toggled via `is_active`; `service_type` choices come from the `service_specs.py` registry (single source of truth — adding a service is one entry there)
 - **Task** — normalized task from any service, unique on `(service, external_id)`
 - **ExternalGroup** — auto-discovered groups from services (origin + name)
-- **TaskPermission** — RBAC: links Django Groups → ExternalGroups with access levels (FULL / LIMITED / OWN_ONLY)
+- **TaskPermission** / **ServicePermission** — RBAC: link Django Groups → ExternalGroups / Services with access levels (FULL / LIMITED / OWN / NONE)
+- **TaskOwner** — distinct owner discovered from synced tasks (keyed by email), optionally linked to a Django user; spine for RBAC owner-matching and Kimai user provisioning
+- **GlobalSetting / EmailConfiguration / SSOConfiguration** — admin-configurable singletons (pk=1, `.load()`); SSOConfiguration overrides the `KEYCLOAK_*` env vars when enabled
 - **SavedView** — user's saved filter configurations as JSON
 
 ### Service Integrations (task_dashboard/services/)
 
-Each file (`zammad.py`, `gitlab.py`, `espocrm.py`, `openproject.py`, `eramba.py`) is a service class that fetches tasks via API, normalizes them to the Task model format, and caches results (5 min). Uses httpx for HTTP calls.
+Each file (`zammad.py`, `gitlab.py`, `espocrm.py`, `openproject.py`, `eramba.py`) is a service class that fetches tasks via API, normalizes them to the Task model format, and caches results (5 min). Uses httpx for HTTP calls. All subclass `base.py::BaseService`. Kimai's service class lives in `task_dashboard/kimai/service.py`; its `get_tasks_async` returns `[]` (Kimai is a push target, not a source) and it only participates in the health check — the actual push/sync logic is in `task_dashboard/kimai/tasks.py`.
 
 ### Data Flow
 
@@ -85,9 +87,9 @@ Each file (`zammad.py`, `gitlab.py`, `espocrm.py`, `openproject.py`, `eramba.py`
 
 ### Authentication Flow
 
-- Local email/password signup (when `ACCOUNT_ALLOW_REGISTRATION=True`)
-- Keycloak OIDC via allauth's openid_connect provider
-- Custom `SocialAccountAdapter` (adapters.py) syncs Keycloak groups → Django Groups on each login
+- Local email/password signup, gated by `ACCOUNT_ALLOW_REGISTRATION` (defaults **False** — SSO is the intended entry path; enabling local signup should also set `ACCOUNT_EMAIL_VERIFICATION = "mandatory"`)
+- Keycloak OIDC via allauth's openid_connect provider, configured via `KEYCLOAK_*` env vars or the `SSOConfiguration` admin singleton (singleton wins when enabled)
+- Custom `SocialAccountAdapter` (adapters.py) syncs Keycloak groups → Django Groups on each login. Only token group names in the `sso-` namespace are synced (untrusted); the admin-configured `GlobalSetting.sso_default_group` fallback is applied verbatim
 
 ## Code Quality
 
@@ -99,7 +101,7 @@ Each file (`zammad.py`, `gitlab.py`, `espocrm.py`, `openproject.py`, `eramba.py`
 
 ## CI/CD (.gitlab-ci.yml)
 
-Three stages: lint (pre-commit), test (pytest in Docker), build (multi-arch Docker image).
+Four stages: lint (pre-commit + mypy), test (pytest against PostgreSQL 18 + Valkey, `makemigrations --check`, `check --deploy`, version-bump check; coverage floored at `--cov-fail-under=65`), security (bandit + pip-audit), build (multi-arch Docker image, gated on all prior jobs passing).
 
 Do NOT bump the version (`pyproject.toml`) yourself — leave it to the human at MR time.
 

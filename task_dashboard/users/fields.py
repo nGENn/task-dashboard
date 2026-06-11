@@ -4,6 +4,7 @@ import logging
 
 from cryptography.fernet import Fernet
 from cryptography.fernet import InvalidToken
+from cryptography.fernet import MultiFernet
 from django.conf import settings
 from django.db import models
 from django.utils.encoding import force_bytes
@@ -12,17 +13,32 @@ from django.utils.encoding import force_str
 logger = logging.getLogger(__name__)
 
 
+def _fernet_for_secret(secret) -> Fernet:
+    """Derive a Fernet from a secret via SHA-256 (32-byte key)."""
+    key = hashlib.sha256(force_bytes(secret)).digest()
+    return Fernet(base64.urlsafe_b64encode(key))
+
+
 class EncryptedCharField(models.CharField):
     """
     A field that encrypts data using cryptography.fernet.Fernet.
-    The key is derived from settings.SECRET_KEY.
+
+    The key is derived from settings.SECRET_KEY. To rotate the secret without
+    losing access to existing data, set the old key(s) in
+    ``settings.SECRET_KEY_FALLBACKS``: encryption always uses the current
+    SECRET_KEY, while decryption tries the current key then each fallback
+    (via MultiFernet). Re-saving a row migrates its ciphertext to the new key,
+    after which the fallback can be dropped.
     """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Derive a 32-byte base64-encoded key from SECRET_KEY
-        key = hashlib.sha256(force_bytes(settings.SECRET_KEY)).digest()
-        self.fernet = Fernet(base64.urlsafe_b64encode(key))
+        # Current key encrypts; fallbacks only decrypt (enables key rotation).
+        secrets = [
+            settings.SECRET_KEY,
+            *getattr(settings, "SECRET_KEY_FALLBACKS", []),
+        ]
+        self.fernet = MultiFernet([_fernet_for_secret(s) for s in secrets])
 
     def from_db_value(self, value, expression, connection):
         if value is None:

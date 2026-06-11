@@ -74,7 +74,6 @@ def test_no_groups_in_token_uses_configured_default(rf: RequestFactory):
     setting.sso_default_group = "sso-configured-fallback"
     setting.save()
 
-    # SECURITY: Group must start with sso- to be synced
     Group.objects.create(name="sso-configured-fallback")
 
     login = _make_login(user, extra_data={})
@@ -84,6 +83,25 @@ def test_no_groups_in_token_uses_configured_default(rf: RequestFactory):
     names = set(user.groups.values_list("name", flat=True))
     assert "sso-configured-fallback" in names
     assert user.sso_synced_groups == ["sso-configured-fallback"]
+
+
+def test_configured_default_group_exempt_from_sso_prefix(rf: RequestFactory):
+    """The admin-configured fallback group is trusted and applied verbatim, even
+    without the 'sso-' prefix the token-group filter requires (regression)."""
+    adapter = SocialAccountAdapter()
+    user = User.objects.create(email="plainfallback@example.com")
+
+    setting = GlobalSetting.load()
+    setting.sso_default_group = "Employees"  # no sso- prefix
+    setting.save()
+
+    login = _make_login(user, extra_data={})
+    adapter.pre_social_login(rf.get("/"), login)
+
+    user.refresh_from_db()
+    names = set(user.groups.values_list("name", flat=True))
+    assert "Employees" in names
+    assert user.sso_synced_groups == ["Employees"]
 
 
 def test_no_groups_in_token_no_default_uses_builtin_fallback(rf: RequestFactory):
