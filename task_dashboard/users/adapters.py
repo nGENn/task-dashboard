@@ -9,15 +9,18 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 
 from task_dashboard.users.models import GlobalSetting
+from task_dashboard.users.models import SSOConfiguration
 from task_dashboard.users.models import User
 
 if typing.TYPE_CHECKING:
+    from allauth.socialaccount.models import SocialApp
     from allauth.socialaccount.models import SocialLogin
     from django.http import HttpRequest
 
 logger = logging.getLogger(__name__)
 
 _SSO_PROVIDERS = frozenset({"keycloak", "openid_connect"})
+_KEYCLOAK_PROVIDER_ID = "keycloak"
 _IGNORED_GROUPS = frozenset({"offline_access", "uma_authorization"})
 _IGNORED_PREFIXES = ("default-roles-",)
 _FALLBACK_GROUP = "sso-default-fallback"
@@ -53,6 +56,44 @@ class AccountAdapter(DefaultAccountAdapter):
 
 
 class SocialAccountAdapter(DefaultSocialAccountAdapter):
+    def list_apps(
+        self,
+        request: HttpRequest,
+        provider: str | None = None,
+        client_id: str | None = None,
+    ) -> list[SocialApp]:
+        """Blend in the admin-configured SSO app (SSOConfiguration singleton).
+
+        When the singleton is enabled and complete, it replaces any
+        env-based Keycloak app from SOCIALACCOUNT_PROVIDERS so allauth's
+        get_app() never sees two apps for the same provider_id.
+        """
+        apps = super().list_apps(request, provider=provider, client_id=client_id)
+
+        try:
+            config = SSOConfiguration.load()
+        except Exception:  # noqa: BLE001 — DB unavailable (e.g. during migrate)
+            return apps
+        if not config.is_configured:
+            return apps
+
+        # Respect the caller's filters, mirroring allauth's own matching.
+        if provider and provider not in ("openid_connect", _KEYCLOAK_PROVIDER_ID):
+            return apps
+        if client_id and client_id != config.client_id:
+            return apps
+
+        apps = [
+            app
+            for app in apps
+            if not (
+                app.provider == "openid_connect"
+                and app.provider_id == _KEYCLOAK_PROVIDER_ID
+            )
+        ]
+        apps.append(config.to_social_app())
+        return apps
+
     def is_open_for_signup(
         self,
         request: HttpRequest,

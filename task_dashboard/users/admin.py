@@ -23,6 +23,7 @@ from .models import EmailConfiguration
 from .models import ExternalGroup
 from .models import GlobalSetting
 from .models import ServiceConfiguration
+from .models import SSOConfiguration
 from .models import Task
 from .models import TaskOwner
 from .models import User
@@ -247,6 +248,41 @@ class EmailConfigurationAdmin(SingletonModelAdmin, ModelAdmin):
 
     def has_add_permission(self, request):
         return not EmailConfiguration.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+class SSOConfigurationForm(forms.ModelForm):
+    class Meta:
+        model = SSOConfiguration
+        fields = "__all__"  # noqa: DJ007
+        widgets = {
+            "client_secret": forms.PasswordInput(render_value=True),
+        }
+
+
+@admin.register(SSOConfiguration, site=admin_site)
+class SSOConfigurationAdmin(SingletonModelAdmin, ModelAdmin):
+    form = SSOConfigurationForm
+    fieldsets = (
+        (None, {"fields": ("enabled", "provider_name")}),
+        (
+            _("OIDC Provider"),
+            {
+                "fields": ("server_url", "client_id", "client_secret"),
+                "description": _(
+                    "When enabled, these settings take precedence over the "
+                    "KEYCLOAK_* environment variables. The redirect URI to "
+                    "register at the provider stays "
+                    "/accounts/oidc/keycloak/login/callback/."
+                ),
+            },
+        ),
+    )
+
+    def has_add_permission(self, request):
+        return not SSOConfiguration.objects.exists()
 
     def has_delete_permission(self, request, obj=None):
         return False

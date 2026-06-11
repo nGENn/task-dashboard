@@ -500,6 +500,92 @@ class EmailConfiguration(models.Model):
         return self.default_from_email or settings.DEFAULT_FROM_EMAIL
 
 
+class SSOConfiguration(models.Model):
+    """
+    Singleton Keycloak / OIDC (SSO) settings, configurable in the admin.
+
+    When ``enabled`` and fully filled in, these take precedence over the
+    ``KEYCLOAK_*`` environment variables (see SocialAccountAdapter.list_apps).
+    The provider id stays fixed at "keycloak" so existing social accounts,
+    the login template, and group syncing keep working.
+    """
+
+    enabled = models.BooleanField(
+        default=False,
+        verbose_name=_("Enabled"),
+        help_text=_(
+            "Use these SSO settings. Takes precedence over the KEYCLOAK_* "
+            "environment variables."
+        ),
+    )
+    provider_name = models.CharField(
+        _("Provider Name"),
+        max_length=100,
+        default="Keycloak",
+        help_text=_("Display name shown on the login button."),
+    )
+    server_url = models.URLField(
+        _("Server URL"),
+        max_length=255,
+        blank=True,
+        default="",
+        help_text=_(
+            "OIDC issuer / realm URL, e.g. https://keycloak.example.com/realms/myrealm"
+        ),
+    )
+    client_id = models.CharField(
+        _("Client ID"),
+        max_length=255,
+        blank=True,
+        default="",
+    )
+    client_secret = EncryptedCharField(
+        _("Client Secret"),
+        max_length=255,
+        blank=True,
+        default="",
+    )
+
+    class Meta:
+        verbose_name = _("SSO Settings")
+        verbose_name_plural = _("SSO Settings")
+
+    def __str__(self) -> str:
+        return "SSO Settings"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        obj, _created = cls.objects.get_or_create(pk=1)
+        return obj
+
+    @property
+    def is_configured(self) -> bool:
+        return bool(
+            self.enabled and self.server_url and self.client_id and self.client_secret
+        )
+
+    def to_social_app(self):
+        """Return an unsaved allauth SocialApp built from these settings.
+
+        Mirrors how allauth materializes settings-based apps, so it can be
+        blended into the provider registry at request time.
+        """
+        from allauth.socialaccount.models import SocialApp
+
+        return SocialApp(
+            provider="openid_connect",
+            provider_id="keycloak",
+            name=self.provider_name or "Keycloak",
+            client_id=self.client_id,
+            secret=self.client_secret,
+            settings={"server_url": self.server_url},
+        )
+
+
 class ExternalGroup(models.Model):
     """
     Auto-discovered groups from your services.

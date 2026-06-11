@@ -327,41 +327,47 @@ SOCIALACCOUNT_FORMS = {"signup": "task_dashboard.users.forms.UserSocialSignupFor
 # Your stuff...
 # ------------------------------------------------------------------------------
 
-# Check if Keycloak set
+# Keycloak / OIDC Configuration
+# SSO can be configured two ways:
+#   1. KEYCLOAK_* environment variables (below)
+#   2. The SSO Settings singleton in the admin (users.SSOConfiguration),
+#      which takes precedence — see SocialAccountAdapter.list_apps.
 _keycloak_url = env("KEYCLOAK_SERVER_URL", default="")
 _keycloak_id = env("KEYCLOAK_CLIENT_ID", default="")
 _keycloak_secret = env("KEYCLOAK_CLIENT_SECRET", default="")
 
+_keycloak_env_values = (_keycloak_url, _keycloak_id, _keycloak_secret)
+_keycloak_env_complete = all(_keycloak_env_values)
 
-if _keycloak_url == "":
-    logger.warning("KEYCLOAK_SERVER_URL is not set. Keycloak OIDC login will not work.")
-
-if _keycloak_id == "":
-    logger.warning("KEYCLOAK_CLIENT_ID is not set. Keycloak OIDC login will not work.")
-
-if _keycloak_secret == "":
+if any(_keycloak_env_values) and not _keycloak_env_complete:
     logger.warning(
-        "KEYCLOAK_CLIENT_SECRET is not set. Keycloak OIDC login will not work."
+        "Incomplete Keycloak env config (KEYCLOAK_SERVER_URL, KEYCLOAK_CLIENT_ID "
+        "and KEYCLOAK_CLIENT_SECRET must all be set). Keycloak OIDC login via "
+        "environment is disabled; configure SSO in the admin instead.",
     )
 
-# Keycloak / OIDC Configuration
 INSTALLED_APPS.append("allauth.socialaccount.providers.openid_connect")
 
-# 2. Keycloak / OIDC Configuration
 SOCIALACCOUNT_PROVIDERS = {
     "openid_connect": {
         "SCOPE": ["openid", "profile", "email"],
-        "APPS": [
-            {
-                "provider_id": "keycloak",
-                "name": "Keycloak",
-                "client_id": env("KEYCLOAK_CLIENT_ID", default=""),
-                "secret": env("KEYCLOAK_CLIENT_SECRET", default=""),
-                "settings": {
-                    "server_url": env("KEYCLOAK_SERVER_URL", default=""),
+        # Only register the env-based app when fully configured; otherwise SSO
+        # comes from the admin-managed SSOConfiguration (or is disabled).
+        "APPS": (
+            [
+                {
+                    "provider_id": "keycloak",
+                    "name": "Keycloak",
+                    "client_id": _keycloak_id,
+                    "secret": _keycloak_secret,
+                    "settings": {
+                        "server_url": _keycloak_url,
+                    },
                 },
-            },
-        ],
+            ]
+            if _keycloak_env_complete
+            else []
+        ),
     },
 }
 
@@ -472,6 +478,11 @@ UNFOLD = {
                         "link": reverse_lazy(
                             "admin:users_emailconfiguration_changelist"
                         ),
+                    },
+                    {
+                        "title": _("SSO Settings"),
+                        "icon": "passkey",
+                        "link": reverse_lazy("admin:users_ssoconfiguration_changelist"),
                     },
                 ],
             },
