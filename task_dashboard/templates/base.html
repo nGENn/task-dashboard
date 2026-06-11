@@ -207,7 +207,7 @@
                   <!-- Safelist for dynamic status colors: bg-success bg-error bg-warning bg-info bg-neutral text-success text-error text-warning text-info text-neutral -->
                 </div>
                 <div tabindex="0"
-                     class="dropdown-content z-[100] card card-compact w-72 p-2 shadow-xl bg-base-100 border border-base-300 mt-2">
+                     class="dropdown-content z-[100] card card-compact w-80 p-2 shadow-xl bg-base-100 border border-base-300 mt-2">
                   <div class="card-body">
                     <h3 class="font-bold text-base-content flex items-center gap-2">
                       <svg xmlns="http://www.w3.org/2000/svg"
@@ -225,7 +225,7 @@
                     <div class="space-y-2">
                       {% for service in services_status %}
                         <div class="flex justify-between items-center gap-2">
-                          <span class="text-sm flex items-center gap-1.5">
+                          <span class="text-sm flex items-center gap-1.5 min-w-0">
                             {% if service.status == 'online' %}
                               <span class="w-2 h-2 rounded-full bg-success flex-shrink-0"></span>
                             {% elif service.status == 'offline' %}
@@ -233,12 +233,12 @@
                             {% else %}
                               <span class="w-2 h-2 rounded-full bg-warning flex-shrink-0"></span>
                             {% endif %}
-                            <span class="break-words">{{ service.name }}</span>
+                            <span class="break-words min-w-0">{{ service.name }}</span>
                           </span>
                           {% if service.status == 'online' or service.status == 'degraded' %}
                             <span class="badge {% if service.status == 'online' %}badge-success{% else %}badge-warning{% endif %} badge-sm badge-outline flex-shrink-0">{{ service.latency }}ms</span>
                           {% else %}
-                            <div class="tooltip tooltip-left cursor-pointer"
+                            <div class="tooltip tooltip-left cursor-pointer flex-shrink-0"
                                  data-tip="{{ service.error }}">
                               <span class="badge {% if service.status == 'offline' %}badge-error{% else %}badge-warning{% endif %} badge-sm hover:scale-105 transition-transform"
                                     onclick="copyError('{{ service.error|escapejs }}')">

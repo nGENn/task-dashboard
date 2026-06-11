@@ -117,15 +117,39 @@ def get_kimai_email_map() -> dict[str, int]:
 
 
 def _activity_comment(config_id: int, external_task_id: str) -> str:
-    """V3: activity.comment = "{service_config_id}:{external_task_id}" """
+    """V3: matching key — activity.comment first line = "{config_id}:{external_id}".
+
+    Pure key only; never includes the URL. Used for matching against existing
+    Kimai activities. The on-Kimai comment may carry extra lines (see
+    :func:`_activity_comment_display`) which are ignored by the parser.
+    """
     return f"{config_id}{KIMAI_ACTIVITY_COMMENT_SEP}{external_task_id}"
 
 
+def _activity_comment_display(
+    config_id: int, external_task_id: str, url: str | None
+) -> str:
+    """Comment written to Kimai: matching key on line 1, source URL below it.
+
+    The URL lets a user reading the time entry in Kimai jump back to the
+    original task. URL-less tasks get the bare key (no trailing newline) so the
+    idempotency check does not re-patch them forever.
+    """
+    key = _activity_comment(config_id, external_task_id)
+    return f"{key}\n{url}" if url else key
+
+
 def _parse_activity_comment(comment: str | None) -> tuple[int, str] | None:
-    """Parse activity comment → (config_id, external_task_id) or None."""
+    """Parse activity comment → (config_id, external_task_id) or None.
+
+    Only the first line is the key; any following lines (e.g. the source URL)
+    are display-only and ignored — and the URL's own colons never reach the
+    split because we slice to the first line first.
+    """
     if not comment:
         return None
-    parts = comment.split(KIMAI_ACTIVITY_COMMENT_SEP, 1)
+    key_line = comment.split("\n", 1)[0]
+    parts = key_line.split(KIMAI_ACTIVITY_COMMENT_SEP, 1)
     if len(parts) != 2:  # noqa: PLR2004
         return None
     try:
@@ -363,6 +387,7 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
                 "external_id",
                 "title",
                 "status",
+                "url",
                 "service_group__name",
                 "service_group__origin",
                 "customer",
@@ -481,7 +506,7 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
                     "Failed to revoke team %d from activity %d", tid, activity_id
                 )
 
-    async def _sync_project(project_id: int, group_tasks: list[dict]) -> int:  # noqa: C901, PLR0912
+    async def _sync_project(project_id: int, group_tasks: list[dict]) -> int:  # noqa: C901, PLR0912, PLR0915
         async with sem:
             try:
                 existing_activities = await client.get_activities(project_id)
@@ -491,11 +516,14 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
                 )
                 return 0
 
+            # Key by the parsed canonical key (line 1), NOT the raw comment —
+            # comments now carry a trailing URL line, so the raw string differs
+            # from the generated key and would cause duplicate creates.
             activity_by_comment: dict[str, dict] = {}
             for act in existing_activities:
                 parsed = _parse_activity_comment(act.get("comment"))
                 if parsed and parsed[0] == config.id:
-                    activity_by_comment[act["comment"]] = act
+                    activity_by_comment[_activity_comment(*parsed)] = act
 
             current_comments = {
                 _activity_comment(config.id, t["external_id"]): t for t in group_tasks
@@ -524,12 +552,25 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
                 existing = activity_by_comment.get(comment)
                 raw_title = task_data.get("title") or task_data["external_id"]
                 title = raw_title.translate(str.maketrans('<>"=', "()'-"))
+                desired_comment = _activity_comment_display(
+                    config.id, task_data["external_id"], task_data.get("url")
+                )
                 activity_id = existing["id"] if existing else None
                 if existing:
-                    if existing.get("name") != title:
+                    # Re-patch only when the name or the comment (key + URL line)
+                    # actually drifted, else every sync would re-patch forever.
+                    if (
+                        existing.get("name") != title
+                        or existing.get("comment") != desired_comment
+                    ):
                         try:
                             await client.patch_activity(
-                                existing["id"], {"name": title, "project": project_id}
+                                existing["id"],
+                                {
+                                    "name": title,
+                                    "project": project_id,
+                                    "comment": desired_comment,
+                                },
                             )
                         except httpx.HTTPStatusError as exc:
                             logger.exception(
@@ -548,7 +589,7 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
                             {
                                 "name": title,
                                 "project": project_id,
-                                "comment": comment,
+                                "comment": desired_comment,
                                 "visible": True,
                             }
                         )

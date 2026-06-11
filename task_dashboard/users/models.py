@@ -22,6 +22,7 @@ from django.utils.translation import gettext_lazy as _
 
 from .fields import EncryptedCharField
 from .managers import UserManager
+from .service_specs import SERVICE_TYPE_CHOICES
 
 
 def _default_working_days() -> list[int]:
@@ -268,14 +269,9 @@ class TaskManager(models.Manager):
 
 
 class ServiceConfiguration(models.Model):
-    SERVICE_TYPES = [
-        ("zammad", "Zammad"),
-        ("gitlab", "GitLab"),
-        ("espocrm", "EspoCRM"),
-        ("eramba", "Eramba"),
-        ("openproject", "OpenProject"),
-        ("kimai", "Kimai"),
-    ]
+    # Sourced from the registry (single source of truth). Adding a service =
+    # one entry in service_specs.SERVICE_SPECS. See that module.
+    SERVICE_TYPES = SERVICE_TYPE_CHOICES
 
     name = models.CharField(
         max_length=50,

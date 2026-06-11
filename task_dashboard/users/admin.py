@@ -26,6 +26,7 @@ from .models import ServiceConfiguration
 from .models import Task
 from .models import TaskOwner
 from .models import User
+from .service_specs import build_conditional_fields
 
 if settings.DJANGO_ADMIN_FORCE_ALLAUTH:
     admin.autodiscover()
@@ -86,10 +87,30 @@ class ServiceConfigurationForm(forms.ModelForm):
             "api_password": forms.PasswordInput(render_value=True),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Help text spells out which service(s) each credential field is for.
+        # The fields themselves are also shown/hidden per service_type via the
+        # admin's conditional_fields, but the text keeps it clear once visible.
+        self.fields["api_url"].help_text = _("Base URL for the service API (HTTPS).")
+        self.fields["api_token"].help_text = _(
+            "API token / bearer secret. Used by Zammad, GitLab, EspoCRM, "
+            "OpenProject and Kimai."
+        )
+        self.fields["api_username"].help_text = _(
+            "Username for HTTP Basic authentication. Eramba only."
+        )
+        self.fields["api_password"].help_text = _(
+            "Password for HTTP Basic authentication. Eramba only."
+        )
+
 
 @admin.register(ServiceConfiguration, site=admin_site)
 class ServiceConfigurationAdmin(ModelAdmin):
     form = ServiceConfigurationForm
+    # Drives Unfold's per-field x-show: each credential/option field is only
+    # shown for the service types declared in service_specs.SERVICE_SPECS.
+    conditional_fields = build_conditional_fields()
     list_display = [
         "name",
         "service_type",
@@ -113,19 +134,21 @@ class ServiceConfigurationAdmin(ModelAdmin):
             },
         ),
         (
-            _("API Configuration"),
+            _("Connection"),
             {
+                # api_url is always shown, so this section never fully empties;
+                # the remaining fields appear only for the relevant service type.
                 "fields": (
                     "api_url",
                     "api_token",
                     "api_username",
                     "api_password",
+                    "kimai_customer_name",
+                ),
+                "description": _(
+                    "Only the fields relevant to the selected service type are shown."
                 ),
             },
-        ),
-        (
-            _("Kimai"),
-            {"fields": ("kimai_customer_name",)},
         ),
     )
 
