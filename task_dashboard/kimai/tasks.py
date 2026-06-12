@@ -11,7 +11,9 @@ T12: run_reminder_evaluation
 import asyncio
 import logging
 import secrets
+from collections.abc import Mapping
 from datetime import UTC
+from datetime import date
 from datetime import datetime
 from typing import Any
 
@@ -44,6 +46,14 @@ CACHE_TTL_EMAIL_MAP = 86400  # 24h
 CACHE_TTL_REMINDER = 3600  # 1h
 CACHE_TTL_EMAILED = 82800  # 23h — one reminder email per owner per day
 _MAX_WEEKDAY = 6
+_DEFAULT_WORKING_DAYS = [0, 1, 2, 3, 4]  # Mon-Fri
+
+
+def _normalized_working_days(raw_days: Any) -> frozenset[int]:
+    """Owner's working weekdays as a frozenset; defaults to Mon-Fri when unset."""
+    days = raw_days or _DEFAULT_WORKING_DAYS
+    return frozenset(int(d) for d in days if 0 <= int(d) <= _MAX_WEEKDAY)
+
 
 KIMAI_ACTIVITY_COMMENT_SEP = ":"
 # Per-config sync lock. Kimai has no unique constraint on customer/project
@@ -789,10 +799,7 @@ async def _run_reminder_evaluation_async(  # noqa: C901, PLR0912, PLR0915
             continue
         if owner_row.get("kimai_user_id") != kimai_uid:
             uid_updates.append((owner_row["pk"], kimai_uid))
-        raw_days = owner_row.get("user__working_days") or [0, 1, 2, 3, 4]
-        working_days = frozenset(
-            int(d) for d in raw_days if 0 <= int(d) <= _MAX_WEEKDAY
-        )
+        working_days = _normalized_working_days(owner_row.get("user__working_days"))
         if not working_days:
             continue
         to_evaluate.append((owner_row, kimai_uid, working_days))
@@ -871,6 +878,23 @@ def _render_template_string(source: str, context: dict) -> str:
     return Template(source).render(Context(context))
 
 
+def _reminder_due(
+    owner: Mapping[str, Any], data: dict, grace: int, today: date, exempt: set[str]
+) -> bool:
+    """True when this owner should get a reminder email today.
+
+    Requires a non-exempt email, today being one of the owner's working days,
+    and the cached evaluation showing them behind beyond the grace period (or
+    never having booked at all).
+    """
+    email = (owner["email"] or "").strip().lower()
+    if not email or email in exempt:
+        return False
+    if today.weekday() not in _normalized_working_days(owner.get("user__working_days")):
+        return False
+    return bool(data.get("never_booked")) or int(data.get("days_behind", 0)) > grace
+
+
 def _build_reminder_email(settings, context: dict) -> tuple[str, str, str]:
     """Render (subject, text_body, html_body) from the admin-editable fields."""
     subject_tpl = (
@@ -889,22 +913,29 @@ def send_kimai_reminder_emails() -> int:
 
     Reads the per-owner reminder cache the evaluation job already wrote — no
     Kimai API calls. Runs once per day (CRON schedule), so each owner gets at
-    most one mail/day. Returns the count of emails sent.
+    most one mail/day. Skips public holidays entirely and skips owners whose
+    working days don't include today, so nobody is mailed on a day off.
+    Returns the count of emails sent.
     """
     settings = KimaiSettings.load()
     if not (settings.reminder_enabled and settings.reminder_email_enabled):
         return 0
 
+    today = datetime.now(tz=UTC).date()
+    if today in get_public_holidays(settings.holiday_country, today.year):
+        logger.info("Public holiday — skipping reminder emails")
+        return 0
+
     grace = settings.grace_period_days
     exempt = settings.get_exempt_email_set()
-    owners = list(TaskOwner.objects.values("pk", "email", "name"))
+    owners = list(TaskOwner.objects.values("pk", "email", "name", "user__working_days"))
     if not owners:
         return 0
 
     keys = {o["pk"]: f"kimai_reminder:owner:{o['pk']}" for o in owners}
     cached = cache.get_many(list(keys.values()))
     kimai_url = _kimai_base_url()
-    today = datetime.now(tz=UTC).date().isoformat()
+    today_iso = today.isoformat()
 
     email_conf = EmailConfiguration.load()
     connection = email_conf.get_connection()
@@ -913,26 +944,20 @@ def send_kimai_reminder_emails() -> int:
     sent = 0
     for o in owners:
         email = (o["email"] or "").strip()
-        if not email or email.lower() in exempt:
-            continue
         data = cached.get(keys[o["pk"]])
-        if not data:
-            continue
-        never_booked = bool(data.get("never_booked"))
-        days_behind = int(data.get("days_behind", 0))
-        if not (never_booked or days_behind > grace):
+        if not data or not _reminder_due(o, data, grace, today, exempt):
             continue
 
         # At most one email per owner per day — guards manual re-runs / restarts
         # / double-fires on top of the daily schedule.
         sent_key = f"kimai_reminder_emailed:{o['pk']}"
-        if cache.get(sent_key) == today:
+        if cache.get(sent_key) == today_iso:
             continue
 
         context = {
             "name": o["name"] or email,
-            "days_behind": days_behind,
-            "never_booked": never_booked,
+            "days_behind": int(data.get("days_behind", 0)),
+            "never_booked": bool(data.get("never_booked")),
             "grace_period": grace,
             "kimai_url": kimai_url,
         }
@@ -946,7 +971,7 @@ def send_kimai_reminder_emails() -> int:
                 html_message=html_body,
                 connection=connection,
             )
-            cache.set(sent_key, today, timeout=CACHE_TTL_EMAILED)
+            cache.set(sent_key, today_iso, timeout=CACHE_TTL_EMAILED)
             sent += 1
         except Exception:
             logger.exception("Failed to send reminder email to %s", email)
