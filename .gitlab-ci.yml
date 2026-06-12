@@ -137,14 +137,18 @@ check_version_bump:
   needs: []
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      changes:
-        - docs/**/*
-        - "*.md"
-      when: never
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   script:
-    - PR_VERSION=$(grep -m 1 '^version = "' pyproject.toml | cut -d '"' -f 2)
     - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --depth=1
+    # Skip only when the MR is docs-only (rules:changes can't express "only",
+    # it matches if ANY changed file matches, so we check in-script instead)
+    - |
+      CHANGED_FILES=$(git diff --name-only "origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"...HEAD)
+      NON_DOCS=$(echo "$CHANGED_FILES" | grep -vE '^docs/|^[^/]+\.md$' || true)
+      if [ -z "$NON_DOCS" ]; then
+        echo "Docs-only changes detected — skipping version bump check."
+        exit 0
+      fi
+    - PR_VERSION=$(grep -m 1 '^version = "' pyproject.toml | cut -d '"' -f 2)
     - MAIN_VERSION=$(git show "origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME:pyproject.toml" | grep -m 1 '^version = "' | cut -d '"' -f 2)
     - 'echo "PR version: $PR_VERSION | Target version: $MAIN_VERSION"'
     - |
