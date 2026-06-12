@@ -64,6 +64,17 @@ DEFAULT_STATES = "open,pending"
 _MAX_WEEKDAY = 6
 
 
+def get_default_states():
+    """Default task states from GlobalSetting, falling back to DEFAULT_STATES.
+
+    The stored value can end up empty (e.g. historical admin-form bug that
+    wiped it on save), which must not be interpreted as "no state filter".
+    """
+    stored = GlobalSetting.load().default_task_states
+    states = [s.strip() for s in stored.split(",") if s.strip()]
+    return states or [s.strip() for s in DEFAULT_STATES.split(",")]
+
+
 # --- UTILITY VIEWS ---
 
 
@@ -414,15 +425,7 @@ class DashboardFilterMixin:
             and perspective != "all"
             and (perspective in ["my", "open", "unassigned"] or not request.GET)
         ):
-            if perspective == "open":
-                st = ["open"]
-            else:
-                settings_obj = GlobalSetting.load()
-                st = [
-                    s.strip()
-                    for s in settings_obj.default_task_states.split(",")
-                    if s.strip()
-                ]
+            st = ["open"] if perspective == "open" else get_default_states()
 
         if st:
             qs = qs.filter(status__in=st)
@@ -552,15 +555,7 @@ class DashboardFilterMixin:
 
         states = request.GET.getlist("state")
         if not states and perspective in ["my", "open", "unassigned"]:
-            if perspective == "open":
-                states = ["open"]
-            else:
-                settings_obj = GlobalSetting.load()
-                states = [
-                    s.strip()
-                    for s in settings_obj.default_task_states.split(",")
-                    if s.strip()
-                ]
+            states = ["open"] if perspective == "open" else get_default_states()
 
         return {
             "origins": request.GET.getlist("origin"),
@@ -651,13 +646,7 @@ class DashboardHTMXMixin:
 
     def _redirect_with_defaults(self, qdict):
         if not qdict.getlist("state"):
-            settings_obj = GlobalSetting.load()
-            states = (
-                getattr(settings_obj, "default_task_states", DEFAULT_STATES)
-                .strip()
-                .split(",")
-            )
-            qdict.setlist("state", [s.strip() for s in states if s.strip()])
+            qdict.setlist("state", get_default_states())
 
     def _should_redirect_to_all(self, request):
         has_search = bool(request.GET.get("q", "").strip())
@@ -676,14 +665,7 @@ class DashboardHTMXMixin:
     def _determine_perspective_from_params(self, request, my_owner):
         if not my_owner:
             return "all"
-        settings_obj = GlobalSetting.load()
-        default_states = sorted(
-            [
-                s.strip()
-                for s in settings_obj.default_task_states.split(",")
-                if s.strip()
-            ]
-        )
+        default_states = sorted(get_default_states())
         my_params = {"owner": [my_owner], "state": default_states}
         un_params = {"owner": [_("Unassigned")], "state": default_states}
         if compare_query_params(request.GET, my_params):

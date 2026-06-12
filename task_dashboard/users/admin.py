@@ -295,7 +295,13 @@ class GlobalSettingAdmin(SingletonModelAdmin, ModelAdmin):
     fieldsets = (
         (
             None,
-            {"fields": ("company_name", "sso_default_group", "default_task_states")},
+            {
+                "fields": (
+                    "company_name",
+                    "sso_default_group",
+                    "default_task_states_list",
+                )
+            },
         ),
         (
             _("Scheduling"),

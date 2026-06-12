@@ -30,7 +30,6 @@ class TestGlobalSettingForm:
             instance=instance,
             data={
                 "company_name": "Test",
-                "default_task_states": "open",
                 "default_task_states_list": ["open"],
                 "sso_default_group": "",
             },
@@ -39,6 +38,36 @@ class TestGlobalSettingForm:
         saved = form.save()
         assert saved.sso_default_group == ""
 
+    def test_save_writes_selected_states(self):
+        instance = GlobalSetting.load()
+        form = GlobalSettingForm(
+            instance=instance,
+            data={
+                "company_name": "Test",
+                "default_task_states_list": ["open", "pending"],
+                "sso_default_group": "",
+            },
+        )
+        assert form.is_valid(), form.errors
+        saved = form.save()
+        assert saved.default_task_states == "open,pending"
+
+    def test_states_selection_required(self):
+        """Saving without any state must fail instead of silently wiping
+        ``default_task_states`` (regression: admin fieldsets rendered the raw
+        text field while save() persisted from the unrendered checkbox field,
+        emptying the value on every admin save)."""
+        instance = GlobalSetting.load()
+        form = GlobalSettingForm(
+            instance=instance,
+            data={
+                "company_name": "Test",
+                "sso_default_group": "",
+            },
+        )
+        assert not form.is_valid()
+        assert "default_task_states_list" in form.errors
+
     def test_existing_group_selection_saves_name(self):
         Group.objects.create(name="my-sso-group")
         instance = GlobalSetting.load()
@@ -46,7 +75,6 @@ class TestGlobalSettingForm:
             instance=instance,
             data={
                 "company_name": "Test",
-                "default_task_states": "open",
                 "default_task_states_list": ["open"],
                 "sso_default_group": "my-sso-group",
             },

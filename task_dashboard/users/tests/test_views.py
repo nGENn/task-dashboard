@@ -144,6 +144,43 @@ class TestDashboardView:
         assert "closed" in statuses
         assert "open" not in statuses
 
+    def test_my_perspective_states_survive_empty_setting(
+        self, user: User, rf: RequestFactory
+    ):
+        """Empty default_task_states must not disable the state filter on /my
+        (regression: a wiped setting made /my filter by owner only, showing
+        closed tasks)."""
+        service = ServiceConfiguration.objects.create(
+            name="Test Service",
+            service_type="zammad",
+            is_active=True,
+            default_access_level="FULL",
+        )
+        for ext_id, status in [("T1", "open"), ("T2", "pending"), ("T3", "closed")]:
+            Task.objects.create(
+                external_id=ext_id,
+                title=f"Task {status}",
+                status=status,
+                service=service,
+                owner_email=user.email,
+                updated_at=timezone.now(),
+            )
+
+        settings = GlobalSetting.load()
+        settings.default_task_states = ""
+        settings.save()
+
+        request = rf.get("/my")
+        request.user = user
+        view = DashboardView()
+        view.perspective = "my"
+        view.request = request
+        context = view.get_context_data()
+
+        statuses = {t.status for t in context["tasks"].object_list}
+        assert statuses == {"open", "pending"}
+        assert sorted(context["applied_filters"]["states"]) == ["open", "pending"]
+
     def test_priority_sorting(self, user: User, rf: RequestFactory):
         service = ServiceConfiguration.objects.create(
             name="Test Service",
