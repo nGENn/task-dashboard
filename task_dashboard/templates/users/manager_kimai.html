@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% load i18n %}
+
+{% block title %}
+  {% trans "Time Tracking Overview" %}
+{% endblock title %}
+{% block content %}
+  <div class="w-full max-w-[1400px] mx-auto px-4 lg:px-8 py-8">
+    <div class="flex flex-wrap items-end justify-between gap-2 mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-base-content">{% trans "Time Tracking Overview" %}</h1>
+        <p class="text-sm text-base-content/60 mt-1">
+          {% blocktrans %}Who is behind on Kimai time tracking, and by how many working days.{% endblocktrans %}
+        </p>
+      </div>
+      {% if last_updated %}
+        <p class="text-xs text-base-content/50">
+          {% blocktrans with when=last_updated|timesince %}Last updated {{ when }} ago{% endblocktrans %}
+        </p>
+      {% endif %}
+    </div>
+    {% if not reminder_enabled %}
+      <div role="alert" class="alert alert-warning mb-6">
+        <svg xmlns="http://www.w3.org/2000/svg"
+             class="h-5 w-5 shrink-0"
+             fill="none"
+             viewBox="0 0 24 24"
+             stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <span>{% blocktrans %}Reminder evaluation is disabled in Kimai settings, so no tracking data is available. Enable it to populate this overview.{% endblocktrans %}</span>
+      </div>
+    {% endif %}
+    <div class="overflow-x-auto rounded-lg border border-base-300 bg-base-100 shadow-sm">
+      <table class="table table-zebra">
+        <thead>
+          <tr>
+            <th>{% trans "User" %}</th>
+            <th class="text-center">{% trans "Days behind" %}</th>
+            <th>{% trans "Status" %}</th>
+            <th>{% trans "Account" %}</th>
+            <th class="text-right">{% trans "Kimai" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>
+                <div class="font-medium text-base-content">{{ row.name }}</div>
+                {% if row.email and row.email != row.name %}
+                  <div class="text-xs text-base-content/50">{{ row.email }}</div>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if row.status == "not_evaluated" %}
+                  <span class="text-base-content/30">—</span>
+                {% elif row.never_booked %}
+                  <span class="text-base-content/40">—</span>
+                {% else %}
+                  <span class="font-semibold tabular-nums">{{ row.days_behind }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if row.status == "never_booked" %}
+                  <span class="badge badge-error gap-1">{% trans "Never booked" %}</span>
+                {% elif row.status == "behind" %}
+                  <span class="badge badge-error badge-outline gap-1">{% trans "Behind" %}</span>
+                {% elif row.status == "grace" %}
+                  <span class="badge badge-warning badge-outline gap-1">{% trans "Within grace" %}</span>
+                {% elif row.status == "on_track" %}
+                  <span class="badge badge-success badge-outline gap-1">{% trans "On track" %}</span>
+                {% else %}
+                  <span class="badge badge-ghost gap-1">{% trans "Not evaluated" %}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if row.is_discovered %}
+                  <span class="badge badge-ghost badge-sm">{% trans "Discovered" %}</span>
+                {% else %}
+                  <span class="badge badge-success badge-outline badge-sm">{% trans "User" %}</span>
+                {% endif %}
+              </td>
+              <td class="text-right">
+                {% if row.kimai_url %}
+                  <a href="{{ row.kimai_url }}"
+                     target="_blank"
+                     rel="noopener noreferrer"
+                     class="btn btn-ghost btn-xs gap-1">
+                    {% trans "Timesheet" %}
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         class="h-3.5 w-3.5"
+                         fill="none"
+                         viewBox="0 0 24 24"
+                         stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                {% else %}
+                  <span class="text-xs text-base-content/30">{% trans "No Kimai account" %}</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5" class="text-center text-base-content/50 py-8">{% trans "No users found." %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="text-xs text-base-content/40 mt-3">
+      {% blocktrans with grace=grace_period %}"Behind" means more than {{ grace }} working days since the last booking. Working days are configured per user.{% endblocktrans %}
+    </p>
+  </div>
+{% endblock content %}

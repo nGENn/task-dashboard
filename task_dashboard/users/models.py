@@ -1,3 +1,4 @@
+import contextlib
 import re
 from typing import ClassVar
 
@@ -5,6 +6,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.models import Group
 from django.contrib.postgres.indexes import GinIndex
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import BooleanField
 from django.db.models import CharField
@@ -20,6 +22,11 @@ from django.utils.translation import gettext_lazy as _
 
 from .fields import EncryptedCharField
 from .managers import UserManager
+from .service_specs import SERVICE_TYPE_CHOICES
+
+
+def _default_working_days() -> list[int]:
+    return [0, 1, 2, 3, 4]
 
 
 class User(AbstractUser):
@@ -49,11 +56,77 @@ class User(AbstractUser):
         blank=True,
     )
 
+    working_days: models.JSONField = models.JSONField(
+        default=_default_working_days,
+        blank=True,
+    )
+
     def get_full_name(self) -> str:
         return self.name
 
     def get_absolute_url(self) -> str:
         return reverse("users:update")
+
+
+class TaskOwner(models.Model):
+    """
+    A distinct task owner discovered from synced tasks (keyed by email).
+
+    Spine that links a task owner email to an optional Django ``User`` and to a
+    Kimai account. Created/updated during task sync and never deleted when a
+    task is pruned — only removable in the admin. An owner with no linked
+    ``user`` is "discovered" and can be promoted to a full Django user for
+    permission assignment.
+    """
+
+    email = EmailField(_("email address"), unique=True)
+    name = CharField(_("Name"), blank=True, max_length=255)
+    user = models.OneToOneField(
+        "users.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="task_owner",
+        help_text=_("Linked Django user; empty means this owner is undiscovered."),
+    )
+    # Resolved from the Kimai email map (kept for overview/reminder convenience).
+    kimai_user_id = models.IntegerField(null=True, blank=True)
+    first_seen = models.DateTimeField(auto_now_add=True)
+    last_seen = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name", "email"]
+        verbose_name = _("Task Owner")
+        verbose_name_plural = _("Task Owners")
+
+    def __str__(self) -> str:
+        # Email is the identity — shown in pickers (e.g. exempt list) and admin.
+        return self.email
+
+    @property
+    def is_discovered(self) -> bool:
+        """True when no Django user is linked yet."""
+        return self.user_id is None
+
+    def promote(self) -> "User":
+        """
+        Promote a discovered owner to a permission-only Django user.
+
+        Creates (or reuses) an active ``User`` with an unusable local password so
+        it is assignable to groups for RBAC while Keycloak SSO login still works
+        (allauth links by email). Returns the linked user.
+        """
+        user, _created = User.objects.get_or_create(
+            email=self.email,
+            defaults={"name": self.name},
+        )
+        if not user.has_usable_password():
+            user.set_unusable_password()
+            user.save(update_fields=["password"])
+        if self.user_id != user.pk:
+            self.user = user
+            self.save(update_fields=["user"])
+        return user
 
 
 ACCESS_LEVEL_CHOICES = [
@@ -104,11 +177,7 @@ class TaskQuerySet(models.QuerySet):
                 else self.filter(q_fallback)
             )
 
-        is_test = getattr(settings, "TESTING", False) or "testserver" in getattr(
-            settings, "ALLOWED_HOSTS", []
-        )
-
-        if is_test:
+        if getattr(settings, "TESTING", False):
             q_owner = Q()
             for token in tokens_list:
                 if "@" in token:
@@ -196,13 +265,9 @@ class TaskManager(models.Manager):
 
 
 class ServiceConfiguration(models.Model):
-    SERVICE_TYPES = [
-        ("zammad", "Zammad"),
-        ("gitlab", "GitLab"),
-        ("espocrm", "EspoCRM"),
-        ("eramba", "Eramba"),
-        ("openproject", "OpenProject"),
-    ]
+    # Sourced from the registry (single source of truth). Adding a service =
+    # one entry in service_specs.SERVICE_SPECS. See that module.
+    SERVICE_TYPES = SERVICE_TYPE_CHOICES
 
     name = models.CharField(
         max_length=50,
@@ -252,6 +317,17 @@ class ServiceConfiguration(models.Model):
         verbose_name=_("Active"),
         help_text=_("Uncheck to hide this service from the dashboard completely."),
     )
+    kimai_customer_name = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        verbose_name=_("Kimai Customer Name Override"),
+        help_text=_(
+            "Override the Kimai customer for all activities from this service. "
+            "Leave blank to use the task's own customer field, falling back to "
+            "the global company name."
+        ),
+    )
 
     class Meta:
         verbose_name = _("Service Configuration")
@@ -260,10 +336,18 @@ class ServiceConfiguration(models.Model):
         permissions = [
             ("view_system_health", _("Can view system health indicator")),
             ("view_admin_button", _("Can view admin panel button")),
+            ("view_kimai_overview", _("Can view the Kimai manager overview")),
         ]
 
     def __str__(self):
         return f"{self.name} ({self.get_service_type_display()})"
+
+    def clean(self) -> None:
+        super().clean()
+        if self.api_url and not self.api_url.startswith("https://"):
+            raise ValidationError(
+                {"api_url": _("API URL must use HTTPS to protect the bearer token.")}
+            )
 
 
 class GlobalSetting(models.Model):
@@ -298,6 +382,29 @@ class GlobalSetting(models.Model):
             "Leave blank to use the built-in 'sso-default-fallback' group."
         ),
     )
+    kimai_customer_country = models.CharField(
+        max_length=5,
+        default="DE",
+        verbose_name=_("Kimai Customer Country"),
+        help_text=_(
+            "ISO 3166-1 alpha-2 country code used when creating Kimai customers."
+        ),
+    )
+    kimai_customer_timezone = models.CharField(
+        max_length=64,
+        default="Europe/Berlin",
+        verbose_name=_("Kimai Customer Timezone"),
+        help_text=_(
+            "Timezone used when creating Kimai customers (e.g. Europe/Berlin)."
+        ),
+    )
+    task_fetch_interval_minutes = models.PositiveIntegerField(
+        default=5,
+        verbose_name=_("Task Fetch Interval (minutes)"),
+        help_text=_(
+            "How often to fetch tasks from all services. Takes effect after saving."
+        ),
+    )
 
     class Meta:
         verbose_name = _("Global Setting")
@@ -309,11 +416,170 @@ class GlobalSetting(models.Model):
     def save(self, *args, **kwargs):
         self.pk = 1
         super().save(*args, **kwargs)
+        with contextlib.suppress(Exception):
+            from django_q.models import Schedule
+
+            Schedule.objects.filter(
+                func="task_dashboard.users.tasks.fetch_all_tasks_task"
+            ).update(
+                minutes=self.task_fetch_interval_minutes, schedule_type=Schedule.MINUTES
+            )
 
     @classmethod
     def load(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+class EmailConfiguration(models.Model):
+    """
+    Singleton outgoing-mail (SMTP) settings, configurable in the admin.
+
+    When ``enabled`` and a ``host`` is set, these override the environment
+    EMAIL_* defaults for app-sent mail (e.g. Kimai reminder emails).
+    """
+
+    enabled = models.BooleanField(
+        default=False,
+        verbose_name=_("Enabled"),
+        help_text=_("Use these SMTP settings instead of the environment defaults."),
+    )
+    host = models.CharField(_("SMTP Host"), max_length=255, blank=True, default="")
+    port = models.PositiveIntegerField(_("SMTP Port"), default=587)
+    username = models.CharField(_("Username"), max_length=255, blank=True, default="")
+    password = EncryptedCharField(_("Password"), max_length=255, blank=True, default="")
+    use_tls = models.BooleanField(_("Use TLS"), default=True)
+    use_ssl = models.BooleanField(_("Use SSL"), default=False)
+    default_from_email = models.CharField(
+        _("From Address"),
+        max_length=255,
+        blank=True,
+        default="",
+        help_text=_('e.g. "Task Dashboard <noreply@example.com>".'),
+    )
+    timeout = models.PositiveIntegerField(_("Timeout (seconds)"), default=10)
+
+    class Meta:
+        verbose_name = _("Email Settings")
+        verbose_name_plural = _("Email Settings")
+
+    def __str__(self) -> str:
+        return "Email Settings"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        obj, _created = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def get_connection(self):
+        """Return a configured SMTP connection, or None to use env defaults."""
+        if not self.enabled or not self.host:
+            return None
+        from django.core.mail import get_connection
+
+        return get_connection(
+            backend="django.core.mail.backends.smtp.EmailBackend",
+            host=self.host,
+            port=self.port,
+            username=self.username,
+            password=self.password or "",
+            use_tls=self.use_tls,
+            use_ssl=self.use_ssl,
+            timeout=self.timeout,
+        )
+
+    def get_from_email(self) -> str:
+        return self.default_from_email or settings.DEFAULT_FROM_EMAIL
+
+
+class SSOConfiguration(models.Model):
+    """
+    Singleton Keycloak / OIDC (SSO) settings, configurable in the admin.
+
+    When ``enabled`` and fully filled in, these take precedence over the
+    ``KEYCLOAK_*`` environment variables (see SocialAccountAdapter.list_apps).
+    The provider id stays fixed at "keycloak" so existing social accounts,
+    the login template, and group syncing keep working.
+    """
+
+    enabled = models.BooleanField(
+        default=False,
+        verbose_name=_("Enabled"),
+        help_text=_(
+            "Use these SSO settings. Takes precedence over the KEYCLOAK_* "
+            "environment variables."
+        ),
+    )
+    provider_name = models.CharField(
+        _("Provider Name"),
+        max_length=100,
+        default="Keycloak",
+        help_text=_("Display name shown on the login button."),
+    )
+    server_url = models.URLField(
+        _("Server URL"),
+        max_length=255,
+        blank=True,
+        default="",
+        help_text=_(
+            "OIDC issuer / realm URL, e.g. https://keycloak.example.com/realms/myrealm"
+        ),
+    )
+    client_id = models.CharField(
+        _("Client ID"),
+        max_length=255,
+        blank=True,
+        default="",
+    )
+    client_secret = EncryptedCharField(
+        _("Client Secret"),
+        max_length=255,
+        blank=True,
+        default="",
+    )
+
+    class Meta:
+        verbose_name = _("SSO Settings")
+        verbose_name_plural = _("SSO Settings")
+
+    def __str__(self) -> str:
+        return "SSO Settings"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        obj, _created = cls.objects.get_or_create(pk=1)
+        return obj
+
+    @property
+    def is_configured(self) -> bool:
+        return bool(
+            self.enabled and self.server_url and self.client_id and self.client_secret
+        )
+
+    def to_social_app(self):
+        """Return an unsaved allauth SocialApp built from these settings.
+
+        Mirrors how allauth materializes settings-based apps, so it can be
+        blended into the provider registry at request time.
+        """
+        from allauth.socialaccount.models import SocialApp
+
+        return SocialApp(
+            provider="openid_connect",
+            provider_id="keycloak",
+            name=self.provider_name or "Keycloak",
+            client_id=self.client_id,
+            secret=self.client_secret,
+            settings={"server_url": self.server_url},
+        )
 
 
 class ExternalGroup(models.Model):

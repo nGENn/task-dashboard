@@ -1,4 +1,5 @@
 import contextlib
+from html import unescape
 from http import HTTPStatus
 from importlib import reload
 
@@ -10,6 +11,7 @@ from pytest_django.asserts import assertRedirects
 
 from task_dashboard.users.admin_site import admin_site
 from task_dashboard.users.models import User
+from task_dashboard.users.service_specs import build_conditional_fields
 
 
 class TestUserAdmin:
@@ -64,3 +66,60 @@ class TestUserAdmin:
         # The `admin` login view should redirect to the `allauth` login view
         target_url = reverse(settings.LOGIN_URL) + "?next=" + request.path
         assertRedirects(response, target_url, fetch_redirect_response=False)
+
+
+def _expr(*service_keys: str) -> str:
+    """The Alpine x-show expression that shows a field for the given services."""
+    return " || ".join(f"service_type == '{k}'" for k in service_keys)
+
+
+class TestServiceConfigurationConditionalFields:
+    """The per-service field visibility registry + its rendered wiring."""
+
+    def test_username_password_are_eramba_only(self):
+        cf = build_conditional_fields()
+        assert cf["api_username"] == _expr("eramba")
+        assert cf["api_password"] == _expr("eramba")
+
+    def test_token_shown_for_all_except_eramba(self):
+        cf = build_conditional_fields()
+        assert cf["api_token"] == _expr(
+            "zammad", "gitlab", "espocrm", "openproject", "kimai"
+        )
+        assert "'eramba'" not in cf["api_token"]
+
+    def test_kimai_customer_override_hidden_for_kimai(self):
+        cf = build_conditional_fields()
+        assert cf["kimai_customer_name"] == _expr(
+            "zammad", "gitlab", "espocrm", "eramba", "openproject"
+        )
+        assert "'kimai'" not in cf["kimai_customer_name"]
+
+    @pytest.mark.django_db
+    def test_add_form_emits_conditional_wiring(self, admin_client):
+        """The add page renders Alpine x-show conditions + a reactive select."""
+        response = admin_client.get(reverse("admin:users_serviceconfiguration_add"))
+        assert response.status_code == HTTPStatus.OK
+        # unescape so HTML entities (&#x27; etc.) match the source expressions.
+        html = unescape(response.content.decode())
+        # service_type becomes reactive Alpine state...
+        assert 'x-model.fill="service_type"' in html
+        # ...and the credential fields gate on it.
+        assert "x-show=\"service_type == 'eramba'\"" in html
+
+
+class TestSingletonAdminRedirect:
+    @pytest.mark.django_db
+    @pytest.mark.parametrize(
+        "changelist",
+        [
+            "admin:users_globalsetting_changelist",
+            "admin:users_emailconfiguration_changelist",
+            "admin:kimai_kimaisettings_changelist",
+        ],
+    )
+    def test_changelist_redirects_to_change_page(self, admin_client, changelist):
+        response = admin_client.get(reverse(changelist))
+        assert response.status_code == HTTPStatus.FOUND
+        expected = reverse(changelist.replace("_changelist", "_change"), args=[1])
+        assert response.url == expected

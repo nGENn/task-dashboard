@@ -1,9 +1,15 @@
+from http import HTTPStatus
+from typing import cast
+
 import pytest
 from django.contrib import messages
 from django.contrib.auth.models import Group
+from django.contrib.auth.models import Permission
 from django.contrib.messages.middleware import MessageMiddleware
 from django.contrib.sessions.middleware import SessionMiddleware
+from django.core.cache import cache
 from django.http import HttpRequest
+from django.test import Client
 from django.test import RequestFactory
 from django.urls import reverse
 from django.utils import timezone
@@ -137,6 +143,43 @@ class TestDashboardView:
         statuses = {t.status for t in tasks}
         assert "closed" in statuses
         assert "open" not in statuses
+
+    def test_my_perspective_states_survive_empty_setting(
+        self, user: User, rf: RequestFactory
+    ):
+        """Empty default_task_states must not disable the state filter on /my
+        (regression: a wiped setting made /my filter by owner only, showing
+        closed tasks)."""
+        service = ServiceConfiguration.objects.create(
+            name="Test Service",
+            service_type="zammad",
+            is_active=True,
+            default_access_level="FULL",
+        )
+        for ext_id, status in [("T1", "open"), ("T2", "pending"), ("T3", "closed")]:
+            Task.objects.create(
+                external_id=ext_id,
+                title=f"Task {status}",
+                status=status,
+                service=service,
+                owner_email=user.email,
+                updated_at=timezone.now(),
+            )
+
+        settings = GlobalSetting.load()
+        settings.default_task_states = ""
+        settings.save()
+
+        request = rf.get("/my")
+        request.user = user
+        view = DashboardView()
+        view.perspective = "my"
+        view.request = request
+        context = view.get_context_data()
+
+        statuses = {t.status for t in context["tasks"].object_list}
+        assert statuses == {"open", "pending"}
+        assert sorted(context["applied_filters"]["states"]) == ["open", "pending"]
 
     def test_priority_sorting(self, user: User, rf: RequestFactory):
         service = ServiceConfiguration.objects.create(
@@ -487,6 +530,61 @@ class TestDashboardView:
         assert "ZAM-2" not in task_ids
         assert "ZAM-3" not in task_ids
         assert len(tasks) == 1
+
+    def test_owner_dropdown_scoped_to_visible_tasks(
+        self, user: User, rf: RequestFactory
+    ):
+        """RBAC regression: global identity clustering must NOT leak owners the
+        user cannot see into their filter dropdown.
+
+        Clustering is global (so the dashboard and Kimai agree on identities),
+        but the owner option list stays scoped to the user's RBAC-filtered
+        tasks. A naive `{g["best"] for g in merged}` over the global merge would
+        expose `secret.owner@example.com` here.
+        """
+        group = Group.objects.create(name="Support Group")
+        user.groups.add(group)
+        ext_group = ExternalGroup.objects.create(origin="Zammad", name="Support")
+        TaskPermission.objects.create(
+            django_group=group, allowed_external_group=ext_group, access_level="OWN"
+        )
+        service = ServiceConfiguration.objects.create(
+            name="Zammad", service_type="zammad", is_active=True
+        )
+        # Visible — owned by the requesting user.
+        Task.objects.create(
+            external_id="ZAM-1",
+            title="Mine",
+            status="open",
+            service=service,
+            group="Support",
+            owner_email=user.email,
+            owner=user.name,
+            updated_at=timezone.now(),
+        )
+        # Hidden — a different owner the user has no access to (OWN level).
+        Task.objects.create(
+            external_id="ZAM-2",
+            title="Theirs",
+            status="open",
+            service=service,
+            group="Support",
+            owner_email="secret.owner@example.com",
+            owner="Secret Owner",
+            updated_at=timezone.now(),
+        )
+
+        request = rf.get("/?view=all")
+        request.user = user
+        view = DashboardView()
+        view.perspective = "all"
+        view.request = request
+        context = view.get_context_data()
+
+        owners = context["filter_options"]["owners"]
+        assert user.email in owners
+        assert "secret.owner@example.com" not in owners
+        assert "Secret Owner" not in owners
 
     def test_advanced_ownership_mapping(self, user: User, rf: RequestFactory):
         # Setup: User "First Last" with email "last@example.com"
@@ -848,3 +946,119 @@ class TestDashboardView:
         tasks = context["tasks"].object_list
         task_ids = [t.external_id for t in tasks]
         assert "ZAM-1" in task_ids
+
+
+class TestManagerKimaiView:
+    url = reverse("users:manager-kimai")
+
+    @staticmethod
+    def _make_user(**kwargs) -> User:
+        return cast(User, UserFactory(**kwargs))
+
+    @staticmethod
+    def _grant(user: User) -> None:
+        perm = Permission.objects.get(codename="view_kimai_overview")
+        user.user_permissions.add(perm)
+
+    @staticmethod
+    def _owner(email: str, name: str = "", *, kimai_user_id: int | None = 1):
+        from task_dashboard.users.models import TaskOwner
+
+        return TaskOwner.objects.create(
+            email=email, name=name, kimai_user_id=kimai_user_id
+        )
+
+    @staticmethod
+    def _reminder(owner_pk: int, *, days_behind: int = 0, never_booked: bool = False):
+        cache.set(
+            f"kimai_reminder:owner:{owner_pk}",
+            {
+                "days_behind": days_behind,
+                "never_booked": never_booked,
+                "ts": timezone.now().isoformat(),
+            },
+        )
+
+    @pytest.fixture(autouse=True)
+    def _clear_cache(self):
+        cache.clear()
+        yield
+        cache.clear()
+
+    def test_requires_permission(self, user: User, client: Client):
+        client.force_login(user)
+        response = client.get(self.url)
+        assert response.status_code == HTTPStatus.FORBIDDEN
+
+    def test_anonymous_redirected(self, client: Client):
+        response = client.get(self.url)
+        assert response.status_code == HTTPStatus.FOUND
+
+    def test_grants_access_with_permission(self, user: User, client: Client):
+        self._grant(user)
+        client.force_login(user)
+        response = client.get(self.url)
+        assert response.status_code == HTTPStatus.OK
+        assert "rows" in response.context
+
+    def test_status_classification_and_sort(self, client: Client):
+        manager = self._make_user(email="boss@example.com", name="Boss")
+        self._grant(manager)
+
+        # Owners only appear when they map to a Kimai account (kimai_user_id set).
+        behind = self._owner("behind@example.com", "Behind", kimai_user_id=2)
+        grace = self._owner("grace@example.com", "Grace", kimai_user_id=3)
+        ontrack = self._owner("ontrack@example.com", "OnTrack", kimai_user_id=4)
+        never = self._owner("never@example.com", "Never", kimai_user_id=5)
+        # Owner with a Kimai account but no reminder cache -> not_evaluated
+        self._owner("unevaluated@example.com", "Unevaluated", kimai_user_id=6)
+
+        # grace_period defaults to 3
+        self._reminder(behind.pk, days_behind=5)
+        self._reminder(grace.pk, days_behind=2)
+        self._reminder(ontrack.pk, days_behind=0)
+        self._reminder(never.pk, never_booked=True)
+
+        client.force_login(manager)
+        response = client.get(self.url)
+        rows = {r["email"]: r for r in response.context["rows"]}
+
+        assert rows["behind@example.com"]["status"] == "behind"
+        assert rows["grace@example.com"]["status"] == "grace"
+        assert rows["ontrack@example.com"]["status"] == "on_track"
+        assert rows["never@example.com"]["status"] == "never_booked"
+        assert rows["unevaluated@example.com"]["status"] == "not_evaluated"
+
+        # Sort: never_booked first, then behind (by days desc), then grace,
+        # on_track, not_evaluated last.
+        order = [r["email"] for r in response.context["rows"]]
+        assert order.index("never@example.com") < order.index("behind@example.com")
+        assert order.index("behind@example.com") < order.index("grace@example.com")
+        assert order.index("grace@example.com") < order.index("ontrack@example.com")
+        assert order.index("ontrack@example.com") < order.index(
+            "unevaluated@example.com"
+        )
+
+    def test_kimai_link_present_when_linked(self, client: Client):
+        manager = self._make_user(email="boss@example.com", name="Boss")
+        self._grant(manager)
+        # No stored kimai_user_id — resolved via the email map instead.
+        linked = self._owner("linked@example.com", "Linked", kimai_user_id=None)
+        self._reminder(linked.pk, days_behind=4)
+
+        ServiceConfiguration.objects.create(
+            name="Kimai",
+            service_type="kimai",
+            api_url="https://kimai.example.com",
+            is_active=True,
+        )
+        cache.set("kimai_email_map", {"linked@example.com": 42})
+
+        client.force_login(manager)
+        response = client.get(self.url)
+        rows = {r["email"]: r for r in response.context["rows"]}
+
+        assert (
+            rows["linked@example.com"]["kimai_url"]
+            == "https://kimai.example.com/en/team/timesheet/?users[]=42"
+        )

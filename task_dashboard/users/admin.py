@@ -6,17 +6,28 @@ from django.contrib.auth import admin as auth_admin
 from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
 from django.contrib.auth.models import Group
 from django.utils.translation import gettext_lazy as _
+from django_q.admin import FailAdmin
+from django_q.admin import ScheduleAdmin
+from django_q.admin import TaskAdmin as QTaskAdmin
+from django_q.models import Failure
+from django_q.models import Schedule
+from django_q.models import Success
 from unfold.admin import ModelAdmin
 
+from .admin_site import SingletonModelAdmin
 from .admin_site import admin_site
 from .forms import GlobalSettingForm
 from .forms import UserAdminChangeForm
 from .forms import UserAdminCreationForm
+from .models import EmailConfiguration
 from .models import ExternalGroup
 from .models import GlobalSetting
 from .models import ServiceConfiguration
+from .models import SSOConfiguration
 from .models import Task
+from .models import TaskOwner
 from .models import User
+from .service_specs import build_conditional_fields
 
 if settings.DJANGO_ADMIN_FORCE_ALLAUTH:
     admin.autodiscover()
@@ -70,16 +81,37 @@ class ServiceConfigurationForm(forms.ModelForm):
             "api_username",
             "api_password",
             "is_active",
+            "kimai_customer_name",
         ]
         widgets = {
             "api_token": forms.PasswordInput(render_value=True),
             "api_password": forms.PasswordInput(render_value=True),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Help text spells out which service(s) each credential field is for.
+        # The fields themselves are also shown/hidden per service_type via the
+        # admin's conditional_fields, but the text keeps it clear once visible.
+        self.fields["api_url"].help_text = _("Base URL for the service API (HTTPS).")
+        self.fields["api_token"].help_text = _(
+            "API token / bearer secret. Used by Zammad, GitLab, EspoCRM, "
+            "OpenProject and Kimai."
+        )
+        self.fields["api_username"].help_text = _(
+            "Username for HTTP Basic authentication. Eramba only."
+        )
+        self.fields["api_password"].help_text = _(
+            "Password for HTTP Basic authentication. Eramba only."
+        )
+
 
 @admin.register(ServiceConfiguration, site=admin_site)
 class ServiceConfigurationAdmin(ModelAdmin):
     form = ServiceConfigurationForm
+    # Drives Unfold's per-field x-show: each credential/option field is only
+    # shown for the service types declared in service_specs.SERVICE_SPECS.
+    conditional_fields = build_conditional_fields()
     list_display = [
         "name",
         "service_type",
@@ -103,13 +135,19 @@ class ServiceConfigurationAdmin(ModelAdmin):
             },
         ),
         (
-            _("API Configuration"),
+            _("Connection"),
             {
+                # api_url is always shown, so this section never fully empties;
+                # the remaining fields appear only for the relevant service type.
                 "fields": (
                     "api_url",
                     "api_token",
                     "api_username",
                     "api_password",
+                    "kimai_customer_name",
+                ),
+                "description": _(
+                    "Only the fields relevant to the selected service type are shown."
                 ),
             },
         ),
@@ -152,11 +190,128 @@ class TaskAdmin(ModelAdmin):
     ordering = ["-updated_at"]
 
 
+@admin.register(TaskOwner, site=admin_site)
+class TaskOwnerAdmin(ModelAdmin):
+    list_display = ["email", "name", "user", "is_discovered", "last_seen"]
+    list_filter = [("user", admin.EmptyFieldListFilter)]
+    search_fields = ["email", "name"]
+    ordering = ["name", "email"]
+    readonly_fields = ["first_seen", "last_seen", "kimai_user_id"]
+    autocomplete_fields = ["user"]
+    actions = ["promote_to_user"]
+
+    @admin.display(boolean=True, description=_("Discovered"))
+    def is_discovered(self, obj):
+        return obj.is_discovered
+
+    @admin.action(description=_("Promote selected owners to users"))
+    def promote_to_user(self, request, queryset):
+        promoted = 0
+        for owner in queryset.filter(user__isnull=True):
+            owner.promote()
+            promoted += 1
+        self.message_user(
+            request,
+            _("%(n)d owner(s) promoted to users.") % {"n": promoted},
+        )
+
+
+class EmailConfigurationForm(forms.ModelForm):
+    class Meta:
+        model = EmailConfiguration
+        fields = "__all__"  # noqa: DJ007
+        widgets = {
+            "password": forms.PasswordInput(render_value=True),
+        }
+
+
+@admin.register(EmailConfiguration, site=admin_site)
+class EmailConfigurationAdmin(SingletonModelAdmin, ModelAdmin):
+    form = EmailConfigurationForm
+    fieldsets = (
+        (None, {"fields": ("enabled", "default_from_email")}),
+        (
+            _("SMTP Server"),
+            {
+                "fields": (
+                    "host",
+                    "port",
+                    "username",
+                    "password",
+                    "use_tls",
+                    "use_ssl",
+                    "timeout",
+                ),
+            },
+        ),
+    )
+
+    def has_add_permission(self, request):
+        return not EmailConfiguration.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+class SSOConfigurationForm(forms.ModelForm):
+    class Meta:
+        model = SSOConfiguration
+        fields = "__all__"  # noqa: DJ007
+        widgets = {
+            "client_secret": forms.PasswordInput(render_value=True),
+        }
+
+
+@admin.register(SSOConfiguration, site=admin_site)
+class SSOConfigurationAdmin(SingletonModelAdmin, ModelAdmin):
+    form = SSOConfigurationForm
+    fieldsets = (
+        (None, {"fields": ("enabled", "provider_name")}),
+        (
+            _("OIDC Provider"),
+            {
+                "fields": ("server_url", "client_id", "client_secret"),
+                "description": _(
+                    "When enabled, these settings take precedence over the "
+                    "KEYCLOAK_* environment variables. The redirect URI to "
+                    "register at the provider stays "
+                    "/accounts/oidc/keycloak/login/callback/."
+                ),
+            },
+        ),
+    )
+
+    def has_add_permission(self, request):
+        return not SSOConfiguration.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(GlobalSetting, site=admin_site)
-class GlobalSettingAdmin(ModelAdmin):
+class GlobalSettingAdmin(SingletonModelAdmin, ModelAdmin):
     form = GlobalSettingForm
     list_display = ["company_name", "sso_default_group", "default_task_states"]
-    exclude = ["default_task_states"]
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "company_name",
+                    "sso_default_group",
+                    "default_task_states_list",
+                )
+            },
+        ),
+        (
+            _("Scheduling"),
+            {"fields": ("task_fetch_interval_minutes",)},
+        ),
+        (
+            _("Kimai"),
+            {"fields": ("kimai_customer_country", "kimai_customer_timezone")},
+        ),
+    )
 
     def has_add_permission(self, request):
         if GlobalSetting.objects.exists():
@@ -165,3 +320,24 @@ class GlobalSettingAdmin(ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+# ---------------------------------------------------------------------------
+# Django-Q2 models — registered on custom admin_site so they appear in the
+# Unfold admin instead of the default Django admin.
+# ---------------------------------------------------------------------------
+
+
+@admin.register(Schedule, site=admin_site)
+class UnfoldScheduleAdmin(ModelAdmin, ScheduleAdmin):
+    pass
+
+
+@admin.register(Success, site=admin_site)
+class UnfoldSuccessAdmin(ModelAdmin, QTaskAdmin):
+    pass
+
+
+@admin.register(Failure, site=admin_site)
+class UnfoldFailureAdmin(ModelAdmin, FailAdmin):
+    pass

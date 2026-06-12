@@ -92,8 +92,8 @@ class TestSystemStatusContextProcessor:
         request.user = user
 
         with patch.object(user, "has_perm") as mock_has_perm:
-            mock_has_perm.side_effect = (
-                lambda perm, obj=None: perm == "users.view_system_health"
+            mock_has_perm.side_effect = lambda perm, obj=None: (
+                perm == "users.view_system_health"
             )
             context = system_status(request)
 

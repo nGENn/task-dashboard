@@ -3,10 +3,12 @@ from allauth.socialaccount.models import SocialAccount
 from allauth.socialaccount.models import SocialLogin
 from django.contrib.auth.models import Group
 from django.test import RequestFactory
+from django.test import override_settings
 
 from task_dashboard.users.adapters import _FALLBACK_GROUP
 from task_dashboard.users.adapters import SocialAccountAdapter
 from task_dashboard.users.models import GlobalSetting
+from task_dashboard.users.models import SSOConfiguration
 from task_dashboard.users.models import User
 
 pytestmark = pytest.mark.django_db
@@ -72,7 +74,6 @@ def test_no_groups_in_token_uses_configured_default(rf: RequestFactory):
     setting.sso_default_group = "sso-configured-fallback"
     setting.save()
 
-    # SECURITY: Group must start with sso- to be synced
     Group.objects.create(name="sso-configured-fallback")
 
     login = _make_login(user, extra_data={})
@@ -82,6 +83,25 @@ def test_no_groups_in_token_uses_configured_default(rf: RequestFactory):
     names = set(user.groups.values_list("name", flat=True))
     assert "sso-configured-fallback" in names
     assert user.sso_synced_groups == ["sso-configured-fallback"]
+
+
+def test_configured_default_group_exempt_from_sso_prefix(rf: RequestFactory):
+    """The admin-configured fallback group is trusted and applied verbatim, even
+    without the 'sso-' prefix the token-group filter requires (regression)."""
+    adapter = SocialAccountAdapter()
+    user = User.objects.create(email="plainfallback@example.com")
+
+    setting = GlobalSetting.load()
+    setting.sso_default_group = "Employees"  # no sso- prefix
+    setting.save()
+
+    login = _make_login(user, extra_data={})
+    adapter.pre_social_login(rf.get("/"), login)
+
+    user.refresh_from_db()
+    names = set(user.groups.values_list("name", flat=True))
+    assert "Employees" in names
+    assert user.sso_synced_groups == ["Employees"]
 
 
 def test_no_groups_in_token_no_default_uses_builtin_fallback(rf: RequestFactory):
@@ -228,3 +248,106 @@ def test_groups_in_userinfo_and_id_token_merged(rf: RequestFactory):
     names = set(user.groups.values_list("name", flat=True))
     assert "sso-from-userinfo" in names
     assert "sso-from-id-token" in names
+
+
+# ---------------------------------------------------------------------------
+# list_apps — admin-configured SSO (SSOConfiguration singleton)
+# ---------------------------------------------------------------------------
+
+_ENV_KEYCLOAK_PROVIDERS = {
+    "openid_connect": {
+        "SCOPE": ["openid", "profile", "email"],
+        "APPS": [
+            {
+                "provider_id": "keycloak",
+                "name": "Keycloak",
+                "client_id": "env-client",
+                "secret": "env-secret",
+                "settings": {"server_url": "https://env.example.com/realms/x"},
+            },
+        ],
+    },
+}
+
+
+def _configure_sso(*, enabled=True, **overrides):
+    config = SSOConfiguration.load()
+    config.enabled = enabled
+    config.provider_name = overrides.get("provider_name", "Company SSO")
+    config.server_url = overrides.get(
+        "server_url", "https://sso.example.com/realms/main"
+    )
+    config.client_id = overrides.get("client_id", "db-client")
+    config.client_secret = overrides.get("client_secret", "db-secret")
+    config.save()
+    return config
+
+
+_NO_ENV_PROVIDERS: dict = {"openid_connect": {"APPS": []}}
+
+
+@override_settings(SOCIALACCOUNT_PROVIDERS=_NO_ENV_PROVIDERS)
+def test_list_apps_includes_admin_configured_sso(rf: RequestFactory):
+    """An enabled, complete SSOConfiguration shows up as a keycloak app."""
+    _configure_sso()
+    adapter = SocialAccountAdapter()
+
+    apps = adapter.list_apps(rf.get("/"), provider="keycloak")
+
+    assert len(apps) == 1
+    app = apps[0]
+    assert app.provider == "openid_connect"
+    assert app.provider_id == "keycloak"
+    assert app.name == "Company SSO"
+    assert app.client_id == "db-client"
+    assert app.settings["server_url"] == "https://sso.example.com/realms/main"
+
+
+@override_settings(SOCIALACCOUNT_PROVIDERS=_NO_ENV_PROVIDERS)
+def test_list_apps_skips_disabled_or_incomplete_config(rf: RequestFactory):
+    adapter = SocialAccountAdapter()
+
+    _configure_sso(enabled=False)
+    assert adapter.list_apps(rf.get("/"), provider="keycloak") == []
+
+    _configure_sso(enabled=True, client_secret="")
+    assert adapter.list_apps(rf.get("/"), provider="keycloak") == []
+
+
+@override_settings(SOCIALACCOUNT_PROVIDERS=_ENV_KEYCLOAK_PROVIDERS)
+def test_admin_config_replaces_env_app(rf: RequestFactory):
+    """DB config wins over the env-based app — get_app sees exactly one."""
+    _configure_sso()
+    adapter = SocialAccountAdapter()
+
+    apps = adapter.list_apps(rf.get("/"), provider="keycloak")
+    assert [a.client_id for a in apps] == ["db-client"]
+
+    app = adapter.get_app(rf.get("/"), provider="keycloak")
+    assert app.client_id == "db-client"
+
+
+@override_settings(SOCIALACCOUNT_PROVIDERS=_ENV_KEYCLOAK_PROVIDERS)
+def test_env_app_used_when_admin_config_disabled(rf: RequestFactory):
+    _configure_sso(enabled=False)
+    adapter = SocialAccountAdapter()
+
+    app = adapter.get_app(rf.get("/"), provider="keycloak")
+    assert app.client_id == "env-client"
+
+
+@override_settings(SOCIALACCOUNT_PROVIDERS=_NO_ENV_PROVIDERS)
+def test_list_apps_respects_filters(rf: RequestFactory):
+    _configure_sso()
+    adapter = SocialAccountAdapter()
+
+    assert adapter.list_apps(rf.get("/"), provider="google") == []
+    assert adapter.list_apps(rf.get("/"), client_id="other-client") == []
+    assert (
+        len(
+            adapter.list_apps(
+                rf.get("/"), provider="openid_connect", client_id="db-client"
+            )
+        )
+        == 1
+    )

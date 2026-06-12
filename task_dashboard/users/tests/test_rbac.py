@@ -1,6 +1,7 @@
 import pytest
 from django.contrib.auth.models import Group
 
+from task_dashboard.users.identity import UNASSIGNED_MARKERS
 from task_dashboard.users.models import ExternalGroup
 from task_dashboard.users.models import ServiceConfiguration
 from task_dashboard.users.models import ServicePermission
@@ -206,8 +207,6 @@ def test_task_permission_override_service_permission(user):
 
 def test_rbac_unassigned_markers(user):
     """Verify that various unassigned markers are correctly identified as unassigned."""
-    from task_dashboard.users.identity import UNASSIGNED_MARKERS
-
     service = ServiceConfiguration.objects.create(
         name="Test Service",
         service_type="zammad",

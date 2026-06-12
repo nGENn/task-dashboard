@@ -1,11 +1,14 @@
 import logging
 import math
+from urllib.parse import urlparse
 
 from django.core.cache import cache
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django_q.models import Schedule
 
+from task_dashboard.kimai.models import KimaiSettings
+from task_dashboard.kimai.service import KimaiService
 from task_dashboard.services.eramba import ErambaService
 from task_dashboard.services.espocrm import EspoService
 from task_dashboard.services.gitlab import GitLabService
@@ -31,6 +34,7 @@ def service_mappings(request):
         "eramba": ErambaService,
         "espocrm": EspoService,
         "gitlab": GitLabService,
+        "kimai": KimaiService,
         "openproject": OpenProjectService,
         "zammad": ZammadService,
     }
@@ -64,6 +68,7 @@ def system_status(request):
         "eramba": ErambaService,
         "espocrm": EspoService,
         "gitlab": GitLabService,
+        "kimai": KimaiService,
         "openproject": OpenProjectService,
         "zammad": ZammadService,
     }
@@ -173,6 +178,44 @@ def _calculate_global_status(results):
         "state": state,
         "color": color,
         "max_latency": max_latency,
+    }
+
+
+def kimai_reminder(request):
+    """
+    Inject Kimai reminder banner data for the current user (V5).
+    Reads Valkey only — no Kimai API call in request path.
+    Returns {"kimai_reminder": {"days_behind": int, "never_booked": bool, ...}} or {}.
+    """
+    if not request.user.is_authenticated:
+        return {}
+
+    cache_key = f"kimai_reminder:{request.user.pk}"
+    reminder_data = cache.get(cache_key)
+    if not reminder_data:
+        return {"kimai_reminder": None}
+
+    days_behind = reminder_data.get("days_behind", 0)
+    never_booked = reminder_data.get("never_booked", False)
+
+    if not never_booked:
+        grace_period = KimaiSettings.load().grace_period_days
+        if days_behind <= grace_period:
+            return {"kimai_reminder": None}
+
+    kimai_config = ServiceConfiguration.objects.filter(
+        service_type="kimai", is_active=True
+    ).first()
+    kimai_base_url = ""
+    if kimai_config and urlparse(kimai_config.api_url).scheme in ("http", "https"):
+        kimai_base_url = kimai_config.api_url.rstrip("/")
+
+    return {
+        "kimai_reminder": {
+            "days_behind": days_behind,
+            "never_booked": never_booked,
+            "kimai_base_url": kimai_base_url,
+        }
     }
 
 

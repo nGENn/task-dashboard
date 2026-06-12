@@ -19,7 +19,7 @@ class GlobalSettingForm(forms.ModelForm):
             ("closed", _("Closed")),
         ],
         widget=forms.CheckboxSelectMultiple,
-        required=False,
+        required=True,
         label=_("Default Task States"),
         help_text=_("Select the default task states to show in the table."),
     )
@@ -36,7 +36,6 @@ class GlobalSettingForm(forms.ModelForm):
         model = GlobalSetting
         fields = [
             "company_name",
-            "default_task_states",
             "sso_default_group",
         ]
 

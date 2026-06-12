@@ -1,0 +1,8 @@
+{% load i18n %}{% blocktranslate %}Hi {{ name }},{% endblocktranslate %}
+
+{% if never_booked %}{% translate "We have no time-tracking entries for you in Kimai yet. Please start booking your hours." %}{% else %}{% blocktranslate %}You are currently {{ days_behind }} working days behind on your time tracking in Kimai (grace period: {{ grace_period }} days).{% endblocktranslate %}{% endif %}
+
+{% if kimai_url %}{% translate "Open Kimai:" %} {{ kimai_url }}{% endif %}
+
+{% translate "Thanks," %}
+{% translate "Task Dashboard" %}

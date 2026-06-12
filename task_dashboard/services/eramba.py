@@ -70,6 +70,19 @@ OPEN_TASK_FUTURE_WINDOW_DAYS = getattr(
 )
 
 
+def _compute_future_limit() -> datetime:
+    """End of the day ``OPEN_TASK_FUTURE_WINDOW_DAYS`` days from now.
+
+    Anchored to the day boundary so the window does not silently shrink with
+    the time of day the sync runs, and is identical across both fetch
+    entrypoints. A task due anywhere on the final day is kept.
+    """
+    target = (
+        django_timezone.now() + timedelta(days=OPEN_TASK_FUTURE_WINDOW_DAYS)
+    ).date()
+    return django_timezone.make_aware(datetime.combine(target, datetime.max.time()))
+
+
 class ErambaService(BaseService):
     """
     Integration service for Eramba GRC.
@@ -204,9 +217,7 @@ class ErambaService(BaseService):
         company_name = global_setting.company_name if global_setting else "Internal"
 
         # Calculate future limit once for this sync run
-        future_limit = django_timezone.now() + timedelta(
-            days=OPEN_TASK_FUTURE_WINDOW_DAYS
-        )
+        future_limit = _compute_future_limit()
 
         # follow_redirects=False ensures we fail fast if authentication is rejected
         async with httpx.AsyncClient(follow_redirects=False) as client:
@@ -265,9 +276,7 @@ class ErambaService(BaseService):
         # Postman collection shows the pattern is simply /api/{module}/{id}
         url = f"{self.base_url}/{api_path}/{task_id}"
 
-        future_limit = django_timezone.now() + timedelta(
-            days=OPEN_TASK_FUTURE_WINDOW_DAYS
-        )
+        future_limit = _compute_future_limit()
 
         async with httpx.AsyncClient(follow_redirects=False) as client:
             await self._fetch_groups(client)
@@ -483,6 +492,16 @@ class ErambaService(BaseService):
 
         original_priority = self._get_priority_raw(item)
 
+        # Eramba carries owner emails inside the parsed owner string (direct
+        # users + expanded group members). Derive owner_email from the full,
+        # un-truncated string so emails are complete (the display ``owner`` is
+        # truncated to 250 chars and may cut mid-token). Without this, eramba
+        # owners are never discovered as TaskOwners / pushed to Kimai.
+        owners_str = self._parse_owners(self._get_owners_raw(item))
+        owner_emails = ", ".join(
+            tok for tok in (t.strip() for t in owners_str.split(",")) if "@" in tok
+        )
+
         return {
             "id": f"ERA-{group_label[:3].upper()}-{item_id}",
             "title": str(title)[:250],
@@ -493,7 +512,8 @@ class ErambaService(BaseService):
             "origin": self.config.name,
             "customer": company_name,
             "group": group_label,
-            "owner": self._parse_owners(self._get_owners_raw(item))[:250],
+            "owner": owners_str[:250],
+            "owner_email": owner_emails,
             "created_at": self._format_date(
                 item.get("created") or item.get("open_date") or item.get("start")
             ),
@@ -650,7 +670,10 @@ class ErambaService(BaseService):
             if o.get("id") and o.get("model"):
                 names.append(f"{o.get('model')} #{o.get('id')}")
 
-        return ", ".join(filter(None, names)) or "-"
+        # Dedup preserving order — group expansion + direct owners often repeat
+        # the same email, which otherwise bloats both owner and owner_email.
+        names = list(dict.fromkeys(filter(None, names)))
+        return ", ".join(names) or "-"
 
     def _format_date(self, date_str):
         """Standardizes Eramba dates to ISO format."""

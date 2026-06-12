@@ -1,9 +1,12 @@
 import re
 import unicodedata
+from collections.abc import Iterable
 from typing import Any
+from typing import NamedTuple
 
 from django.utils.translation import gettext_lazy as _
 
+from task_dashboard.users.models import Task
 from task_dashboard.users.models import User
 
 MIN_TOKEN_LENGTH = 3
@@ -12,7 +15,7 @@ MIN_TOKEN_LENGTH = 3
 def _extract_email(s: str) -> str:
     """Extract email from 'Name <email@domain.com>' or return string as-is."""
     if "<" in s and ">" in s:
-        return s.split("<")[-1].split(">")[0].strip()
+        return s.rsplit("<", maxsplit=1)[-1].split(">", maxsplit=1)[0].strip()
     return s.strip()
 
 
@@ -186,30 +189,48 @@ def build_token_index(merged: dict[str, dict[str, Any]]) -> dict[str, str]:
     return token_to_canonical
 
 
-def get_identity_bridging_data(
-    base_tasks, user
-) -> tuple[dict, dict[str, set[str]], dict[str, str]]:
-    """Build merged identity dict, reverse mapping, and token index."""
+def _build_users_map() -> dict:
+    """email/name (lower-cased) → User, for identity scoring."""
     users_map: dict = {}
     for u in User.objects.all():
         if u.email:
             users_map[u.email.lower()] = u
         if u.name:
             users_map[u.name.lower()] = u
+    return users_map
 
-    owner_pool = list(base_tasks.order_by().values("owner", "owner_email").distinct())
+
+def _pool_from_owner_rows(rows: Iterable[dict]) -> list[str]:
+    """Flatten distinct ``{owner, owner_email}`` rows into clean, de-duped labels.
+
+    Sorted output → deterministic merge order (``add_to_merged`` is order
+    sensitive: the first label of a group seeds its anchor).
+    """
     pool: list[str] = []
-    for p in owner_pool:
-        raw_labels = []
+    seen: set[str] = set()
+    for p in rows:
+        raw_labels: list[str] = []
         if p["owner"]:
-            raw_labels.extend([x.strip() for x in p["owner"].split(",")])
+            raw_labels.extend(x.strip() for x in p["owner"].split(","))
         if p["owner_email"]:
-            raw_labels.extend([x.strip() for x in p["owner_email"].split(",")])
-        pool.extend(v for v in raw_labels if v and v.lower() not in UNASSIGNED_MARKERS)
+            raw_labels.extend(x.strip() for x in p["owner_email"].split(","))
+        for v in raw_labels:
+            if v and v.lower() not in UNASSIGNED_MARKERS and v not in seen:
+                seen.add(v)
+                pool.append(v)
+    return sorted(pool)
 
+
+def _bridge(
+    pool: Iterable[str], users_map: dict, *, seed_labels: Iterable[str] = ()
+) -> tuple[dict, dict[str, set[str]], dict[str, str]]:
+    """Cluster ``pool`` labels into (merged, best_to_raw, token_to_canonical).
+
+    ``seed_labels`` are added with ``has_task=False`` (e.g. the requesting user)
+    so they participate in clustering without being counted as task owners.
+    """
     merged: dict[str, dict[str, Any]] = {}
-    user_raw = [getattr(user, "email", ""), getattr(user, "name", "")]
-    for r in user_raw:
+    for r in seed_labels:
         add_to_merged(merged, users_map, r, has_task=False)
     for label in pool:
         add_to_merged(merged, users_map, label, has_task=True)
@@ -220,6 +241,111 @@ def get_identity_bridging_data(
 
     token_to_canonical = build_token_index(merged)
     return merged, best_to_raw, token_to_canonical
+
+
+def _email_canonical_from_merged(merged: dict[str, dict[str, Any]]) -> dict[str, str]:
+    """Derive raw-email → canonical-email from a merged cluster dict.
+
+    Only valid-email labels become keys; values are the group's ``best``. Keys
+    and values are lower-cased so they match the Kimai email map.
+    """
+    canonical: dict[str, str] = {}
+    for g in merged.values():
+        best = str(g["best"]).strip().lower()
+        for label in g["labels"]:
+            if _is_valid_email(label):
+                canonical[label.strip().lower()] = best
+    return canonical
+
+
+def build_email_canonical_map(emails: Iterable[str | None]) -> dict[str, str]:
+    """Map each owner email to the canonical email it bridges to.
+
+    Variants of one person's address (e.g. ``m.handsche@ngenn.net`` and
+    ``handsche@ngenn.net``) collapse to a single canonical email — the shortest
+    valid one, or a linked Django user's email when one matches. Keys and values
+    are lower-cased. Pure helper over an explicit email pool; the production
+    consumers go through :func:`compute_global_bridging`.
+    """
+    pool = sorted({e.strip().lower() for e in emails if e and "@" in e})
+    merged, _, _ = _bridge(pool, _build_users_map())
+    return _email_canonical_from_merged(merged)
+
+
+class GlobalBridging(NamedTuple):
+    """Result of the global identity clustering — one source of truth.
+
+    ``merged``/``best_to_raw``/``token_to_canonical`` mirror what the dashboard
+    used per-request; ``email_canonical`` is the raw-email → canonical-email map
+    the Kimai sync provisions users/teams from.
+    """
+
+    merged: dict[str, dict[str, Any]]
+    best_to_raw: dict[str, set[str]]
+    token_to_canonical: dict[str, str]
+    email_canonical: dict[str, str]
+
+
+def compute_global_bridging() -> GlobalBridging:
+    """Identity bridging over ALL task owners — shared by dashboard + Kimai.
+
+    Pools every distinct ``owner``/``owner_email`` label across all tasks (so
+    name-only owners from gitlab/openproject participate too) and clusters
+    address/name variants of one person. The single source of truth: every
+    consumer reads the same clustering, so the dashboard and the Kimai sync can
+    no longer disagree on who is the same person.
+
+    Cheap enough (~tens of ms on a single-org dataset) to run per request, so it
+    is intentionally NOT cached — no invalidation, staleness, or thundering-herd
+    to manage.
+    """
+    users_map = _build_users_map()
+    # Seed every known user (email + name) so name-only task owners (e.g. a
+    # gitlab username with no email) can bridge onto a real user's email and
+    # adopt it as canonical. has_task=False: seeds cluster but aren't counted
+    # as task owners.
+    user_labels = [lbl for u in User.objects.all() for lbl in (u.email, u.name) if lbl]
+    rows = Task.objects.order_by().values("owner", "owner_email").distinct()
+    merged, best_to_raw, token_to_canonical = _bridge(
+        _pool_from_owner_rows(rows), users_map, seed_labels=sorted(set(user_labels))
+    )
+    return GlobalBridging(
+        merged=merged,
+        best_to_raw=best_to_raw,
+        token_to_canonical=token_to_canonical,
+        email_canonical=_email_canonical_from_merged(merged),
+    )
+
+
+def canonical_owner_for_label(label: str, token_to_canonical: dict) -> str:
+    """Map one raw owner label to its canonical ``best`` via the token index.
+
+    Prefers an email token, falls back to any matching token, then the raw
+    label unchanged.
+    """
+    o_norm = normalize_identity_string(label)
+    tokens = [tk for tk in re.split(r"[^a-z0-9@.-]+", o_norm) if tk]
+    for tk in tokens:
+        if "@" in tk and tk in token_to_canonical:
+            return token_to_canonical[tk]
+    for tk in tokens:
+        if tk in token_to_canonical:
+            return token_to_canonical[tk]
+    return label
+
+
+def scoped_canonical_owners(rows: Iterable[dict], token_to_canonical: dict) -> set[str]:
+    """Canonical owners present in a (RBAC-scoped) set of owner rows.
+
+    The clustering is global, but the dashboard owner dropdown must stay scoped
+    to owners the requesting user can actually see — so map only the labels in
+    ``rows`` (already RBAC-filtered) through the global token index. Prevents
+    leaking globally-known owners into a restricted user's filter list.
+    """
+    return {
+        canonical_owner_for_label(label, token_to_canonical)
+        for label in _pool_from_owner_rows(rows)
+    }
 
 
 def post_process_task_owners(task, token_to_canonical: dict, merged: dict) -> None:  # noqa: C901, PLR0912

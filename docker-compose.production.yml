@@ -1,6 +1,5 @@
 # Universal Task Dashboard - Production Orchestration
 # Architecture: Django (Gunicorn/WhiteNoise) + Valkey (Task Queue) + PostgreSQL 18
-version: '3.8'
 
 volumes:
   production_postgres_data:
@@ -9,8 +8,6 @@ volumes:
     name: task_dashboard_postgres_backups
   production_django_media:
     name: task_dashboard_django_media
-  production_staticfiles:
-    name: task_dashboard_staticfiles
   production_valkey_data:
     name: task_dashboard_valkey_data
 
@@ -35,11 +32,18 @@ services:
       - .env
     volumes:
       - production_django_media:/app/task_dashboard/media
-      - production_staticfiles:/app/staticfiles:ro
     networks:
       - dashboard-network
+    ports:
+      - "5000:5000"
     # Gunicorn handles requests; WhiteNoise serves static files.
     command: /start
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 5000), 5).close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
     deploy:
       resources:
         limits:
@@ -57,15 +61,24 @@ services:
         condition: service_healthy
       valkey:
         condition: service_healthy
+      # Gate on web container being healthy: it runs `migrate` before
+      # binding gunicorn, so healthy ⟹ DB schema (incl. django_q tables) ready.
+      django:
+        condition: service_healthy
     env_file:
       - .env
     volumes:
       - production_django_media:/app/task_dashboard/media
-      - production_staticfiles:/app/staticfiles:ro
     networks:
       - dashboard-network
     # Required for the parallel fetch-sync-prune engine.
     command: python manage.py qcluster
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "manage.py qcluster"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -84,7 +97,7 @@ services:
     env_file:
       - .env
     volumes:
-      - production_postgres_data:/var/lib/postgresql/data
+      - production_postgres_data:/var/lib/postgresql
       - production_postgres_data_backups:/backups
     networks:
       - dashboard-network

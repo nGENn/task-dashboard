@@ -1,0 +1,37 @@
+{% load i18n %}
+
+{% if kimai_reminder %}
+  {% get_current_language as CURRENT_LANG %}
+  <a {% if kimai_reminder.kimai_base_url %}href="{{ kimai_reminder.kimai_base_url }}/{{ CURRENT_LANG|slice:':2' }}/timesheet/" target="_blank" rel="noopener noreferrer"{% endif %}
+     class="alert alert-warning flex items-center gap-3 rounded-none border-x-0 border-t-0 no-underline hover:brightness-95"
+     role="alert">
+    <svg xmlns="http://www.w3.org/2000/svg"
+         class="h-5 w-5 shrink-0"
+         fill="none"
+         viewBox="0 0 24 24"
+         stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+    </svg>
+    <span>
+      {% if kimai_reminder.never_booked %}
+        {% trans "You haven't booked any time in Kimai yet." %}
+      {% else %}
+        {% blocktrans trimmed count days=kimai_reminder.days_behind %}
+          You are <strong>{{ days }} business day</strong> behind on time tracking in Kimai.
+        {% plural %}
+          You are <strong>{{ days }} business days</strong> behind on time tracking in Kimai.
+        {% endblocktrans %}
+        <span class="text-xs opacity-70">{% trans "Incorrect? Adjust your working days in the menu." %}</span>
+      {% endif %}
+    </span>
+    {% if kimai_reminder.kimai_base_url %}
+      <svg xmlns="http://www.w3.org/2000/svg"
+           class="h-4 w-4 ml-auto shrink-0"
+           fill="none"
+           viewBox="0 0 24 24"
+           stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+      </svg>
+    {% endif %}
+  </a>
+{% endif %}

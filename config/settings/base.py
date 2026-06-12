@@ -89,7 +89,7 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     "task_dashboard.users",
-    # Your stuff: custom apps go here
+    "task_dashboard.kimai",
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -196,6 +196,7 @@ TEMPLATES = [
                 "task_dashboard.users.context_processors.allauth_settings",
                 "task_dashboard.context_processors.service_mappings",
                 "task_dashboard.context_processors.system_status",
+                "task_dashboard.context_processors.kimai_reminder",
                 "task_dashboard.context_processors.theme",
             ],
         },
@@ -295,7 +296,11 @@ CACHES = {
 
 # django-allauth
 # ------------------------------------------------------------------------------
-ACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_ACCOUNT_ALLOW_REGISTRATION", True)
+# Default closed: Keycloak SSO is the intended entry path. Opening local
+# self-service signup also requires email verification (set
+# ACCOUNT_EMAIL_VERIFICATION = "mandatory" below) to avoid account takeover by
+# pre-registering a victim's email before their first SSO login.
+ACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_ACCOUNT_ALLOW_REGISTRATION", False)
 # https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_LOGIN_METHODS = {"email"}
 # https://docs.allauth.org/en/latest/account/configuration.html
@@ -326,41 +331,47 @@ SOCIALACCOUNT_FORMS = {"signup": "task_dashboard.users.forms.UserSocialSignupFor
 # Your stuff...
 # ------------------------------------------------------------------------------
 
-# Check if Keycloak set
+# Keycloak / OIDC Configuration
+# SSO can be configured two ways:
+#   1. KEYCLOAK_* environment variables (below)
+#   2. The SSO Settings singleton in the admin (users.SSOConfiguration),
+#      which takes precedence — see SocialAccountAdapter.list_apps.
 _keycloak_url = env("KEYCLOAK_SERVER_URL", default="")
 _keycloak_id = env("KEYCLOAK_CLIENT_ID", default="")
 _keycloak_secret = env("KEYCLOAK_CLIENT_SECRET", default="")
 
+_keycloak_env_values = (_keycloak_url, _keycloak_id, _keycloak_secret)
+_keycloak_env_complete = all(_keycloak_env_values)
 
-if _keycloak_url == "":
-    logger.warning("KEYCLOAK_SERVER_URL is not set. Keycloak OIDC login will not work.")
-
-if _keycloak_id == "":
-    logger.warning("KEYCLOAK_CLIENT_ID is not set. Keycloak OIDC login will not work.")
-
-if _keycloak_secret == "":
+if any(_keycloak_env_values) and not _keycloak_env_complete:
     logger.warning(
-        "KEYCLOAK_CLIENT_SECRET is not set. Keycloak OIDC login will not work."
+        "Incomplete Keycloak env config (KEYCLOAK_SERVER_URL, KEYCLOAK_CLIENT_ID "
+        "and KEYCLOAK_CLIENT_SECRET must all be set). Keycloak OIDC login via "
+        "environment is disabled; configure SSO in the admin instead.",
     )
 
-# Keycloak / OIDC Configuration
 INSTALLED_APPS.append("allauth.socialaccount.providers.openid_connect")
 
-# 2. Keycloak / OIDC Configuration
 SOCIALACCOUNT_PROVIDERS = {
     "openid_connect": {
         "SCOPE": ["openid", "profile", "email"],
-        "APPS": [
-            {
-                "provider_id": "keycloak",
-                "name": "Keycloak",
-                "client_id": env("KEYCLOAK_CLIENT_ID", default=""),
-                "secret": env("KEYCLOAK_CLIENT_SECRET", default=""),
-                "settings": {
-                    "server_url": env("KEYCLOAK_SERVER_URL", default=""),
+        # Only register the env-based app when fully configured; otherwise SSO
+        # comes from the admin-managed SSOConfiguration (or is disabled).
+        "APPS": (
+            [
+                {
+                    "provider_id": "keycloak",
+                    "name": "Keycloak",
+                    "client_id": _keycloak_id,
+                    "secret": _keycloak_secret,
+                    "settings": {
+                        "server_url": _keycloak_url,
+                    },
                 },
-            },
-        ],
+            ]
+            if _keycloak_env_complete
+            else []
+        ),
     },
 }
 
@@ -460,6 +471,23 @@ UNFOLD = {
                         "icon": "tune",
                         "link": reverse_lazy("admin:users_globalsetting_changelist"),
                     },
+                    {
+                        "title": _("Kimai Settings"),
+                        "icon": "timer",
+                        "link": reverse_lazy("admin:kimai_kimaisettings_changelist"),
+                    },
+                    {
+                        "title": _("Email Settings"),
+                        "icon": "mail",
+                        "link": reverse_lazy(
+                            "admin:users_emailconfiguration_changelist"
+                        ),
+                    },
+                    {
+                        "title": _("SSO Settings"),
+                        "icon": "passkey",
+                        "link": reverse_lazy("admin:users_ssoconfiguration_changelist"),
+                    },
                 ],
             },
             {
@@ -485,6 +513,11 @@ UNFOLD = {
                         "icon": "person",
                         "link": reverse_lazy("admin:users_user_changelist"),
                     },
+                    {
+                        "title": _("Discovered Emails"),
+                        "icon": "alternate_email",
+                        "link": reverse_lazy("admin:users_taskowner_changelist"),
+                    },
                 ],
             },
             {
@@ -494,6 +527,26 @@ UNFOLD = {
                         "title": _("Tasks"),
                         "icon": "task",
                         "link": reverse_lazy("admin:users_task_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Background Jobs"),
+                "items": [
+                    {
+                        "title": _("Schedules"),
+                        "icon": "schedule",
+                        "link": reverse_lazy("admin:django_q_schedule_changelist"),
+                    },
+                    {
+                        "title": _("Successful Tasks"),
+                        "icon": "check_circle",
+                        "link": reverse_lazy("admin:django_q_success_changelist"),
+                    },
+                    {
+                        "title": _("Failed Tasks"),
+                        "icon": "error",
+                        "link": reverse_lazy("admin:django_q_failure_changelist"),
                     },
                 ],
             },

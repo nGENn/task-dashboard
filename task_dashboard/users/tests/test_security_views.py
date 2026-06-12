@@ -23,8 +23,11 @@ def test_force_refresh_view_requires_staff(client):
 
 def test_force_refresh_view_allowed_for_staff(client):
     """Verify that staff members can access force_refresh_view."""
-    # Mock the background task to avoid actually running it
-    with patch("task_dashboard.users.views.fetch_all_tasks_task") as mock_fetch:
+    # Mock background tasks to avoid connecting to the queue broker
+    with (
+        patch("task_dashboard.users.views.fetch_all_tasks_task") as mock_fetch,
+        patch("django_q.tasks.async_task"),
+    ):
         user = UserFactory.create(is_staff=True)
         client.force_login(user)
 

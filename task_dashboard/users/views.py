@@ -2,14 +2,15 @@ import datetime
 import json
 import logging
 import re
-import sys
 from typing import Any
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.core.cache import cache
 from django.core.paginator import Paginator
 from django.db.models import BooleanField
@@ -21,25 +22,31 @@ from django.db.models import Q
 from django.db.models import Value
 from django.db.models import When
 from django.db.models.expressions import RawSQL
+from django.http import HttpResponseForbidden
 from django.http import HttpResponseRedirect
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils import timezone as django_timezone
+from django.utils.translation import get_language
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 from django.views.generic import TemplateView
 from django.views.generic import UpdateView
 
+from task_dashboard.kimai.models import KimaiSettings
 from task_dashboard.users.identity import UNASSIGNED_MARKERS
-from task_dashboard.users.identity import get_identity_bridging_data
+from task_dashboard.users.identity import canonical_owner_for_label
+from task_dashboard.users.identity import compute_global_bridging
 from task_dashboard.users.identity import get_user_tokens
-from task_dashboard.users.identity import normalize_identity_string
 from task_dashboard.users.identity import post_process_task_owners
+from task_dashboard.users.identity import scoped_canonical_owners
 from task_dashboard.users.models import GlobalSetting
 from task_dashboard.users.models import SavedView
+from task_dashboard.users.models import ServiceConfiguration
 from task_dashboard.users.models import Task
+from task_dashboard.users.models import TaskOwner
 from task_dashboard.users.models import User
 from task_dashboard.users.models import compare_query_params
 from task_dashboard.users.rbac import get_rbac_q
@@ -54,6 +61,18 @@ logger = logging.getLogger(__name__)
 DEFAULT_PAGE_SIZE = 50
 PRIORITY_WEIGHTS = {"critical": 1, "high": 2, "medium": 3, "low": 4}
 DEFAULT_STATES = "open,pending"
+_MAX_WEEKDAY = 6
+
+
+def get_default_states():
+    """Default task states from GlobalSetting, falling back to DEFAULT_STATES.
+
+    The stored value can end up empty (e.g. historical admin-form bug that
+    wiped it on save), which must not be interpreted as "no state filter".
+    """
+    stored = GlobalSetting.load().default_task_states
+    states = [s.strip() for s in stored.split(",") if s.strip()]
+    return states or [s.strip() for s in DEFAULT_STATES.split(",")]
 
 
 # --- UTILITY VIEWS ---
@@ -81,9 +100,26 @@ user_update_view = UserUpdateView.as_view()
 
 
 @login_required
+@require_POST
+def update_working_days_view(request):
+    raw = request.POST.getlist("working_days")
+    working_days = sorted(
+        {int(d) for d in raw if d.isdigit() and 0 <= int(d) <= _MAX_WEEKDAY}
+    )
+    request.user.working_days = working_days
+    request.user.save(update_fields=["working_days"])
+    referer = request.headers.get("referer", "/")
+    return HttpResponseRedirect(referer)
+
+
+@login_required
 @user_passes_test(lambda u: u.is_staff)
 def force_refresh_view(request):
+    from django_q.tasks import async_task
+
     fetch_all_tasks_task()
+    async_task("task_dashboard.kimai.tasks.sync_kimai_activities")
+    async_task("task_dashboard.kimai.tasks.run_reminder_evaluation")
     messages.success(request, _("Refresh started for all services."))
     referer = request.headers.get("referer")
     if referer:
@@ -91,11 +127,132 @@ def force_refresh_view(request):
     return HttpResponseRedirect(reverse("home"))
 
 
+# --- MANAGER PANEL ---
+
+# Status categories for the manager Kimai overview, ordered by urgency
+# (lower rank sorts first / more urgent).
+_KIMAI_STATUS_NEVER_BOOKED = "never_booked"
+_KIMAI_STATUS_BEHIND = "behind"
+_KIMAI_STATUS_GRACE = "grace"
+_KIMAI_STATUS_ON_TRACK = "on_track"
+_KIMAI_STATUS_NOT_EVALUATED = "not_evaluated"
+
+_KIMAI_STATUS_RANK = {
+    _KIMAI_STATUS_NEVER_BOOKED: 0,
+    _KIMAI_STATUS_BEHIND: 1,
+    _KIMAI_STATUS_GRACE: 2,
+    _KIMAI_STATUS_ON_TRACK: 3,
+    _KIMAI_STATUS_NOT_EVALUATED: 4,
+}
+
+
+def _kimai_base_url() -> str:
+    """Return the active Kimai base URL (no trailing slash), or "" if none."""
+    config = ServiceConfiguration.objects.filter(
+        service_type="kimai", is_active=True
+    ).first()
+    if config and urlparse(config.api_url).scheme in ("http", "https"):
+        return config.api_url.rstrip("/")
+    return ""
+
+
+class ManagerKimaiView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
+    """
+    Manager overview of who is behind on Kimai time tracking.
+
+    Iterates task owners (decision 4: all owners with a Kimai account, not just
+    registered Django users). Request-time join over the per-owner reminder
+    caches the evaluation job already writes — no Kimai API calls in the request
+    path. Discovered owners (no linked Django user) are flagged here; promoting
+    them to a Django user is an admin action (see the TaskOwner admin).
+    """
+
+    template_name = "users/manager_kimai.html"
+    permission_required = "users.view_kimai_overview"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        grace_period = KimaiSettings.load().grace_period_days
+        email_map = cache.get("kimai_email_map") or {}
+
+        owners = list(
+            TaskOwner.objects.values(
+                "pk", "name", "email", "user_id", "kimai_user_id"
+            ).order_by("name", "email")
+        )
+        reminder = cache.get_many([f"kimai_reminder:owner:{o['pk']}" for o in owners])
+
+        base_url = _kimai_base_url()
+        lang = (get_language() or "en")[:2]
+
+        rows: list[dict[str, Any]] = []
+        latest_ts: str | None = None
+        for o in owners:
+            kimai_uid = o.get("kimai_user_id") or email_map.get(
+                (o["email"] or "").lower()
+            )
+            # Only owners with a Kimai account belong on the tracking overview.
+            if not kimai_uid:
+                continue
+
+            data = reminder.get(f"kimai_reminder:owner:{o['pk']}")
+            if data is None:
+                status = _KIMAI_STATUS_NOT_EVALUATED
+                days_behind = 0
+                never_booked = False
+            else:
+                never_booked = bool(data.get("never_booked"))
+                days_behind = int(data.get("days_behind", 0))
+                ts = data.get("ts")
+                if ts and (latest_ts is None or ts > latest_ts):
+                    latest_ts = ts
+                if never_booked:
+                    status = _KIMAI_STATUS_NEVER_BOOKED
+                elif days_behind > grace_period:
+                    status = _KIMAI_STATUS_BEHIND
+                elif days_behind > 0:
+                    status = _KIMAI_STATUS_GRACE
+                else:
+                    status = _KIMAI_STATUS_ON_TRACK
+
+            kimai_url = ""
+            if base_url and kimai_uid:
+                # Kimai's team/admin timesheet listing, pre-filtered to this user.
+                # The toolbar filter form binds the `users[]` GET param; viewing it
+                # requires the `view_other_timesheet` permission in Kimai.
+                kimai_url = f"{base_url}/{lang}/team/timesheet/?users[]={kimai_uid}"
+
+            rows.append(
+                {
+                    "pk": o["pk"],
+                    "name": o["name"] or o["email"],
+                    "email": o["email"],
+                    "status": status,
+                    "days_behind": days_behind,
+                    "never_booked": never_booked,
+                    "kimai_url": kimai_url,
+                    "is_discovered": o["user_id"] is None,
+                }
+            )
+
+        rows.sort(
+            key=lambda r: (_KIMAI_STATUS_RANK[str(r["status"])], -int(r["days_behind"]))
+        )
+
+        context["rows"] = rows
+        context["grace_period"] = grace_period
+        context["last_updated"] = parse_dt(latest_ts) if latest_ts else None
+        context["reminder_enabled"] = KimaiSettings.load().reminder_enabled
+        return context
+
+
+manager_kimai_view = ManagerKimaiView.as_view()
+
+
 @login_required
 def refresh_single_task_view(request, pk):
     if not Task.objects.filter(pk=pk).filter(get_rbac_q(request.user)).exists():
-        from django.http import HttpResponseForbidden
-
         return HttpResponseForbidden()
     task = get_object_or_404(Task, pk=pk)
     service_class = SERVICE_CLASSES.get(task.service.service_type)
@@ -202,13 +359,7 @@ class DashboardFilterMixin:
         if not user_tokens:
             return qs.annotate(is_owner=Value(value=False, output_field=BooleanField()))
 
-        is_test = (
-            getattr(settings, "TESTING", False)
-            or "pytest" in sys.modules
-            or not self.request.META.get("REMOTE_ADDR")
-            or "testserver" in self.request.META.get("SERVER_NAME", "")
-        )
-        if is_test:
+        if getattr(settings, "TESTING", False):
             email_tokens = [t for t in user_tokens if "@" in t]
             name_tokens = [t for t in user_tokens if "@" not in t]
             q_match = Q()
@@ -274,15 +425,7 @@ class DashboardFilterMixin:
             and perspective != "all"
             and (perspective in ["my", "open", "unassigned"] or not request.GET)
         ):
-            if perspective == "open":
-                st = ["open"]
-            else:
-                settings_obj = GlobalSetting.load()
-                st = [
-                    s.strip()
-                    for s in settings_obj.default_task_states.split(",")
-                    if s.strip()
-                ]
+            st = ["open"] if perspective == "open" else get_default_states()
 
         if st:
             qs = qs.filter(status__in=st)
@@ -375,7 +518,7 @@ class DashboardFilterMixin:
             db_field = f"-{db_field}"
         return qs.order_by(db_field, "-created_at")
 
-    def _get_filter_options(self, base_tasks, merged):
+    def _get_filter_options(self, base_tasks, token_to_canonical):
         def get_opts(qs, field):
             return sorted(qs.order_by().values_list(field, flat=True).distinct())
 
@@ -390,7 +533,15 @@ class DashboardFilterMixin:
             ),
             "owners": [
                 _("Unassigned"),
-                *sorted({g["best"] for g in merged.values()}, key=str.lower),
+                # Clustering is global, but options stay scoped to owners in the
+                # user's RBAC-filtered tasks (no leaking globally-known owners).
+                *sorted(
+                    scoped_canonical_owners(
+                        base_tasks.order_by().values("owner", "owner_email").distinct(),
+                        token_to_canonical,
+                    ),
+                    key=str.lower,
+                ),
             ],
         }
 
@@ -404,15 +555,7 @@ class DashboardFilterMixin:
 
         states = request.GET.getlist("state")
         if not states and perspective in ["my", "open", "unassigned"]:
-            if perspective == "open":
-                states = ["open"]
-            else:
-                settings_obj = GlobalSetting.load()
-                states = [
-                    s.strip()
-                    for s in settings_obj.default_task_states.split(",")
-                    if s.strip()
-                ]
+            states = ["open"] if perspective == "open" else get_default_states()
 
         return {
             "origins": request.GET.getlist("origin"),
@@ -503,13 +646,7 @@ class DashboardHTMXMixin:
 
     def _redirect_with_defaults(self, qdict):
         if not qdict.getlist("state"):
-            settings_obj = GlobalSetting.load()
-            states = (
-                getattr(settings_obj, "default_task_states", DEFAULT_STATES)
-                .strip()
-                .split(",")
-            )
-            qdict.setlist("state", [s.strip() for s in states if s.strip()])
+            qdict.setlist("state", get_default_states())
 
     def _should_redirect_to_all(self, request):
         has_search = bool(request.GET.get("q", "").strip())
@@ -528,14 +665,7 @@ class DashboardHTMXMixin:
     def _determine_perspective_from_params(self, request, my_owner):
         if not my_owner:
             return "all"
-        settings_obj = GlobalSetting.load()
-        default_states = sorted(
-            [
-                s.strip()
-                for s in settings_obj.default_task_states.split(",")
-                if s.strip()
-            ]
-        )
+        default_states = sorted(get_default_states())
         my_params = {"owner": [my_owner], "state": default_states}
         un_params = {"owner": [_("Unassigned")], "state": default_states}
         if compare_query_params(request.GET, my_params):
@@ -590,12 +720,7 @@ class DashboardView(
         has_filters = any(
             k not in ["page", "sort", "direction", "refresh"] for k in request.GET
         )
-        is_test = (
-            getattr(settings, "TESTING", False)
-            or "pytest" in sys.modules
-            or not request.META.get("REMOTE_ADDR")
-            or "testserver" in request.META.get("SERVER_NAME", "")
-        )
+        is_test = getattr(settings, "TESTING", False)
         if not is_htmx and not has_filters and not search_q and not is_test:
             context.update(
                 {
@@ -637,21 +762,28 @@ class DashboardView(
             resolved=Count("id", filter=Q(status="resolved"), distinct=True),
         )
 
-        merged, best_to_raw, token_to_canonical = get_identity_bridging_data(
-            base_tasks, user
+        # Global identity clustering — single source of truth shared with the
+        # Kimai sync, so both agree on who is the same person.
+        gb = compute_global_bridging()
+        merged, best_to_raw, token_to_canonical = (
+            gb.merged,
+            gb.best_to_raw,
+            gb.token_to_canonical,
         )
 
-        s_norm = normalize_identity_string(my_owner)
-        anchor = re.sub(r"[^a-z0-9]", "", s_norm.split("@")[0])
-        if anchor in merged:
-            my_owner = merged[anchor]["best"]
+        # Resolve the viewer's own owner label to its canonical form. Domain-aware
+        # (via the token index) — a bare local-part anchor would collide across
+        # domains now that the clustering is global (e.g. shared@a vs shared@b).
+        my_owner = canonical_owner_for_label(my_owner, token_to_canonical)
 
         if self.perspective == "home":
             view = self._determine_perspective_from_params(request, my_owner)
         context["current_view"] = view
 
         applied_filters = self._get_applied_filter_lists(request, view, my_owner)
-        context["filter_options"] = self._get_filter_options(base_tasks, merged)
+        context["filter_options"] = self._get_filter_options(
+            base_tasks, token_to_canonical
+        )
 
         display_tasks = self._apply_context_filters(
             base_tasks, request, best_to_raw, my_owner, perspective=view

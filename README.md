@@ -1,6 +1,6 @@
 # Universal Task Dashboard
 
-A high-performance aggregation engine for tracking duties across multiple platforms (Zammad, GitLab, EspoCRM, OpenProject, and Eramba).
+A high-performance aggregation engine for tracking duties across multiple platforms (Zammad, GitLab, EspoCRM, OpenProject, and Eramba), with an optional Kimai integration for pushing tasks into time tracking.
 
 For detailed configuration, service setup, Keycloak integration, and RBAC reference, see the **[full documentation](https://ngenn.github.io/task-dashboard/)**.
 
