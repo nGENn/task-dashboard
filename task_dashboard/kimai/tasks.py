@@ -37,6 +37,7 @@ from .client import KimaiClient
 from .holidays import get_public_holidays
 from .models import DEFAULT_REMINDER_EMAIL_BODY
 from .models import DEFAULT_REMINDER_EMAIL_SUBJECT
+from .models import KimaiActivityFlag
 from .models import KimaiSettings
 from .reminder import calc_days_behind
 
@@ -175,6 +176,39 @@ def _parse_activity_comment(comment: str | None) -> tuple[int, str] | None:
         return int(parts[0]), parts[1]
     except ValueError:
         return None
+
+
+def _load_activity_flags(config_id: int) -> dict[str, dict[str, Any]]:
+    """Pending-deactivation flags for a config, keyed by external_id."""
+    return {
+        f["external_id"]: dict(f)
+        for f in KimaiActivityFlag.objects.filter(config_id=config_id).values(
+            "external_id", "flagged_at", "deactivated"
+        )
+    }
+
+
+def _flag_for_deactivation(config_id: int, external_id: str, today: date) -> None:
+    """Record that a task has closed (idempotent); starts the grace clock."""
+    KimaiActivityFlag.objects.get_or_create(
+        config_id=config_id,
+        external_id=external_id,
+        defaults={"flagged_at": today},
+    )
+
+
+def _mark_flag_deactivated(config_id: int, external_id: str) -> None:
+    """Mark a flag as acted-on once its activity has been hidden in Kimai."""
+    KimaiActivityFlag.objects.filter(
+        config_id=config_id, external_id=external_id
+    ).update(deactivated=True)
+
+
+def _clear_activity_flag(config_id: int, external_id: str) -> None:
+    """Drop a flag because the task reopened (or no longer needs deactivation)."""
+    KimaiActivityFlag.objects.filter(
+        config_id=config_id, external_id=external_id
+    ).delete()
 
 
 def sync_kimai_activities_for_service(config_id: int) -> int:
@@ -368,6 +402,13 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
     # Owners are keyed by email below, so without this each variant would spawn
     # its own Kimai user + team.
     canonical_email_map = await asyncio.to_thread(_load_canonical_owner_email_map)
+
+    # Pending-deactivation flags for closed/removed tasks. A closed task's
+    # activity is kept active for `deactivation_grace_days` (so people can still
+    # book against it) before being hidden, rather than hidden on close.
+    activity_flags = await asyncio.to_thread(_load_activity_flags, config.id)
+    grace_days = settings.deactivation_grace_days
+    today = datetime.now(tz=UTC).date()
 
     # Per-owner team. Name = "Owner: {email}" — readable + unique + stable lookup.
     def _owner_team_name(email: str) -> str:
@@ -605,20 +646,52 @@ async def _sync_activities_async(  # noqa: C901, PLR0915
             }
 
             count = 0
-            # Hide activities whose source task no longer exists / is closed (V12, C13)
+            # Activities whose source task no longer exists / is closed (V12, C13).
+            # These are NOT hidden on close: the task is flagged and the activity
+            # stays active for `grace_days` so people can still book a little time
+            # after the close, then it is hidden (visible=False; never deleted).
+            # A task that reopens within the grace window clears its flag and is
+            # unhidden.
             for comment, act in activity_by_comment.items():
                 task_data = current_comments.get(comment)
-                if task_data is None or task_data.get("status") == "closed":
-                    if act.get("visible") is not False:
+                parsed = _parse_activity_comment(act.get("comment"))
+                external_id = parsed[1] if parsed else None
+                retired = task_data is None or task_data.get("status") == "closed"
+
+                if not retired:
+                    # Task is open again — drop any stale flag and unhide.
+                    if external_id is not None and external_id in activity_flags:
+                        await asyncio.to_thread(
+                            _clear_activity_flag, config.id, external_id
+                        )
+                    if act.get("visible") is False:
                         try:
-                            await client.patch_activity(act["id"], {"visible": False})
+                            await client.patch_activity(act["id"], {"visible": True})
                         except Exception:
-                            logger.exception("Failed to hide activity %d", act["id"])
-                elif act.get("visible") is False:
-                    try:
-                        await client.patch_activity(act["id"], {"visible": True})
-                    except Exception:
-                        logger.exception("Failed to unhide activity %d", act["id"])
+                            logger.exception("Failed to unhide activity %d", act["id"])
+                    continue
+
+                # Retired. Already hidden, or we can't key it → nothing to do.
+                if external_id is None or act.get("visible") is False:
+                    continue
+
+                flag = activity_flags.get(external_id)
+                if flag is None:
+                    # First sync that sees it closed — start the grace clock.
+                    await asyncio.to_thread(
+                        _flag_for_deactivation, config.id, external_id, today
+                    )
+                flagged_at = flag["flagged_at"] if flag else today
+                if (today - flagged_at).days < grace_days:
+                    continue  # still within grace — leave the activity active
+
+                try:
+                    await client.patch_activity(act["id"], {"visible": False})
+                    await asyncio.to_thread(
+                        _mark_flag_deactivated, config.id, external_id
+                    )
+                except Exception:
+                    logger.exception("Failed to hide activity %d", act["id"])
 
             # Create/update open tasks (V12: only non-closed)
             for comment, task_data in current_comments.items():
