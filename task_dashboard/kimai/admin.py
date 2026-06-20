@@ -37,7 +37,13 @@ class KimaiSettingsAdmin(SingletonModelAdmin, ModelAdmin):
         ),
         (
             _("Activity Sync"),
-            {"fields": ("sync_enabled", "sync_interval_minutes")},
+            {
+                "fields": (
+                    "sync_enabled",
+                    "sync_interval_minutes",
+                    "deactivation_grace_days",
+                )
+            },
         ),
     )
 

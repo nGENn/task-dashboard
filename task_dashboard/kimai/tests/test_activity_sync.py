@@ -1,10 +1,14 @@
 """Tests for activity sync helpers (V3, V12)."""
 
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 from unittest.mock import AsyncMock
 
 import pytest
 from asgiref.sync import async_to_sync
 
+from task_dashboard.kimai.models import KimaiActivityFlag
 from task_dashboard.kimai.models import KimaiSettings
 from task_dashboard.kimai.tasks import _activity_comment
 from task_dashboard.kimai.tasks import _activity_comment_display
@@ -196,3 +200,127 @@ def test_legacy_keyless_comment_gets_url_patched_in():
     args = client.patch_activity.await_args.args
     assert args[0] == _ACTIVITY_ID
     assert args[1]["comment"] == f"{config.id}:ZAM-1\n{_TASK_URL}"
+
+
+def _make_closed_config() -> ServiceConfiguration:
+    """A config with a single closed task (its activity is pending deactivation)."""
+    config = ServiceConfiguration.objects.create(
+        name="Zam", service_type="zammad", api_url="http://x", is_active=True
+    )
+    Task.objects.create(
+        service=config,
+        external_id="ZAM-1",
+        title="Ticket",
+        status="closed",
+        url=_TASK_URL,
+        owner_email="",
+    )
+    return config
+
+
+def _existing_visible_activity(config) -> list[dict]:
+    return [
+        {
+            "id": _ACTIVITY_ID,
+            "comment": f"{config.id}:ZAM-1\n{_TASK_URL}",
+            "name": "Ticket",
+            "visible": True,
+        }
+    ]
+
+
+def _settings(grace_days: int) -> KimaiSettings:
+    settings = KimaiSettings.load()
+    settings.deactivation_grace_days = grace_days
+    return settings
+
+
+@pytest.mark.django_db(transaction=True)
+def test_closed_task_is_flagged_not_hidden_during_grace():
+    """First sync after a close flags the task but keeps the activity active."""
+    config = _make_closed_config()
+    client = _sync_client()
+    client.get_activities.return_value = _existing_visible_activity(config)
+
+    async_to_sync(_sync_activities_async)(client, config, _settings(grace_days=14))
+
+    client.patch_activity.assert_not_awaited()
+    flag = KimaiActivityFlag.objects.get(config=config, external_id="ZAM-1")
+    assert flag.deactivated is False
+
+
+@pytest.mark.django_db(transaction=True)
+def test_closed_task_stays_active_within_grace():
+    """A flag younger than the grace period does not trigger a hide."""
+    config = _make_closed_config()
+    KimaiActivityFlag.objects.create(
+        config=config,
+        external_id="ZAM-1",
+        flagged_at=datetime.now(tz=UTC).date() - timedelta(days=5),
+    )
+    client = _sync_client()
+    client.get_activities.return_value = _existing_visible_activity(config)
+
+    async_to_sync(_sync_activities_async)(client, config, _settings(grace_days=14))
+
+    client.patch_activity.assert_not_awaited()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_closed_task_hidden_after_grace_elapsed():
+    """Once the grace period elapses the activity is hidden (not deleted)."""
+    config = _make_closed_config()
+    KimaiActivityFlag.objects.create(
+        config=config,
+        external_id="ZAM-1",
+        flagged_at=datetime.now(tz=UTC).date() - timedelta(days=14),
+    )
+    client = _sync_client()
+    client.get_activities.return_value = _existing_visible_activity(config)
+
+    async_to_sync(_sync_activities_async)(client, config, _settings(grace_days=14))
+
+    client.patch_activity.assert_awaited_once_with(_ACTIVITY_ID, {"visible": False})
+    assert (
+        KimaiActivityFlag.objects.get(config=config, external_id="ZAM-1").deactivated
+        is True
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_grace_zero_hides_immediately():
+    """Grace period of 0 restores immediate deactivation on close."""
+    config = _make_closed_config()
+    client = _sync_client()
+    client.get_activities.return_value = _existing_visible_activity(config)
+
+    async_to_sync(_sync_activities_async)(client, config, _settings(grace_days=0))
+
+    client.patch_activity.assert_awaited_once_with(_ACTIVITY_ID, {"visible": False})
+
+
+@pytest.mark.django_db(transaction=True)
+def test_reopened_task_clears_flag_and_unhides():
+    """A task that reopens within the grace window is unhidden and unflagged."""
+    config = _make_url_config()  # task is "open"
+    KimaiActivityFlag.objects.create(
+        config=config,
+        external_id="ZAM-1",
+        flagged_at=datetime.now(tz=UTC).date() - timedelta(days=3),
+    )
+    client = _sync_client()
+    client.get_activities.return_value = [
+        {
+            "id": _ACTIVITY_ID,
+            "comment": f"{config.id}:ZAM-1\n{_TASK_URL}",
+            "name": "Ticket",
+            "visible": False,
+        }
+    ]
+
+    async_to_sync(_sync_activities_async)(client, config, _settings(grace_days=14))
+
+    client.patch_activity.assert_any_await(_ACTIVITY_ID, {"visible": True})
+    assert not KimaiActivityFlag.objects.filter(
+        config=config, external_id="ZAM-1"
+    ).exists()

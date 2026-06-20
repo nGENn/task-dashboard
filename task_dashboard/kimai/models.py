@@ -58,6 +58,16 @@ class KimaiSettings(models.Model):
             "How often to sync activities to Kimai. Takes effect after saving."
         ),
     )
+    deactivation_grace_days = models.PositiveIntegerField(
+        default=14,
+        verbose_name=_("Deactivation Grace Period (days)"),
+        help_text=_(
+            "When a task closes, its Kimai activity is left active for this many "
+            "days before being deactivated (hidden, never deleted) — so people "
+            "can still book a little time after the task is closed. Set to 0 to "
+            "deactivate immediately on close."
+        ),
+    )
     reminder_enabled = models.BooleanField(
         default=True,
         verbose_name=_("Reminder Enabled"),
@@ -144,3 +154,45 @@ class KimaiSettings(models.Model):
 
     def get_exempt_email_set(self) -> set[str]:
         return {o.email.strip().lower() for o in self.exempt_owners.all() if o.email}
+
+
+class KimaiActivityFlag(models.Model):
+    """A closed/removed task whose Kimai activity is pending deactivation.
+
+    Kimai activities are not deactivated the moment their source task closes —
+    people may still need to book a little time against them. Instead the task
+    is flagged here, the activity stays active for
+    ``KimaiSettings.deactivation_grace_days``, then the sync hides it
+    (``visible=False``; we never delete in Kimai). If the task reopens before
+    the grace period elapses the flag is removed and the activity is unhidden.
+
+    Persisted (not cached) because the grace period spans weeks while every
+    Kimai cache TTL is <= 24h.
+    """
+
+    config = models.ForeignKey(
+        "users.ServiceConfiguration",
+        on_delete=models.CASCADE,
+        related_name="kimai_activity_flags",
+    )
+    external_id = models.CharField(max_length=255)
+    flagged_at = models.DateField(
+        help_text=_("Date the source task was first seen closed/removed."),
+    )
+    deactivated = models.BooleanField(
+        default=False,
+        help_text=_("Set once the grace period elapsed and the activity was hidden."),
+    )
+
+    class Meta:
+        verbose_name = _("Kimai Activity Flag")
+        verbose_name_plural = _("Kimai Activity Flags")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["config", "external_id"],
+                name="unique_kimai_activity_flag_per_task",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.config_id}:{self.external_id} (flagged {self.flagged_at})"
