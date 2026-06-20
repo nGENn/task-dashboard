@@ -162,7 +162,7 @@ dev = [
 
 [project]
 name = "task_dashboard"
-version = "0.3.1"
+version = "0.3.2"
 description = "Awesome Task Dashboard"
 readme = "README.md"
 
