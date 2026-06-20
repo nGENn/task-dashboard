@@ -142,7 +142,7 @@ check_version_bump:
     # Skip only when the MR is docs-only (rules:changes can't express "only",
     # it matches if ANY changed file matches, so we check in-script instead)
     - |
-      CHANGED_FILES=$(git diff --name-only "origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"...HEAD)
+      CHANGED_FILES=$(git diff --name-only "origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" HEAD)
       NON_DOCS=$(echo "$CHANGED_FILES" | grep -vE '^docs/|^[^/]+\.md$' || true)
       if [ -z "$NON_DOCS" ]; then
         echo "Docs-only changes detected — skipping version bump check."
