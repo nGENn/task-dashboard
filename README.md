@@ -20,6 +20,8 @@ Access is managed via **Django Groups** and mapped to discovered external servic
 - **LIMITED**: View only tasks assigned to the user OR tasks that are currently unassigned.
 - **OWN**: View only tasks explicitly assigned to the user (strict identity matching).
 
+Per-user overrides can replace group-derived levels for individual services or external groups (including `NONE` to revoke access) — configured directly on the user in the admin.
+
 ## Deploying with Docker
 
 **Prerequisites:** Docker & Docker Compose.

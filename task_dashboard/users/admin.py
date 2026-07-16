@@ -13,6 +13,7 @@ from django_q.models import Failure
 from django_q.models import Schedule
 from django_q.models import Success
 from unfold.admin import ModelAdmin
+from unfold.admin import TabularInline
 
 from .admin_site import SingletonModelAdmin
 from .admin_site import admin_site
@@ -23,10 +24,14 @@ from .models import EmailConfiguration
 from .models import ExternalGroup
 from .models import GlobalSetting
 from .models import ServiceConfiguration
+from .models import ServicePermission
 from .models import SSOConfiguration
 from .models import Task
 from .models import TaskOwner
+from .models import TaskPermission
 from .models import User
+from .models import UserServicePermission
+from .models import UserTaskPermission
 from .service_specs import build_conditional_fields
 
 if settings.DJANGO_ADMIN_FORCE_ALLAUTH:
@@ -34,10 +39,33 @@ if settings.DJANGO_ADMIN_FORCE_ALLAUTH:
     admin_site.login = secure_admin_login(admin_site.login)
 
 
+class UserTaskPermissionInline(TabularInline):
+    model = UserTaskPermission
+    extra = 1
+    autocomplete_fields = ["allowed_external_group"]
+    verbose_name_plural = _("Task permission overrides (take precedence over groups)")
+
+
+class UserServicePermissionInline(TabularInline):
+    model = UserServicePermission
+    extra = 1
+    verbose_name_plural = _(
+        "Service permission overrides (take precedence over groups)"
+    )
+
+
 @admin.register(User, site=admin_site)
 class UserAdmin(ModelAdmin, auth_admin.UserAdmin):
     form = UserAdminChangeForm
     add_form = UserAdminCreationForm
+    inlines = [UserTaskPermissionInline, UserServicePermissionInline]
+
+    def get_inline_instances(self, request, obj=None):
+        # Overrides only make sense for an existing user — hide on the add page.
+        if obj is None:
+            return []
+        return super().get_inline_instances(request, obj)
+
     fieldsets = (
         (None, {"fields": ("email", "password")}),
         (_("Personal info"), {"fields": ("name",)}),
@@ -56,7 +84,7 @@ class UserAdmin(ModelAdmin, auth_admin.UserAdmin):
         (_("Important dates"), {"fields": ("last_login", "date_joined")}),
     )
     list_display = ["email", "name", "is_superuser"]
-    search_fields = ["name"]
+    search_fields = ["name", "email"]
     ordering = ["id"]
     add_fieldsets = (
         (
@@ -154,9 +182,51 @@ class ServiceConfigurationAdmin(ModelAdmin):
     )
 
 
+class TaskPermissionInline(TabularInline):
+    model = TaskPermission
+    extra = 1
+    autocomplete_fields = ["allowed_external_group"]
+
+
+class ServicePermissionInline(TabularInline):
+    model = ServicePermission
+    extra = 1
+
+
 @admin.register(Group, site=admin_site)
 class GroupAdmin(ModelAdmin, BaseGroupAdmin):
-    pass
+    inlines = [TaskPermissionInline, ServicePermissionInline]
+
+
+@admin.register(TaskPermission, site=admin_site)
+class TaskPermissionAdmin(ModelAdmin):
+    list_display = ["django_group", "allowed_external_group", "access_level"]
+    list_filter = ["access_level", "django_group"]
+    search_fields = ["django_group__name", "allowed_external_group__name"]
+    autocomplete_fields = ["allowed_external_group"]
+
+
+@admin.register(ServicePermission, site=admin_site)
+class ServicePermissionAdmin(ModelAdmin):
+    list_display = ["django_group", "service", "access_level"]
+    list_filter = ["access_level", "django_group", "service"]
+    search_fields = ["django_group__name", "service__name"]
+
+
+@admin.register(UserTaskPermission, site=admin_site)
+class UserTaskPermissionAdmin(ModelAdmin):
+    list_display = ["user", "allowed_external_group", "access_level"]
+    list_filter = ["access_level"]
+    search_fields = ["user__email", "user__name", "allowed_external_group__name"]
+    autocomplete_fields = ["user", "allowed_external_group"]
+
+
+@admin.register(UserServicePermission, site=admin_site)
+class UserServicePermissionAdmin(ModelAdmin):
+    list_display = ["user", "service", "access_level"]
+    list_filter = ["access_level", "service"]
+    search_fields = ["user__email", "user__name", "service__name"]
+    autocomplete_fields = ["user"]
 
 
 @admin.register(ExternalGroup, site=admin_site)

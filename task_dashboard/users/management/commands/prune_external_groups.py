@@ -12,8 +12,8 @@ DEFAULT_STALE_DAYS = 90
 class Command(BaseCommand):
     help = (
         "Delete ExternalGroups not seen for N days (default 90). Groups still "
-        "referenced by a TaskPermission are always kept, so pruning never "
-        "silently removes an RBAC rule (the FK cascades)."
+        "referenced by a TaskPermission or UserTaskPermission are always kept, "
+        "so pruning never silently removes an RBAC rule (the FK cascades)."
     )
 
     def add_arguments(self, parser):
@@ -34,10 +34,12 @@ class Command(BaseCommand):
         dry_run = options["dry_run"]
         cutoff = timezone.now() - timedelta(days=days)
 
-        # exclude(taskpermission__isnull=False) keeps any group referenced by a
-        # TaskPermission — deleting one would CASCADE-delete the permission.
-        stale = ExternalGroup.objects.filter(last_seen__lt=cutoff).exclude(
-            taskpermission__isnull=False
+        # Keep any group referenced by a group- or user-level permission —
+        # deleting one would CASCADE-delete the RBAC rule.
+        stale = (
+            ExternalGroup.objects.filter(last_seen__lt=cutoff)
+            .exclude(taskpermission__isnull=False)
+            .exclude(usertaskpermission__isnull=False)
         )
         count = stale.count()
 
@@ -57,6 +59,6 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 f"Pruned {deleted} stale ExternalGroup(s) "
-                f"(older than {days}d, unreferenced by any TaskPermission)."
+                f"(older than {days}d, unreferenced by any permission)."
             )
         )

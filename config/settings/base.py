@@ -503,6 +503,32 @@ UNFOLD = {
                         "icon": "hub",
                         "link": reverse_lazy("admin:users_externalgroup_changelist"),
                     },
+                    {
+                        "title": _("Task Permissions"),
+                        "icon": "rule",
+                        "link": reverse_lazy("admin:users_taskpermission_changelist"),
+                    },
+                    {
+                        "title": _("Service Permissions"),
+                        "icon": "shield",
+                        "link": reverse_lazy(
+                            "admin:users_servicepermission_changelist"
+                        ),
+                    },
+                    {
+                        "title": _("User Task Overrides"),
+                        "icon": "person_check",
+                        "link": reverse_lazy(
+                            "admin:users_usertaskpermission_changelist"
+                        ),
+                    },
+                    {
+                        "title": _("User Service Overrides"),
+                        "icon": "shield_person",
+                        "link": reverse_lazy(
+                            "admin:users_userservicepermission_changelist"
+                        ),
+                    },
                 ],
             },
             {
