@@ -66,9 +66,7 @@ def test_keeps_stale_group_referenced_by_usertaskpermission(user):
 
     # Kept despite being stale — deleting it would CASCADE-delete the override.
     assert ExternalGroup.objects.filter(pk=referenced.pk).exists()
-    assert UserTaskPermission.objects.filter(
-        allowed_external_group=referenced
-    ).exists()
+    assert UserTaskPermission.objects.filter(allowed_external_group=referenced).exists()
 
 
 def test_dry_run_deletes_nothing():

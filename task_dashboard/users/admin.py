@@ -65,6 +65,7 @@ class UserAdmin(ModelAdmin, auth_admin.UserAdmin):
         if obj is None:
             return []
         return super().get_inline_instances(request, obj)
+
     fieldsets = (
         (None, {"fields": ("email", "password")}),
         (_("Personal info"), {"fields": ("name",)}),
