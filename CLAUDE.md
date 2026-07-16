@@ -69,7 +69,8 @@ Most business logic lives in `task_dashboard/users/` — models, views, tasks, a
 - **ServiceConfiguration** — stores external service URLs + encrypted API tokens (EncryptedCharField), toggled via `is_active`; `service_type` choices come from the `service_specs.py` registry (single source of truth — adding a service is one entry there)
 - **Task** — normalized task from any service, unique on `(service, external_id)`
 - **ExternalGroup** — auto-discovered groups from services (origin + name)
-- **TaskPermission** / **ServicePermission** — RBAC: link Django Groups → ExternalGroups / Services with access levels (FULL / LIMITED / OWN / NONE)
+- **TaskPermission** / **ServicePermission** — RBAC: link Django Groups → ExternalGroups / Services with access levels (FULL / LIMITED / OWN / NONE); group grants merge via max
+- **UserTaskPermission** / **UserServicePermission** — per-user RBAC overrides; REPLACE the group-derived level for the same ExternalGroup / Service (explicit NONE revokes group-granted access)
 - **TaskOwner** — distinct owner discovered from synced tasks (keyed by email), optionally linked to a Django user; spine for RBAC owner-matching and Kimai user provisioning
 - **GlobalSetting / EmailConfiguration / SSOConfiguration** — admin-configurable singletons (pk=1, `.load()`); SSOConfiguration overrides the `KEYCLOAK_*` env vars when enabled
 - **SavedView** — user's saved filter configurations as JSON

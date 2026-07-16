@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from task_dashboard.users.models import ExternalGroup
 from task_dashboard.users.models import TaskPermission
+from task_dashboard.users.models import UserTaskPermission
 
 pytestmark = pytest.mark.django_db
 
@@ -50,6 +51,24 @@ def test_keeps_stale_group_referenced_by_taskpermission():
     # Kept despite being stale — deleting it would CASCADE-delete the permission.
     assert ExternalGroup.objects.filter(pk=referenced.pk).exists()
     assert TaskPermission.objects.filter(allowed_external_group=referenced).exists()
+
+
+def test_keeps_stale_group_referenced_by_usertaskpermission(user):
+    referenced = ExternalGroup.objects.create(origin="Zammad", name="Guarded")
+    _age(referenced, 200)
+    UserTaskPermission.objects.create(
+        user=user,
+        allowed_external_group=referenced,
+        access_level="FULL",
+    )
+
+    call_command("prune_external_groups", days=90)
+
+    # Kept despite being stale — deleting it would CASCADE-delete the override.
+    assert ExternalGroup.objects.filter(pk=referenced.pk).exists()
+    assert UserTaskPermission.objects.filter(
+        allowed_external_group=referenced
+    ).exists()
 
 
 def test_dry_run_deletes_nothing():

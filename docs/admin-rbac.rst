@@ -20,6 +20,12 @@ Concepts
 **Task Permissions**
    Link a Django Group to a specific ExternalGroup with a fine-grained access level.
 
+**User Overrides**
+   Per-user Task/Service permission overrides, edited directly on the user in the admin.
+   An override *replaces* whatever level the user's groups would grant for the same
+   ExternalGroup or service — including ``NONE``, which revokes group-granted access.
+   Overrides also work for users with no group membership at all.
+
 Access Levels
 -------------
 
@@ -47,6 +53,18 @@ Configuring Access
 4. Under **Task Permissions**, add rows for specific ExternalGroups with finer levels.
 
 Task Permission takes precedence over Service Permission when both match.
+
+Per-User Overrides
+------------------
+
+1. Navigate to **Admin → Users**, open a user.
+2. Under **Task permission overrides** / **Service permission overrides**, add rows.
+
+Precedence rules:
+
+- Multiple *group* grants for the same target merge to the highest level.
+- A *user override* replaces the merged group level for that target entirely.
+- An explicit ``NONE`` override therefore revokes access the groups would grant.
 
 SSO Group Sync
 --------------

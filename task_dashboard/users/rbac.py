@@ -4,6 +4,8 @@ from task_dashboard.users.identity import UNASSIGNED_MARKERS
 from task_dashboard.users.identity import get_user_tokens
 from task_dashboard.users.models import ServicePermission
 from task_dashboard.users.models import TaskPermission
+from task_dashboard.users.models import UserServicePermission
+from task_dashboard.users.models import UserTaskPermission
 
 RBAC_NONE = 0
 RBAC_OWN = 1
@@ -53,6 +55,21 @@ def get_rbac_q(user) -> Q:  # noqa: C901
         service_perms[sp_item.service_id] = max(
             service_perms.get(sp_item.service_id, RBAC_NONE),
             RBAC_MAP.get(lvl, RBAC_NONE),
+        )
+
+    # Per-user overrides REPLACE the group-derived score for the same key
+    # (an explicit NONE revokes access the groups would have granted).
+    utp = UserTaskPermission.objects.filter(user=user).select_related(
+        "allowed_external_group"
+    )
+    for utp_item in utp:
+        score = RBAC_MAP.get(utp_item.access_level.upper(), RBAC_NONE)
+        group_perms[utp_item.allowed_external_group.name] = score
+        group_id_perms[utp_item.allowed_external_group.id] = score
+
+    for usp_item in UserServicePermission.objects.filter(user=user):
+        service_perms[usp_item.service_id] = RBAC_MAP.get(
+            usp_item.access_level.upper(), RBAC_NONE
         )
 
     # Build a token-aware q_for_lvl to avoid relying on annotated fields

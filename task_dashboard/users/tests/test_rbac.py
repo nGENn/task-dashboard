@@ -7,6 +7,8 @@ from task_dashboard.users.models import ServiceConfiguration
 from task_dashboard.users.models import ServicePermission
 from task_dashboard.users.models import Task
 from task_dashboard.users.models import TaskPermission
+from task_dashboard.users.models import UserServicePermission
+from task_dashboard.users.models import UserTaskPermission
 from task_dashboard.users.rbac import get_rbac_q
 
 pytestmark = pytest.mark.django_db
@@ -221,3 +223,91 @@ def test_rbac_unassigned_markers(user):
 
     q = get_rbac_q(user)
     assert Task.objects.filter(q).count() == len(UNASSIGNED_MARKERS)
+
+
+def test_user_service_permission_overrides_group(user):
+    """A per-user service override replaces the group-derived level."""
+    service = ServiceConfiguration.objects.create(
+        name="Test Service",
+        service_type="zammad",
+        is_active=True,
+        default_access_level="NONE",
+    )
+    group = Group.objects.create(name="Support")
+    user.groups.add(group)
+    ServicePermission.objects.create(
+        django_group=group, service=service, access_level="FULL"
+    )
+    # User override revokes what the group granted
+    UserServicePermission.objects.create(
+        user=user, service=service, access_level="NONE"
+    )
+
+    Task.objects.create(external_id="T1", title="Task 1", service=service)
+
+    q = get_rbac_q(user)
+    assert Task.objects.filter(q).count() == 0
+
+
+def test_user_service_permission_grants_without_group(user):
+    """A per-user service override grants access even without any group."""
+    service = ServiceConfiguration.objects.create(
+        name="Test Service",
+        service_type="zammad",
+        is_active=True,
+        default_access_level="NONE",
+    )
+    UserServicePermission.objects.create(
+        user=user, service=service, access_level="FULL"
+    )
+
+    Task.objects.create(external_id="T1", title="Task 1", service=service)
+
+    q = get_rbac_q(user)
+    assert Task.objects.filter(q).count() == 1
+
+
+def test_user_task_permission_overrides_group(user):
+    """A per-user task override replaces the group-derived level.
+
+    Group grants FULL on the external group; the user override narrows it to
+    OWN, so only the user's own task in that external group stays visible.
+    """
+    service = ServiceConfiguration.objects.create(
+        name="Test Service",
+        service_type="zammad",
+        is_active=True,
+        default_access_level="NONE",
+    )
+    ext_group = ExternalGroup.objects.create(origin=service.name, name="Critical")
+
+    group = Group.objects.create(name="Admins")
+    user.groups.add(group)
+    TaskPermission.objects.create(
+        django_group=group, allowed_external_group=ext_group, access_level="FULL"
+    )
+    UserTaskPermission.objects.create(
+        user=user, allowed_external_group=ext_group, access_level="OWN"
+    )
+
+    Task.objects.create(
+        external_id="T1",
+        title="Mine",
+        service=service,
+        group="Critical",
+        service_group=ext_group,
+        owner_email=user.email,
+    )
+    Task.objects.create(
+        external_id="T2",
+        title="Not mine",
+        service=service,
+        group="Critical",
+        service_group=ext_group,
+        owner_email="other@example.com",
+    )
+
+    q = get_rbac_q(user)
+    visible_tasks = Task.objects.filter(q)
+    assert visible_tasks.count() == 1
+    assert visible_tasks[0].external_id == "T1"

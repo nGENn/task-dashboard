@@ -679,6 +679,78 @@ class ServicePermission(models.Model):
         )
 
 
+class UserTaskPermission(models.Model):
+    """
+    Per-user override of group-derived task permissions.
+    Takes precedence over any TaskPermission for the same external group.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="task_permission_overrides",
+    )
+    allowed_external_group = models.ForeignKey(ExternalGroup, on_delete=models.CASCADE)
+    access_level = models.CharField(
+        max_length=10,
+        choices=ACCESS_LEVEL_CHOICES,
+        default="NONE",
+        help_text=_(
+            "Overrides group permissions for this external group. "
+            "FULL: View everything. LIMITED: View only unassigned tasks "
+            "or those assigned to the user. OWN: View only tasks "
+            "assigned to the user. NONE: No access."
+        ),
+    )
+
+    class Meta:
+        unique_together = ("user", "allowed_external_group")
+        verbose_name = _("User Task Permission")
+        verbose_name_plural = _("User Task Permissions")
+
+    def __str__(self):
+        return (
+            f"{self.user} -> {self.allowed_external_group} "
+            f"({self.get_access_level_display()})"
+        )
+
+
+class UserServicePermission(models.Model):
+    """
+    Per-user override of group-derived service permissions.
+    Takes precedence over any ServicePermission for the same service.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="service_permission_overrides",
+    )
+    service = models.ForeignKey(
+        ServiceConfiguration,
+        on_delete=models.CASCADE,
+    )
+    access_level = models.CharField(
+        max_length=10,
+        choices=ACCESS_LEVEL_CHOICES,
+        default="NONE",
+        help_text=_(
+            "Overrides group permissions for this service. "
+            "FULL: View everything. LIMITED: View only unassigned tasks "
+            "or those assigned to the user. OWN: View only tasks "
+            "assigned to the user. NONE: No access."
+        ),
+    )
+
+    class Meta:
+        unique_together = ("user", "service")
+        verbose_name = _("User Service Permission")
+        verbose_name_plural = _("User Service Permissions")
+
+    def __str__(self):
+        return f"{self.user} -> {self.service} ({self.get_access_level_display()})"
+
+
 def compare_query_params(request_get, target_params) -> bool:
     """
     Core logic to compare a QueryDict (request_get) with a target dict of params.
