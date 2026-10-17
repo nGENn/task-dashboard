@@ -5,7 +5,7 @@ FROM debian:bookworm-slim AS css-build-stage
 WORKDIR /app
 
 # Pin Tailwind CLI version for reproducible builds
-ARG TAILWIND_VERSION=v4.0.9
+ARG TAILWIND_VERSION=v4.3.3
 
 RUN apt-get update && apt-get install -y curl ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN ARCH=$(uname -m) && \

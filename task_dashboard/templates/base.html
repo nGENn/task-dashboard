@@ -226,25 +226,25 @@
                       {% for service in services_status %}
                         <div class="flex justify-between items-center gap-2">
                           <span class="text-sm flex items-center gap-1.5 min-w-0">
-                            {% if service.status == 'online' %}
+                            {% if service.status == "online" %}
                               <span class="w-2 h-2 rounded-full bg-success flex-shrink-0"></span>
-                            {% elif service.status == 'offline' %}
+                            {% elif service.status == "offline" %}
                               <span class="w-2 h-2 rounded-full bg-error flex-shrink-0"></span>
                             {% else %}
                               <span class="w-2 h-2 rounded-full bg-warning flex-shrink-0"></span>
                             {% endif %}
                             <span class="break-words min-w-0">{{ service.name }}</span>
                           </span>
-                          {% if service.status == 'online' or service.status == 'degraded' %}
+                          {% if service.status == "online" or service.status == "degraded" %}
                             <span class="badge {% if service.status == 'online' %}badge-success{% else %}badge-warning{% endif %} badge-sm badge-outline flex-shrink-0">{{ service.latency }}ms</span>
                           {% else %}
                             <div class="tooltip tooltip-left cursor-pointer flex-shrink-0"
                                  data-tip="{{ service.error }}">
                               <span class="badge {% if service.status == 'offline' %}badge-error{% else %}badge-warning{% endif %} badge-sm hover:scale-105 transition-transform"
                                     onclick="copyError('{{ service.error|escapejs }}')">
-                                {% if service.status == 'offline' %}
+                                {% if service.status == "offline" %}
                                   {% trans "Offline" %}
-                                {% elif service.status == 'auth_missing' %}
+                                {% elif service.status == "auth_missing" %}
                                   {% trans "Setup" %}
                                 {% else %}
                                   {% trans "Auth Error" %}

@@ -311,9 +311,9 @@
       {% with count=data.values|length %}
         <div class="badge badge-primary gap-1 pr-0 py-1 tooltip before:text-xs before:max-w-xs before:whitespace-normal order-[10]"
              data-tip="{% if key == 'state' or key == 'priority' %}{{ data.values|translate_list }}{% else %}{{ data.values|join:', ' }}{% endif %}">
-          {% if key == 'q' %}
+          {% if key == "q" %}
             {% trans "Search" %}: <span class="ml-1 font-semibold">{{ data.values.0 }}</span>
-          {% elif key == 'date_range' or key == 'updated_range' or key == 'due_range' %}
+          {% elif key == "date_range" or key == "updated_range" or key == "due_range" %}
             <svg xmlns="http://www.w3.org/2000/svg"
                  class="h-3 w-3"
                  fill="none"
@@ -342,7 +342,7 @@
     {% if active_filters_sidebar %}
       <button type="button"
               class="btn btn-ghost btn-xs text-error clear-all-link order-[20]"
-              onclick="window.clearFilters()">{% trans 'Clear all' %}</button>
+              onclick="window.clearFilters()">{% trans "Clear all" %}</button>
     {% endif %}
     <div id="filter-buttons-group"
          class="flex items-center gap-2 whitespace-nowrap ml-auto">

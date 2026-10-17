@@ -235,7 +235,7 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
             from django_q.tasks import async_task
 
             async_task("task_dashboard.kimai.tasks.sync_kimai_teams")
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.warning(
                 "Failed to dispatch Kimai team sync after SSO login", exc_info=True
             )

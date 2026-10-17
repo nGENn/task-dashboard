@@ -17,9 +17,9 @@
                    hx-swap="outerHTML"
                    hx-push-url="true">
                   <span>{% trans "Origin" %}</span>
-                  {% if current_sort == 'origin' %}
+                  {% if current_sort == "origin" %}
                     <span class="text-xs">
-                      {% if current_dir == 'asc' %}
+                      {% if current_dir == "asc" %}
                         ▲
                       {% else %}
                         ▼
@@ -38,9 +38,9 @@
                    hx-swap="outerHTML"
                    hx-push-url="true">
                   <span class="truncate">{% trans "ID" %}</span>
-                  {% if current_sort == 'id' %}
+                  {% if current_sort == "id" %}
                     <span class="text-xs">
-                      {% if current_dir == 'asc' %}
+                      {% if current_dir == "asc" %}
                         ▲
                       {% else %}
                         ▼
@@ -59,9 +59,9 @@
                    hx-swap="outerHTML"
                    hx-push-url="true">
                   <span class="truncate">{% trans "Title" %}</span>
-                  {% if current_sort == 'title' %}
+                  {% if current_sort == "title" %}
                     <span class="text-xs">
-                      {% if current_dir == 'asc' %}
+                      {% if current_dir == "asc" %}
                         ▲
                       {% else %}
                         ▼
@@ -80,9 +80,9 @@
                    hx-swap="outerHTML"
                    hx-push-url="true">
                   <span class="truncate">{% trans "Customer" %}</span>
-                  {% if current_sort == 'customer' %}
+                  {% if current_sort == "customer" %}
                     <span class="text-xs">
-                      {% if current_dir == 'asc' %}
+                      {% if current_dir == "asc" %}
                         ▲
                       {% else %}
                         ▼
@@ -101,9 +101,9 @@
                    hx-swap="outerHTML"
                    hx-push-url="true">
                   <span class="truncate">{% trans "Group" %}</span>
-                  {% if current_sort == 'group' %}
+                  {% if current_sort == "group" %}
                     <span class="text-xs">
-                      {% if current_dir == 'asc' %}
+                      {% if current_dir == "asc" %}
                         ▲
                       {% else %}
                         ▼
@@ -122,9 +122,9 @@
                    hx-swap="outerHTML"
                    hx-push-url="true">
                   <span class="truncate">{% trans "Owner" %}</span>
-                  {% if current_sort == 'owner' %}
+                  {% if current_sort == "owner" %}
                     <span class="text-xs">
-                      {% if current_dir == 'asc' %}
+                      {% if current_dir == "asc" %}
                         ▲
                       {% else %}
                         ▼
@@ -143,9 +143,9 @@
                      hx-swap="outerHTML"
                      hx-push-url="true">
                     <span class="truncate">{% trans "State" %}</span>
-                    {% if current_sort == 'status' %}
+                    {% if current_sort == "status" %}
                       <span class="text-xs">
-                        {% if current_dir == 'asc' %}
+                        {% if current_dir == "asc" %}
                           ▲
                         {% else %}
                           ▼
@@ -177,9 +177,9 @@
                      hx-swap="outerHTML"
                      hx-push-url="true">
                     <span class="truncate">{% trans "Priority" %}</span>
-                    {% if current_sort == 'priority' %}
+                    {% if current_sort == "priority" %}
                       <span class="text-xs">
-                        {% if current_dir == 'asc' %}
+                        {% if current_dir == "asc" %}
                           ▲
                         {% else %}
                           ▼
@@ -211,9 +211,9 @@
                    hx-swap="outerHTML"
                    hx-push-url="true">
                   <span class="truncate">{% trans "Created" %}</span>
-                  {% if current_sort == 'created_at' %}
+                  {% if current_sort == "created_at" %}
                     <span class="text-xs">
-                      {% if current_dir == 'asc' %}
+                      {% if current_dir == "asc" %}
                         ▲
                       {% else %}
                         ▼
@@ -231,9 +231,9 @@
                    hx-swap="outerHTML"
                    hx-push-url="true">
                   <span class="truncate">{% trans "Updated" %}</span>
-                  {% if current_sort == 'updated_at' %}
+                  {% if current_sort == "updated_at" %}
                     <span class="text-xs">
-                      {% if current_dir == 'asc' %}
+                      {% if current_dir == "asc" %}
                         ▲
                       {% else %}
                         ▼
@@ -251,9 +251,9 @@
                    hx-swap="outerHTML"
                    hx-push-url="true">
                   <span class="truncate">{% trans "Due" %}</span>
-                  {% if current_sort == 'due_date' %}
+                  {% if current_sort == "due_date" %}
                     <span class="text-xs">
-                      {% if current_dir == 'asc' %}
+                      {% if current_dir == "asc" %}
                         ▲
                       {% else %}
                         ▼
@@ -271,127 +271,127 @@
           {% include "users/partials/task_skeleton_rows.html" %}
         {% else %}
           {% cache 600 task_rows request.user.id last_sync_timestamp current_view request.GET.urlencode %}
-          {% for task in tasks %}
-            <tr class="hover cursor-pointer"
-                onclick="window.open('{{ task.url }}', '_blank')">
-              <td class="w-8 px-1">
-                <form action="{% url 'users:refresh-single-task' task.id %}"
-                      method="post"
-                      onclick="event.stopPropagation();"
-                      class="m-0 p-0 text-center">
-                  {% csrf_token %}
-                  <button type="submit"
-                          class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:text-primary tooltip tooltip-right"
-                          data-tip="{% trans 'Re-sync this task' %}">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                         fill="none"
-                         viewBox="0 0 24 24"
-                         stroke-width="2"
-                         stroke="currentColor"
-                         class="w-3.5 h-3.5">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                    </svg>
-                  </button>
-                </form>
-              </td>
-              <td class="px-1 whitespace-nowrap">
-                <span class="badge badge-ghost text-xs">{{ task.service.name }}</span>
-              </td>
-              <td class="font-mono text-sm font-bold px-1 max-w-[120px]">
-                <div class="flex items-center gap-1">
-                  <span class="truncate flex-1" title="{{ task.external_id }}">{{ task.external_id }}</span>
-                  <button type="button"
-                          class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:text-primary flex-shrink-0 tooltip"
-                          data-tip="{% trans 'Copy ID & Link' %}"
-                          onclick="event.stopPropagation(); window.copyToClipboard('{{ task.external_id }}', '{% trans "ID copied to clipboard!" %}');">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                         fill="none"
-                         viewBox="0 0 24 24"
-                         stroke-width="2"
-                         stroke="currentColor"
-                         class="w-3.5 h-3.5">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                  </button>
-                </div>
-              </td>
-              <td class="px-1 overflow-hidden">
-                <span class="block font-medium whitespace-normal break-words truncate"
-                      title="{{ task.title }}">{{ task.title }}</span>
-              </td>
-              <td class="text-sm px-1 overflow-hidden max-w-[150px]">
-                <div class="truncate" title="{{ task.customer }}">{{ task.customer }}</div>
-              </td>
-              <td class="text-sm px-1 overflow-hidden max-w-[150px]">
-                <div class="truncate" title="{{ task.group }}">{{ task.group }}</div>
-              </td>
-              <td class="text-sm px-1 min-w-[150px] max-w-[250px] align-top">
-                <div class="flex flex-wrap gap-1 items-baseline">
-                  {% for label in task.display_owner_list %}
-                    {# djlint:off H021 #}
-                    <span class="text-primary hover:underline break-all"
-                          style="overflow-wrap:anywhere">{{ label }}</span>
-                    {# djlint:on #}
-                    {% if not forloop.last %}<span class="text-base-content/60">,</span>{% endif %}
-                  {% empty %}
-                    <span class="text-base-content/40">-</span>
-                  {% endfor %}
-                </div>
-              </td>
-              <td class="px-1 w-[80px]">
-                <div class="tooltip tooltip-left"
-                     data-tip="{% trans 'Original' %}: {{ task.original_status|default:'-' }} ({{ task.service.name }})">
-                  {% if task.status == 'open' %}
-                    <span class="badge badge-warning text-xs whitespace-nowrap">{% trans "Open" %}</span>
-                  {% elif task.status == 'pending' %}
-                    <span class="badge badge-info text-xs whitespace-nowrap">{% trans "Pending" %}</span>
-                  {% elif task.status == 'resolved' or task.status == 'closed' %}
-                    <span class="badge badge-success text-xs whitespace-nowrap">
-                      {% if task.status == 'resolved' %}
-                        {% trans "Resolved" %}
-                      {% else %}
-                        {% trans "Closed" %}
-                      {% endif %}
-                    </span>
-                  {% else %}
-                    <span class="badge badge-outline text-xs whitespace-nowrap">{{ task.status|title|translate }}</span>
-                  {% endif %}
-                </div>
-              </td>
-              <td class="px-1 w-[80px]">
-                <div class="tooltip tooltip-left"
-                     data-tip="{% trans 'Original' %}: {{ task.original_priority|default:'-' }} ({{ task.service.name }})">
-                  {% if task.priority == 'Critical' %}
-                    <span class="text-error flex items-center gap-1 font-semibold text-xs whitespace-nowrap">
+            {% for task in tasks %}
+              <tr class="hover cursor-pointer"
+                  onclick="window.open('{{ task.url }}', '_blank')">
+                <td class="w-8 px-1">
+                  <form action="{% url 'users:refresh-single-task' task.id %}"
+                        method="post"
+                        onclick="event.stopPropagation();"
+                        class="m-0 p-0 text-center">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:text-primary tooltip tooltip-right"
+                            data-tip="{% trans 'Re-sync this task' %}">
                       <svg xmlns="http://www.w3.org/2000/svg"
-                           class="h-3 w-3"
-                           viewBox="0 0 20 20"
-                           fill="currentColor">
-                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                           fill="none"
+                           viewBox="0 0 24 24"
+                           stroke-width="2"
+                           stroke="currentColor"
+                           class="w-3.5 h-3.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
                       </svg>
-                      {% trans "Critical" %}
-                    </span>
-                  {% else %}
-                    <span class="text-base-content/70 text-xs whitespace-nowrap">{{ task.priority|translate }}</span>
-                  {% endif %}
-                </div>
-              </td>
-              <td class="text-xs text-base-content/70 whitespace-nowrap px-1 date-column">{{ task.created_at|dynamic_date }}</td>
-              <td class="text-xs text-base-content/70 whitespace-nowrap px-1 date-column">{{ task.updated_at|dynamic_date }}</td>
-              <td class="text-xs text-base-content/70 whitespace-nowrap px-1 pr-3 date-column">{{ task.due_date|dynamic_date }}</td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td colspan="12" class="text-center py-8 text-base-content/50 px-1">
-                {% trans "No tasks found matching your filters." %}
-              </td>
-            </tr>
-          {% endfor %}
-        {% endcache %}
-      {% endif %}
-    </tbody>
-  </table>
-</div>
+                    </button>
+                  </form>
+                </td>
+                <td class="px-1 whitespace-nowrap">
+                  <span class="badge badge-ghost text-xs">{{ task.service.name }}</span>
+                </td>
+                <td class="font-mono text-sm font-bold px-1 max-w-[120px]">
+                  <div class="flex items-center gap-1">
+                    <span class="truncate flex-1" title="{{ task.external_id }}">{{ task.external_id }}</span>
+                    <button type="button"
+                            class="btn btn-ghost btn-xs btn-circle text-base-content/50 hover:text-primary flex-shrink-0 tooltip"
+                            data-tip="{% trans 'Copy ID & Link' %}"
+                            onclick="event.stopPropagation(); window.copyToClipboard('{{ task.external_id }}', '{% trans "ID copied to clipboard!" %}');">
+                      <svg xmlns="http://www.w3.org/2000/svg"
+                           fill="none"
+                           viewBox="0 0 24 24"
+                           stroke-width="2"
+                           stroke="currentColor"
+                           class="w-3.5 h-3.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+                <td class="px-1 overflow-hidden">
+                  <span class="block font-medium whitespace-normal break-words truncate"
+                        title="{{ task.title }}">{{ task.title }}</span>
+                </td>
+                <td class="text-sm px-1 overflow-hidden max-w-[150px]">
+                  <div class="truncate" title="{{ task.customer }}">{{ task.customer }}</div>
+                </td>
+                <td class="text-sm px-1 overflow-hidden max-w-[150px]">
+                  <div class="truncate" title="{{ task.group }}">{{ task.group }}</div>
+                </td>
+                <td class="text-sm px-1 min-w-[150px] max-w-[250px] align-top">
+                  <div class="flex flex-wrap gap-1 items-baseline">
+                    {% for label in task.display_owner_list %}
+                      {# djlint:off H021 #}
+                      <span class="text-primary hover:underline break-all"
+                            style="overflow-wrap:anywhere">{{ label }}</span>
+                      {# djlint:on #}
+                      {% if not forloop.last %}<span class="text-base-content/60">,</span>{% endif %}
+                    {% empty %}
+                      <span class="text-base-content/40">-</span>
+                    {% endfor %}
+                  </div>
+                </td>
+                <td class="px-1 w-[80px]">
+                  <div class="tooltip tooltip-left"
+                       data-tip="{% trans 'Original' %}: {{ task.original_status|default:'-' }} ({{ task.service.name }})">
+                    {% if task.status == "open" %}
+                      <span class="badge badge-warning text-xs whitespace-nowrap">{% trans "Open" %}</span>
+                    {% elif task.status == "pending" %}
+                      <span class="badge badge-info text-xs whitespace-nowrap">{% trans "Pending" %}</span>
+                    {% elif task.status == "resolved" or task.status == "closed" %}
+                      <span class="badge badge-success text-xs whitespace-nowrap">
+                        {% if task.status == "resolved" %}
+                          {% trans "Resolved" %}
+                        {% else %}
+                          {% trans "Closed" %}
+                        {% endif %}
+                      </span>
+                    {% else %}
+                      <span class="badge badge-outline text-xs whitespace-nowrap">{{ task.status|title|translate }}</span>
+                    {% endif %}
+                  </div>
+                </td>
+                <td class="px-1 w-[80px]">
+                  <div class="tooltip tooltip-left"
+                       data-tip="{% trans 'Original' %}: {{ task.original_priority|default:'-' }} ({{ task.service.name }})">
+                    {% if task.priority == "Critical" %}
+                      <span class="text-error flex items-center gap-1 font-semibold text-xs whitespace-nowrap">
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                             class="h-3 w-3"
+                             viewBox="0 0 20 20"
+                             fill="currentColor">
+                          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                        {% trans "Critical" %}
+                      </span>
+                    {% else %}
+                      <span class="text-base-content/70 text-xs whitespace-nowrap">{{ task.priority|translate }}</span>
+                    {% endif %}
+                  </div>
+                </td>
+                <td class="text-xs text-base-content/70 whitespace-nowrap px-1 date-column">{{ task.created_at|dynamic_date }}</td>
+                <td class="text-xs text-base-content/70 whitespace-nowrap px-1 date-column">{{ task.updated_at|dynamic_date }}</td>
+                <td class="text-xs text-base-content/70 whitespace-nowrap px-1 pr-3 date-column">{{ task.due_date|dynamic_date }}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="12" class="text-center py-8 text-base-content/50 px-1">
+                  {% trans "No tasks found matching your filters." %}
+                </td>
+              </tr>
+            {% endfor %}
+          {% endcache %}
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
 </div>
 {# Mapping Transparency Modal #}
 <dialog id="status_mapping_modal" class="modal">

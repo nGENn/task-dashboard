@@ -31,7 +31,7 @@ def get_public_holidays(country: str, year: int) -> frozenset[date]:
         cache.set(cache_key, date_strings, timeout=CACHE_TTL)
         return frozenset(date.fromisoformat(d) for d in date_strings)
 
-    except Exception:  # noqa: BLE001
+    except Exception:
         logger.warning(
             "Failed to fetch public holidays for %s/%s", country, year, exc_info=True
         )
