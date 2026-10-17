@@ -953,7 +953,7 @@ class TestManagerKimaiView:
 
     @staticmethod
     def _make_user(**kwargs) -> User:
-        return cast(User, UserFactory(**kwargs))
+        return cast("User", UserFactory(**kwargs))
 
     @staticmethod
     def _grant(user: User) -> None:

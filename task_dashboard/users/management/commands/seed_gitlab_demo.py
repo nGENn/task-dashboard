@@ -22,7 +22,7 @@ class Command(BaseCommand):
             },
         )
         base_url = (config.api_url or "https://gitlab.com").rstrip("/")
-        token = config.api_token
+        token = config.api_token or ""
         headers = {"Private-Token": token}
         verify_ssl = getattr(settings, "GITLAB_VERIFY_SSL", True)
         client = httpx.Client(headers=headers, verify=verify_ssl, timeout=10)

@@ -20,7 +20,7 @@ class Command(BaseCommand):
             },
         )
         base_url = config.api_url.rstrip("/")
-        api_key = config.api_token
+        api_key = config.api_token or ""
         headers = {"X-Api-Key": api_key, "Content-Type": "application/json"}
         verify_ssl = getattr(settings, "ESPO_VERIFY_SSL", True)
         client = httpx.Client(headers=headers, verify=verify_ssl, timeout=10)

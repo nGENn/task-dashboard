@@ -107,7 +107,7 @@ def _get_refresh_info():
                 diff = (schedule.next_run - timezone.now()).total_seconds()
                 if diff > 0:
                     next_refresh_seconds = math.ceil(diff)
-    except Exception:  # noqa: BLE001
+    except Exception:
         # Silently fail for schedule calculation issues to avoid crashing UI.
         # We use a broad catch here because Schedule might not exist or have weird data.
         logger.debug("Failed to calculate next refresh time", exc_info=True)

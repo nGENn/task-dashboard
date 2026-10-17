@@ -85,7 +85,7 @@ pytest:
   services:
     - name: postgres:18
       alias: postgres
-    - name: valkey/valkey:8
+    - name: valkey/valkey:9.0.6
       alias: valkey
   variables:
     DATABASE_URL: "postgres://task_dashboard:password@postgres:5432/test_task_dashboard"
