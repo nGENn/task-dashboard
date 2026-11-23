@@ -114,7 +114,10 @@ services:
   # --- 4. In-Memory Store (Valkey 9) ---
   # Fork of Redis, used for task queuing (Django-Q) and caching.
   valkey:
-    image: docker.io/valkey/valkey:9.0.6
+    build:
+      context: .
+      dockerfile: ./compose/production/valkey/Dockerfile
+    image: task_dashboard_production_valkey:latest
     restart: always
     volumes:
       - production_valkey_data:/data

@@ -21,9 +21,15 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   wait-for-it \
   sudo git bash-completion nano ssh \
   curl ca-certificates \
-  && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+  && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
   && apt-get install --no-install-recommends -y nodejs \
-  && rm -rf /var/lib/apt/lists/*
+  && apt-get upgrade -y \
+  && rm -rf /var/lib/apt/lists/* \
+  # Newer npm bundles patched undici/brace-expansion
+  && npm install -g npm@12 \
+  && npm cache clean --force \
+  # Project uses uv; system pip's vendored libs carry unpatched CVEs
+  && python -m pip uninstall -y pip
 
 # Install requirements first for better caching
 RUN --mount=type=cache,target=/root/.cache/uv \
