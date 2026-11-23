@@ -184,30 +184,22 @@ build-image:
   stage: build
   # Final gate: require all quality/security checks to pass
   needs: ["pytest", "django_check", "mypy", "precommit", "bandit", "dependency_audit"]
-  # Pin client and daemon to the same known-good release; docker:latest/dind
-  # moved to 29.10.0 and its daemon never came up on our runner.
-  image: docker:29.6.1
-  services:
-    - name: docker:29.6.1-dind
-      alias: docker
+  # The shared runner runs jobs unprivileged, so Docker-in-Docker can't start
+  # (it worked until Oct 2026). Buildah builds daemonless without privileges.
+  image: quay.io/buildah/stable:v1.46.1
   variables:
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
-    # Stream dind logs into the job log so daemon failures are visible
-    CI_DEBUG_SERVICES: "true"
+    STORAGE_DRIVER: vfs
+    BUILDAH_ISOLATION: chroot
+    BUILDAH_FORMAT: docker
   script:
-    # The runner's service health check is unreliable here; wait for dockerd
-    - timeout 120 sh -c 'until docker info >/dev/null 2>&1; do sleep 2; done'
-    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+    - echo "$CI_REGISTRY_PASSWORD" | buildah login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
     - VERSION=$(grep -m 1 '^version = "' pyproject.toml | cut -d '"' -f 2)
     - 'echo "Building version: $VERSION"'
-    - docker buildx create --use --name builder
-    - docker buildx build
+    - buildah build --layers
       --tag $IMAGE:latest
       --tag $IMAGE:$VERSION
-      --push
-      --cache-from type=registry,ref=$IMAGE:buildcache
-      --cache-to type=registry,ref=$IMAGE:buildcache,mode=max
       -f ./compose/production/django/Dockerfile .
+    - buildah push $IMAGE:$VERSION
+    - buildah push $IMAGE:latest
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
