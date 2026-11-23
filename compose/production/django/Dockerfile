@@ -6,11 +6,15 @@ WORKDIR /app
 
 # Pin Tailwind CLI version for reproducible builds
 ARG TAILWIND_VERSION=v4.3.3
+# sha256 of the release binaries; update together with TAILWIND_VERSION
+ARG TAILWIND_SHA256_X64=dc61b3ac6b8c9ca874c0cc4c57b2409791a64c5540404ca5f5367360babc313a
+ARG TAILWIND_SHA256_ARM64=55fd0b241214eff3de1e8ee4f22796662f2d2e7a49bcfca7477cfd0bac398195
 
-RUN apt-get update && apt-get install -y curl ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install --no-install-recommends -y curl ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN ARCH=$(uname -m) && \
-    if [ "$ARCH" = "x86_64" ]; then TAILWIND_ARCH="x64"; elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then TAILWIND_ARCH="arm64"; else echo "Unsupported architecture: $ARCH" && exit 1; fi && \
-    curl -sLO https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_VERSION}/tailwindcss-linux-${TAILWIND_ARCH} && \
+    if [ "$ARCH" = "x86_64" ]; then TAILWIND_ARCH="x64"; TAILWIND_SHA256="$TAILWIND_SHA256_X64"; elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then TAILWIND_ARCH="arm64"; TAILWIND_SHA256="$TAILWIND_SHA256_ARM64"; else echo "Unsupported architecture: $ARCH" && exit 1; fi && \
+    curl -fsSLO https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_VERSION}/tailwindcss-linux-${TAILWIND_ARCH} && \
+    echo "${TAILWIND_SHA256}  tailwindcss-linux-${TAILWIND_ARCH}" | sha256sum -c - && \
     chmod +x tailwindcss-linux-${TAILWIND_ARCH} && \
     mv tailwindcss-linux-${TAILWIND_ARCH} /usr/local/bin/tailwindcss
 
@@ -34,6 +38,7 @@ WORKDIR ${APP_HOME}
 RUN apt-get update && apt-get install --no-install-recommends -y \
   build-essential \
   libpq-dev \
+  && apt-get upgrade -y \
   && rm -rf /var/lib/apt/lists/*
 
 # Install requirements first for better caching
@@ -63,8 +68,13 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   gettext \
   wait-for-it \
   procps \
+  && apt-get upgrade -y \
   && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
   && rm -rf /var/lib/apt/lists/*
+
+# The app runs from the uv-built .venv; drop the base image's system pip, whose
+# vendored libs (urllib3, msgpack, pkg_resources) carry unpatched CVEs.
+RUN python -m pip uninstall -y pip
 
 COPY --chown=django:django ./compose/production/django/entrypoint /entrypoint
 RUN sed -i 's/\r$//g' /entrypoint && chmod +x /entrypoint
@@ -86,14 +96,16 @@ RUN mkdir -p ${APP_HOME}/task_dashboard/media ${APP_HOME}/staticfiles && \
 ENV PATH="/app/.venv/bin:$PATH"
 
 # Run collectstatic and compilemessages during build
-# We use dummy values to satisfy Django's check without a real DB/Redis
-ENV DATABASE_URL="postgres://localhost/dummy" \
-    DJANGO_SECRET_KEY="dummy" \
-    VALKEY_URL="redis://localhost:6379/0" \
-    SENTRY_DSN="https://dummy@sentry.io/1" \
-    DJANGO_SETTINGS_MODULE="config.settings.production"
+# We use dummy values to satisfy Django's check without a real DB/Redis.
+# They are scoped to this RUN so the runtime image never falls back to a
+# known SECRET_KEY when the deployment's .env omits one.
+ENV DJANGO_SETTINGS_MODULE="config.settings.production"
 
-RUN python manage.py compilemessages && \
+RUN export DATABASE_URL="postgres://localhost/dummy" \
+           DJANGO_SECRET_KEY="dummy" \
+           VALKEY_URL="redis://localhost:6379/0" \
+           SENTRY_DSN="https://dummy@sentry.io/1" && \
+    python manage.py compilemessages && \
     python manage.py collectstatic --noinput
 
 USER django

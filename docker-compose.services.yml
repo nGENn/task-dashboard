@@ -158,7 +158,10 @@ services:
 
   # --- Kimai (Port 8001) ---
   kimai-db:
-    image: mysql:8.3
+    build:
+      context: .
+      dockerfile: ./compose/local/kimai-db/Dockerfile
+    image: task_dashboard_local_kimai_db
     volumes:
       - kimai_mysql:/var/lib/mysql
     environment:
@@ -176,7 +179,10 @@ services:
       start_period: 30s
 
   kimai:
-    image: kimai/kimai2:stable
+    build:
+      context: .
+      dockerfile: ./compose/local/kimai/Dockerfile
+    image: task_dashboard_local_kimai
     depends_on:
       kimai-db:
         condition: service_healthy
@@ -189,5 +195,5 @@ services:
     environment:
       - ADMINMAIL=admin@kimai.local
       - ADMINPASS=changemeplease
-      - "DATABASE_URL=mysql://kimaiuser:kimaipassword@kimai-db/kimai?charset=utf8mb4&serverVersion=8.3.0"
+      - "DATABASE_URL=mysql://kimaiuser:kimaipassword@kimai-db/kimai?charset=utf8mb4&serverVersion=8.4.0"
     restart: unless-stopped

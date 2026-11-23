@@ -78,8 +78,12 @@
       <!-- This file stores project-specific CSS -->
       <link href="{% static 'css/project.css' %}" rel="stylesheet" />
       <link rel="stylesheet"
-            href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
-      <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+            href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css"
+            integrity="sha384-RkASv+6KfBMW9eknReJIJ6b3UnjKOKC5bOUaNgIY778NFbQ8MtWq9Lr/khUgqtTt"
+            crossorigin="anonymous" />
+      <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"
+              integrity="sha384-5JqMv4L/Xa0hfvtF06qboNdhvuYXUku9ZrhZh3bSk8VXF0A/RuSLHpLsSV9Zqhl6"
+              crossorigin="anonymous"></script>
     {% endblock css %}
     <!-- Le javascript
     ================================================== -->
@@ -91,7 +95,9 @@
       <!-- place project specific Javascript in this file -->
       <script defer src="{% static 'js/project.js' %}"></script>
       <!-- HTMX -->
-      <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+      <script src="https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js"
+              integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2"
+              crossorigin="anonymous"></script>
       <style>
         /* Ensure stats container is visible on desktops even if Tailwind variants are missing */
         #stats-container {

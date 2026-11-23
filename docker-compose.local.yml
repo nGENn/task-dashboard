@@ -54,7 +54,10 @@ services:
       - task_dashboard_local_postgres_data_backups:/backups
 
   valkey:
-    image: valkey/valkey:9.0.6
+    build:
+      context: .
+      dockerfile: ./compose/production/valkey/Dockerfile
+    image: task_dashboard_production_valkey
     container_name: task_dashboard_valkey
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
